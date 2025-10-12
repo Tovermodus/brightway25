@@ -39,7 +39,7 @@ Official site:
 
 Online documentation:
 
-* https://25.docs.brightway.dev/
+* https://docs.brightway.dev/
 
 Development blog:
 
