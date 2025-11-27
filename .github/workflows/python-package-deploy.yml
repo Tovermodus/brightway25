@@ -6,6 +6,10 @@ name: Publish Python 🐍 distributions 📦 to PyPI and TestPyPI
 on:
   push:
     branches: [main, develop]
+    tags: '*'
+    paths-ignore:
+      # Don't re-build if we only change README.md Or CHANGES.md
+      - '**.md'
 jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to PyPI and TestPyPI
