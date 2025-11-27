@@ -18,7 +18,7 @@ jobs:
     steps:
       - run: echo "Triggered workflow with github ref $GITHUB_REF"
       - run: echo "Found tag: ${{ startsWith(github.ref, 'refs/tags') }}"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: conda-incubator/setup-miniconda@v3
