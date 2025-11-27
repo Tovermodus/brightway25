@@ -4,7 +4,6 @@
 ---
 {% set version_match = load_file_regex(load_file="brightway25/__init__.py", 
 regex_pattern='(?:.*)__version__ = "(.+)"') %}
-
 {% set version = version_match[1] %}
 
 
@@ -13,29 +12,30 @@ package:
         version: {{ version }}
 
 source:
-        path: ../
+        git_url: ../
 
 requirements:
         build:
                 - python
                 - setuptools
         run:
-                - bw2calc >= 2.0.1
-                - bw2data >= 4.4.2
-                - bw2io >= 0.9.6
-                - bw2parameters >= 1.1.0
-                - bw_migrations >= 0.2
-                - bw_processing >= 1.0
-                - bw_simapro_csv >= 0.4
-                - ecoinvent_interface >= 3.1
-                - matrix_utils >= 0.6
-                - mrio_common_metadata >= 0.2.1
-                - multifunctional >= 1.0
-                - numpy < 2
+                - bw2calc >=2.0.1
+                - bw2data >=4.4.2
+                - bw2io >=0.9.6
+                - bw2parameters >=1.1.0
+                - bw_migrations >=0.2
+                - bw_processing >=1.0
+                - bw_simapro_csv >=0.4
+                - ecoinvent_interface >=3.1
+                - matrix_utils >=0.6
+                - mrio_common_metadata >=0.2.1
+                - multifunctional >=1.0
+                - numpy <2
                 - python >=3.9
-                - randonneur >= 0.6.1
-                - randonneur_data >= 0.5.5
-                - stats_arrays >= 0.7
+                - randonneur >=0.6.1
+                - randonneur_data >=0.5.5
+                - scipy
+                - stats_arrays >=0.7
 
 about:
         home: https://github.com/brightway-lca/brightway25

@@ -12,6 +12,8 @@ maintainers = [
 ]
 description = "A wrapper library for documentation and easy installation of Brightway 2.5"
 readme = "README.md"
+license-files = ["LICENSE"]
+license = "BSD-3-Clause"
 dynamic = ["version"]
 # Add here all kinds of additional classifiers as defined under
 # https://pypi.org/classifiers/
@@ -74,7 +76,6 @@ dev = [
 ]
 
 [tool.setuptools]
-license-files = ["LICENSE"]
 include-package-data = true
 packages = ["brightway25"]
 
