@@ -119,7 +119,15 @@ def is_importable(package: str) -> bool:
 
 def generate(package: str) -> bool:
     out_dir = API_DIR / package
-    cmd = [sys.executable, "-m", "pdoc", package, "-o", str(out_dir)]
+    # docformat=google: most docstrings across this stack are either plain
+    # prose or Google-style ("Args:"/"Returns:"), with a minority of
+    # numpy-style ("Parameters\n----------") outliers (e.g. some of
+    # bw2calc.LCA's methods). pdoc has no mixed-style auto-detection and the
+    # packages are reinstalled from PyPI on every fresh .venv (so we can't
+    # add per-module `__docformat__` markers upstream) — "google" renders the
+    # majority correctly and degrades the numpy-style minority to plain text
+    # instead of mis-parsing it, which is the safer default of the two.
+    cmd = [sys.executable, "-m", "pdoc", package, "-o", str(out_dir), "-d", "google"]
     print(f"  pdoc {package} -> {out_dir.relative_to(REPO_ROOT)}")
     result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
     if result.returncode != 0:
@@ -127,6 +135,45 @@ def generate(package: str) -> bool:
         return False
     inject_backlinks(out_dir, package)
     return True
+
+
+def docstring_coverage(package: str) -> tuple[int, int]:
+    """Return (documented, total) counts of public members with a docstring.
+
+    A quick, approximate signal for "which modules need docstring love" —
+    printed as a per-package summary so a maintainer scanning the build log
+    can see where the generated API reference is thin, without having to
+    click through every page. Best-effort: any introspection failure just
+    yields (0, 0) for that package rather than failing the whole build.
+    """
+    try:
+        import pdoc.doc
+
+        mod = pdoc.doc.Module.from_name(package)
+    except Exception:  # noqa: BLE001 - coverage is a bonus signal, not a gate
+        return (0, 0)
+
+    documented = total = 0
+    seen: set[int] = set()
+
+    def walk(node) -> None:
+        nonlocal documented, total
+        if id(node) in seen:
+            return
+        seen.add(id(node))
+        for member in node.own_members:
+            if member.name.startswith("_") and member.name != "__init__":
+                continue
+            total += 1
+            if member.docstring.strip():
+                documented += 1
+            if hasattr(member, "own_members"):
+                walk(member)
+        for submodule in getattr(node, "submodules", []):
+            walk(submodule)
+
+    walk(mod)
+    return (documented, total)
 
 
 def main() -> int:
@@ -139,15 +186,27 @@ def main() -> int:
     API_DIR.mkdir(parents=True, exist_ok=True)
 
     ok, failed = [], []
+    coverage: dict[str, tuple[int, int]] = {}
     for package in packages:
         if not is_importable(package):
             failed.append(package)
             continue
-        (ok if generate(package) else failed).append(package)
+        if generate(package):
+            ok.append(package)
+            coverage[package] = docstring_coverage(package)
+        else:
+            failed.append(package)
 
     print(f"\nDone: {len(ok)} generated, {len(failed)} skipped/failed.")
     if failed:
         print(f"Skipped/failed: {', '.join(failed)}")
+
+    if coverage:
+        print("\nDocstring coverage (public members with a non-empty docstring):")
+        for package, (documented, total) in sorted(coverage.items()):
+            pct = f"{100 * documented / total:.0f}%" if total else "n/a"
+            print(f"  {package:24s} {documented:4d}/{total:<4d} ({pct})")
+
     # A partial run (e.g. one package failing to import) shouldn't fail CI —
     # the handwritten map pages are more important than 100% API coverage.
     return 0
