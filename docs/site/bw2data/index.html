@@ -26,6 +26,19 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <
 <a class="api-link" href="../api/bw2data/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw2data</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
+<h2>Examples</h2>
+<p>Six runnable scripts, with real captured output, live on the site-wide
+<a href="../examples/index.html#bw2data"><b>Examples</b> page</a> — creating an empty
+<a href="#Database">database</a> (<a href="../examples/index.html#ex1">1</a>), bulk
+<code>write()</code> (<a href="../examples/index.html#ex2">2</a>), activity lookup via
+<a href="#get_node">get_node</a> (<a href="../examples/index.html#ex3">3</a>),
+<a href="#Searcher">search</a>/filter (<a href="../examples/index.html#ex4">4</a>), a full
+biosphere-flow + <a href="#Method">Method</a> + <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a>
+round trip (<a href="../examples/index.html#ex5">5</a>), and
+<a href="#node-types">chimaera vs. non-chimaera node types</a>
+(<a href="../examples/index.html#ex6">6</a>). A slower-paced walkthrough of the first one is also
+available as <a href="../tutorials/create-empty-database.html">its own tutorial</a>.</p>
+
 <h2>Key files</h2>
 <table>
 <tr><th>File</th><th>Role</th></tr>
@@ -64,51 +77,66 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <
 <h2>Main classes / entry points</h2>
 <p>From <code>__init__.py</code> <code>__all__</code> (imports flattened to <code>bw2data</code>/<code>bd</code> top level):</p>
 <div class="grid">
-  <div class="card"><a class="name">Database</a><p>= <code>DatabaseChooser</code>. Factory: <code>bd.Database("name")</code> returns a <code>SQLiteBackend</code> instance.</p></div>
-  <div class="card"><a class="name">Node / Edge</a><p>Aliases for <code>backends.proxies.Activity</code> / <code>Exchange</code>.</p></div>
-  <div class="card"><a class="name">Method</a><p><code>ImpactAssessmentDataStore</code> subclass — an LCIA method.</p></div>
-  <div class="card"><a class="name">Weighting / Normalization</a><p>Same storage pattern as <code>Method</code>, for LCIA weighting/normalization data.</p></div>
-  <div class="card"><a class="name">projects</a><p><code>ProjectManager</code> singleton — create/switch/delete projects.</p></div>
-  <div class="card"><a class="name">databases / methods / geomapping / normalizations / weightings / preferences / calculation_setups</a><p><code>meta.py</code> metadata registry singletons.</p></div>
-  <div class="card"><a class="name">parameters</a><p><code>ParameterManager</code> singleton for formula-driven exchanges.</p></div>
-  <div class="card"><a class="name">Searcher / IndexManager</a><p>Whoosh full-text search over activities.</p></div>
-  <div class="card"><a class="name">get_node / get_activity</a><p>Look up a single <code>Activity</code> by key/id/kwargs.</p></div>
-  <div class="card"><a class="name">get_id</a><p>Resolve an activity key to its integer database id.</p></div>
-  <div class="card"><a class="name">config / labels</a><p>Global configuration object and label constants.</p></div>
-  <div class="card"><a class="name">prepare_lca_inputs / get_multilca_data_objs</a><p>Build the datapackage objects <code>bw2calc.LCA</code> expects.</p></div>
+  <div class="card"><a class="name" id="Database" href="#Database">Database</a><p>= <code>DatabaseChooser</code>. Factory: <code>bd.Database("name")</code> returns a <code>SQLiteBackend</code> instance. Used in <a href="../examples/index.html#ex1">Example 1</a>, <a href="../examples/index.html#ex2">2</a>, <a href="../examples/index.html#ex4">4</a> and <a href="../examples/index.html#ex5">5</a>.</p></div>
+  <div class="card"><a class="name" id="NodeEdge" href="#NodeEdge">Node / Edge</a><p>Aliases for <code>backends.proxies.Activity</code> / <code>Exchange</code> — see <code>new_activity</code>/<code>save</code> used throughout the <a href="../examples/index.html">Examples</a>.</p></div>
+  <div class="card"><a class="name" id="Method" href="#Method">Method</a><p><code>ImpactAssessmentDataStore</code> subclass — an LCIA method. Used with <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> in <a href="../examples/index.html#ex5">Example 5</a>.</p></div>
+  <div class="card"><a class="name" id="WeightingNormalization" href="#WeightingNormalization">Weighting / Normalization</a><p>Same storage pattern as <a href="#Method">Method</a>, for LCIA weighting/normalization data.</p></div>
+  <div class="card"><a class="name" id="projects" href="#projects">projects</a><p><code>ProjectManager</code> singleton — create/switch/delete projects. <code>set_current()</code> opens every <a href="../examples/index.html">example</a>.</p></div>
+  <div class="card"><a class="name" id="databases" href="#databases">databases / methods / geomapping / normalizations / weightings / preferences / calculation_setups</a><p><code>meta.py</code> metadata registry singletons.</p></div>
+  <div class="card"><a class="name" id="parameters" href="#parameters">parameters</a><p><code>ParameterManager</code> singleton for formula-driven exchanges — see <code>bw2parameters</code>.</p></div>
+  <div class="card"><a class="name" id="Searcher" href="#Searcher">Searcher / IndexManager</a><p>Whoosh full-text search over activities, exposed as <code>Database.search()</code> in <a href="../examples/index.html#ex4">Example 4</a>.</p></div>
+  <div class="card"><a class="name" id="get_node" href="#get_node">get_node / get_activity</a><p>Look up a single <code>Activity</code> by key/id/kwargs. Used in <a href="../examples/index.html#ex3">Example 3</a>.</p></div>
+  <div class="card"><a class="name" id="get_id" href="#get_id">get_id</a><p>Resolve an activity key to its integer database id.</p></div>
+  <div class="card"><a class="name" id="config" href="#config">config / labels</a><p>Global configuration object and label constants.</p></div>
+  <div class="card"><a class="name" id="prepare_lca_inputs" href="#prepare_lca_inputs">prepare_lca_inputs / get_multilca_data_objs</a><p>Build the datapackage objects <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> expects.</p></div>
 </div>
 
-<h2>Typical usage</h2>
-<pre><code>import bw2data as bd
-
-# select / create a project (isolated SQLite DB + data dir)
-bd.projects.set_current("my-project")
-
-# create or open a database of activities
-db = bd.Database("my-db")
-db.register()
-
-db.write({
-    ("my-db", "act-1"): {
-        "name": "steel production",
-        "unit": "kilogram",
-        "exchanges": [
-            {"input": ("my-db", "act-1"), "amount": 1, "type": "production"},
-        ],
-    },
-})
-
-# look up and inspect an activity
-activity = bd.get_node(database="my-db", name="steel production")
-for exc in activity.exchanges():
-    print(exc.input, exc.amount, exc["type"])
-
-# hand off to bw2calc: writing/saving a Database automatically
-# triggers .process(), which writes a bw_processing datapackage
-# that bw2calc.LCA can load directly.
-</code></pre>
-
 <h2>Where to look</h2>
+
+<h3 id="node-types">What's the difference between a "process", a "product", and a "chimaera" node?</h3>
+<p>
+Verified in <code>configuration.py</code> (<code>MatrixLabels</code>) and <code>utils.py</code>
+<code>set_correct_process_type()</code>. There are three LCI node <code>type</code> values
+(<code>labels.lci_node_types</code>):
+</p>
+<ul>
+<li><code>"process"</code> (<code>labels.process_node_default</code>) — a pure process node with
+no product data of its own. It links to a separate <code>"product"</code> node via a production
+edge (<code>type="production"</code>) whose <code>input</code> points at that other node.</li>
+<li><code>"product"</code> (<code>labels.product_node_default</code>) — a pure reference-product
+node: holds the product's own name/unit/categories/properties, separate from the process that
+makes it.</li>
+<li><code>"processwithreferenceproduct"</code> (<code>labels.chimaera_node_default</code>,
+informally called a <b>chimaera</b> node in the code and docstrings) — a single node that carries
+<b>both</b> the process data and the reference product data together. Its production exchange is
+self-referential: <code>input</code> equals the node's own <code>(database, code)</code> key.
+Every example on the <a href="../examples/index.html">Examples page</a> that gives an activity a
+self-referencing production exchange (e.g. <code>steel.new_exchange(input=steel.key, ...,
+type="production")</code>, as in <a href="../examples/index.html#ex1">Example 1</a> and
+<a href="../examples/index.html#ex5">Example 5</a>) is building a chimaera-shaped node — the
+product's name, unit and other properties just live directly on that one node, and both the
+process's and the reference product's information turn up together when you look it up or search
+for it. <a href="../examples/index.html#ex6">Example 6</a> builds the same inventory both ways,
+side by side, and prints the resulting <code>type</code> of each node.</li>
+</ul>
+<p>
+<code>Database.write()</code> (<code>backends/base.py:675</code>) auto-classifies datasets via
+<code>utils.py</code> <code>set_correct_process_type()</code> (<code>utils.py:420</code>): a
+dataset with an explicit self-referencing exchange, or with no explicit production edge at all
+(implicit self-production), is set to the chimaera type
+(<code>labels.chimaera_node_default</code>, line ~436/446). This auto-classification only runs
+through bulk <code>write()</code> — activities built one-by-one via <code>new_activity()</code> /
+<code>.save()</code> (as in the Examples page) keep whatever <code>type</code> you pass, or none,
+unless you set it yourself.
+</p>
+<p>
+On the import side, <code>bw2io.strategies.products</code>
+<code>separate_processes_from_products()</code> does the reverse: given chimaera/process
+datasets, it splits each into a separate <code>process</code> node and a new <code>product</code>
+node (using the <code>"reference product"</code> field for the product's name if present), and
+relinks the production edge between them. See <a href="../bw2io/index.html">the bw2io module
+map</a>.
+</p>
 
 <h3>How is an activity stored on disk?</h3>
 <p><code>backends/schema.py</code> (<code>ActivityDataset</code>, <code>ExchangeDataset</code> peewee models — the SQL table schema) together with <code>backends/proxies.py</code> (<code>Activity.__getitem__</code> / <code>.save()</code> for the in-memory proxy view).</p>

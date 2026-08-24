@@ -1,5 +1,17 @@
 # brightway25 — root map
 
+## ALWAYS READ THE CODE
+
+For any question about how a Brightway module actually behaves, **read the
+installed source** under `.venv/lib/python3.11/site-packages/<package>/`
+(see "Module map" below) — do not answer from memory, general LCA knowledge,
+or internet/upstream documentation. Upstream docs, blog posts, and Stack
+Overflow answers for this ecosystem are frequently outdated and describe
+behavior that has since changed; the only exception is using the internet to
+look up a *bug* (e.g. a known issue/traceback in an installed package's
+GitHub issue tracker), never to learn how an API is supposed to work. If the
+`.venv` isn't set up yet, create it first (see below) rather than guessing.
+
 ## What this repo actually is
 
 `brightway25` (this repo) is **only a meta-package**. `brightway25/__init__.py`

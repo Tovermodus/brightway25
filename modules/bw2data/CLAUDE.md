@@ -56,6 +56,81 @@ Typical usage seen across the ecosystem: `import bw2data as bd`, then
 `bd.projects.set_current("name")`, `bd.Database("name")`,
 `activity = bd.get_node(...)`, `activity.exchanges()`.
 
+## Creating an empty database and filling it yourself
+
+Verified against the installed source (`backends/base.py`, `backends/proxies.py`):
+
+```python
+import bw2data as bd
+
+bd.projects.set_current("my_project")   # projects are created on first use
+
+db = bd.Database("example_db")
+db.register()                            # required before writing; also auto-writes {} (write_empty=True)
+
+activity = db.new_activity(code="steel_production", name="steel production", unit="kilogram", location="GLO")
+activity.save()                           # new_activity()/new_node() return an in-memory proxy — nothing
+                                           # persists until .save() is called
+activity.new_exchange(input=activity.key, amount=1, type="production").save()
+```
+
+- `Database(name)` (`database.py` `DatabaseChooser`) just returns a `SQLiteBackend` handle — it
+  writes nothing.
+- `SQLiteBackend.register()` (`backends/base.py:381`) registers the name in the `databases` meta
+  store and, by default (`write_empty=True`), calls `self.write({}, searchable=False,
+  signal=False)` — so a freshly registered database is already empty-but-processed (has a valid,
+  loadable `bw_processing` datapackage).
+- `SQLiteBackend.new_activity`/`new_node` (`backends/base.py:774`) build an `Activity` proxy
+  (`backends/proxies.py:205`) that must be `.save()`d to persist.
+- `Activity.new_exchange`/`new_edge` (`backends/proxies.py:529`) build an `Exchange` proxy with
+  `output` pre-set to the activity's key; also needs `.save()`.
+- For bulk loading (all data already assembled as a dict), skip the per-activity dance and call
+  `db.write({(db_name, code): {...}, ...})` directly — this is the path `bw2io` importers use; it
+  replaces the database's entire contents in one call.
+- Full step-by-step walkthrough with a worked example: `docs/site/tutorials/create-empty-database.html`.
+- `docs/site/bw2data/index.html` now leads with an **Examples** section (before the reference
+  tables) covering: creating an empty database, bulk `write()`, activity lookup, search/filter,
+  and a full biosphere-flow + `Method` + `bw2calc.LCA` round trip — all verified by running them
+  against the installed source.
+
+## Node types: process / product / chimaera
+
+Verified in `configuration.py` (`MatrixLabels`) and `utils.py`
+`set_correct_process_type()`. Three LCI node `type` values
+(`labels.lci_node_types`):
+
+- **`"process"`** (`labels.process_node_default`) — pure process node, no
+  product data of its own; links to a separate `"product"` node via a
+  production edge (`type="production"`).
+- **`"product"`** (`labels.product_node_default`) — pure reference-product
+  node: name/unit/categories/properties of the product, separate from the
+  process that makes it.
+- **`"processwithreferenceproduct"`** (`labels.chimaera_node_default`,
+  informally a **chimaera** node in the code/docstrings) — one node carries
+  *both* the process and its reference product together, via a
+  self-referencing production edge (`input == (database, code)` of the node
+  itself). Both process data and reference-product data (name, unit, …)
+  come back together from a single lookup or search hit on that node.
+
+`Database.write()` (`backends/base.py:675`) auto-classifies every dataset
+via `set_correct_process_type()` (`utils.py:420`): an explicit
+self-referencing exchange, or no explicit production edge at all (implicit
+self-production), sets `type` to the chimaera default (`utils.py:436`,
+`:446`). This auto-classification runs **only** through bulk `write()` —
+activities built one at a time via `new_activity()`/`.save()` keep whatever
+`type` you passed (or none) unless you set it explicitly, so the
+Examples-page activities with a self-referencing production exchange are
+chimaera-*shaped* but not auto-labeled as such unless written via `write()`.
+
+The reverse split — chimaera/process → separate process + product nodes —
+is `bw2io.strategies.products.separate_processes_from_products()`; see
+`modules/bw2io/CLAUDE.md`.
+
+`docs/site/examples/index.html#ex6` builds the same steel-production inventory both ways side by
+side (via one `write()` call) and prints the resulting `type` of each node — verified output:
+`steel-chimaera` → `processwithreferenceproduct`, `steel-process` → `process`, `steel-product` →
+`product`.
+
 ## Where to look for common questions
 
 - "How is an activity stored on disk?" → `backends/schema.py` (SQL schema) +

@@ -43,7 +43,7 @@ SITE_DIR = REPO_ROOT / "docs" / "site"
 API_DIR = SITE_DIR / "api"
 
 # Directories under docs/site/ that are not package map pages.
-NON_PACKAGE_DIRS = {"assets", "api"}
+NON_PACKAGE_DIRS = {"assets", "api", "examples", "tutorials"}
 
 
 def discover_packages() -> list[str]:

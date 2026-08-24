@@ -53,7 +53,7 @@
   <h2>Main classes / entry points</h2>
   <p>Everything below is re-exported from <code>bw2calc</code> top-level (see <code>__init__.py</code> <code>__all__</code>):</p>
   <div class="grid">
-    <div class="card"><a class="name" href="#">LCA</a><p>lca.py — standard sparse LCA. The default, most-used entry point.</p></div>
+    <div class="card"><a class="name" id="LCA" href="#LCA">LCA</a><p>lca.py — standard sparse LCA. The default, most-used entry point. Used together with <a href="../bw2data/index.html#Method">bw2data.Method</a> in the <a href="../examples/index.html#ex5">full LCA example</a>.</p></div>
     <div class="card"><a class="name" href="#">DenseLCA</a><p>dense_lca.py — dense-matrix variant for small/debug cases.</p></div>
     <div class="card"><a class="name" href="#">CachingLCA</a><p>caching_lca.py — reuses factorized solver across calls.</p></div>
     <div class="card"><a class="name" href="#">IterativeLCA</a><p>iterative_lca.py — iterative technosphere solver.</p></div>
@@ -66,6 +66,9 @@
   </div>
 
   <h2>Typical usage</h2>
+  <p>A runnable, verified version of this pattern — with a real biosphere flow, a registered
+  <a href="../bw2data/index.html#Method">Method</a>, and captured output — is
+  <a href="../examples/index.html#ex5">Example 5 on the Examples page</a>.</p>
   <pre><code>import bw2data as bd
 import bw2calc as bc
 
