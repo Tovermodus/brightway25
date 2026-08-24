@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: allocate a multifunctional process — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../multifunctional/index.html">multifunctional</a> · <a href="../bw2data/index.html">bw2data</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: allocate a multifunctional (co-product) process</h1>
+<p class="tagline">
+Build a process with two functional co-products on one <code>multifunctional</code>-backend
+<code>bw2data</code> database, give each co-product a numeric allocation property, split the
+process into single-output "allocated" processes, and inspect the resulting allocation factors.
+</p>
+
+<blockquote>
+Everything here uses the real installed <code>multifunctional</code> API
+(<code>.venv/lib/python3.11/site-packages/multifunctional/</code>, version <code>1.1.1</code>),
+verified by running it. See <a href="../multifunctional/index.html">the multifunctional module
+map</a> for the full picture, and
+<a href="../tutorials/create-empty-database.html">the empty-database tutorial</a> for the plain
+<code>bw2data</code> basics this builds on.
+</blockquote>
+
+<h2>1. Create a database with the <code>multifunctional</code> backend</h2>
+<p>
+A normal <code>bd.Database(name)</code> uses the default SQLite backend, which requires a square
+technosphere matrix — one product per process. Passing <code>backend="multifunctional"</code>
+routes the database through <code>MultifunctionalDatabase</code> (<code>database.py</code> in
+the installed package), which is registered into
+<code>bw2data.subclass_mapping.DATABASE_BACKEND_MAPPING["multifunctional"]</code> at import time
+(see <a href="../multifunctional/index.html">the module map</a>'s first Q&amp;A entry). We also
+set a database-wide <code>default_allocation</code> strategy here, since
+<code>MaybeMultifunctionalProcess.allocate()</code> falls back to it whenever a process doesn't
+name its own strategy:
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("mf_tutorial")
+
+db = bd.Database("meat_and_leather", backend="multifunctional")
+db.register(default_allocation="mass")</code></pre>
+<p>
+<code>register(**kwargs)</code> (<code>bw2data/data_store.py</code> <code>DataStore.register()</code>)
+stores whatever keyword arguments you pass into the database's metadata dict, which is exactly
+where <code>MaybeMultifunctionalProcess.allocate()</code> looks
+(<code>node_classes.py</code> line ~62: <code>databases[self["database"]].get("default_allocation")</code>).
+</p>
+
+<h2>2. Add ordinary, single-output supporting activities</h2>
+<p>
+Nothing about upstream/downstream activities needs to change — they're plain
+<code>process</code> nodes with a normal self-referencing production exchange, exactly like
+<a href="../tutorials/create-empty-database.html">the empty-database tutorial</a>:
+</p>
+<pre><code>feed = db.new_activity(code="feed", name="cattle feed production", unit="kilogram", location="GLO", type="process")
+feed.save()
+feed.new_exchange(input=feed.key, amount=1, type="production").save()</code></pre>
+
+<h2>3. Create separate product nodes for each co-product</h2>
+<p>
+A multifunctional process's functional exchanges should link to distinct <b>product</b> nodes,
+not to the process itself — that's what lets <code>generic_allocation()</code>
+(<code>allocation.py</code> lines 21-157) recover a real product name/unit for each split-off
+process. If a functional edge's <code>input</code> already resolves to a known node,
+<code>generic_allocation()</code> takes the "manual input product" branch (line ~89) and reads
+<code>reference product</code>/<code>unit</code> straight off it (line ~139); if you instead
+self-reference the multifunctional process (as a single-output activity would), it falls
+into the same branch but resolves the product to the *parent* process itself, which is not what
+you want for a genuine co-product:
+</p>
+<pre><code>beef_product = db.new_node(code="beef", name="beef", unit="kilogram", location="GLO", type="product")
+beef_product.save()
+hide_product = db.new_node(code="hide", name="hide", unit="kilogram", location="GLO", type="product")
+hide_product.save()</code></pre>
+
+<h2>4. Create the multifunctional process with two functional exchanges</h2>
+<p>
+A node becomes multifunctional purely by having more than one exchange with
+<code>functional=True</code> — see <code>BaseMultifunctionalNode.multifunctional</code>
+(<code>node_classes.py</code> line ~26), which is <code>len(list(self.functional_edges())) &gt; 1</code>.
+Each functional exchange also carries a <code>properties</code> dict with the numeric values the
+allocation strategies read (a <code>mass</code> value and a <code>price</code> value per
+co-product, here). Because the built-in <code>"mass"</code>/<code>"price"</code> strategies
+<em>multiply the edge amount by the property</em> (see step 6), and our exchange amounts are
+already in kilograms, we set <code>mass=1.0</code> for both — the property represents "mass per
+unit of the exchange's own unit", not an independent total mass:
+</p>
+<pre><code>cow = db.new_activity(code="cow_slaughter", name="cow slaughter", unit="cow", location="GLO", type="multifunctional")
+cow.save()
+
+cow.new_exchange(
+    input=beef_product.key, amount=120, type="production", functional=True,
+    name="beef", unit="kilogram", properties={"mass": 1.0, "price": 8.0},
+).save()
+cow.new_exchange(
+    input=hide_product.key, amount=30, type="production", functional=True,
+    name="hide", unit="kilogram", properties={"mass": 1.0, "price": 1.5},
+).save()
+cow.new_exchange(input=feed.key, amount=200, type="technosphere", name="cattle feed", unit="kilogram").save()
+
+print(cow.multifunctional)                       # True
+print([e["name"] for e in cow.functional_edges()])  # ['beef', 'hide']</code></pre>
+<pre class="output"><code>True
+['beef', 'hide']</code></pre>
+<p>
+Setting <code>type="multifunctional"</code> explicitly here is just for readability — in real
+usage you'd typically leave <code>type</code> unset and let
+<code>MaybeMultifunctionalProcess.save()</code> call <code>utils.set_correct_process_type()</code>
+to compute it for you from the exchange data every time you save.
+</p>
+
+<h2>5. Run allocation</h2>
+<p>
+<code>MaybeMultifunctionalProcess.allocate()</code> (<code>node_classes.py</code> lines ~46-79) is
+the entry point. With no strategy label given it resolves one from the process's own
+<code>default_allocation</code>, else the database's (the <code>"mass"</code> we set in step 1),
+looks it up in <code>allocation_strategies</code>, and calls it on <code>self</code>. That
+dispatches to <code>generic_allocation()</code> (<code>allocation.py</code>), which computes one
+allocation factor per functional edge, builds a full single-output process dict per co-product
+(functional edge kept + non-functional edges rescaled by the factor,
+<code>rescale_exchange()</code> from <code>bw2io.utils</code>), and hands the list to
+<code>utils.update_datasets_from_allocation_results()</code>, which writes them as real
+<code>ReadOnlyProcessWithReferenceProduct</code> nodes/edges in the database:
+</p>
+<pre><code>cow.allocate()  # uses the database default_allocation = "mass"
+
+for exc in cow.functional_edges():
+    print(exc["name"], exc["mf_allocation_factor"])</code></pre>
+<pre class="output"><code>beef 0.8
+hide 0.2</code></pre>
+<p>
+0.8/0.2 is exactly the mass split (120&nbsp;kg beef : 30&nbsp;kg hide, out of 150&nbsp;kg total).
+<code>get_allocation_factor_from_property()</code> (<code>allocation.py</code> lines 160-178)
+computes each edge's raw value as <code>edge_data["amount"] * edge_data["properties"]["mass"]</code>
+when <code>normalize_by_production_amount=True</code> (the default for <code>"mass"</code> and
+<code>"price"</code>), then <code>generic_allocation()</code> divides each by the sum over all
+functional edges — this is also why <code>mass=1.0</code> above, not <code>mass=120</code>:
+setting it to the amount again would square the weighting.
+</p>
+
+<h2>6. Switch allocation strategy and compare</h2>
+<p>
+Allocation is not baked in — call <code>.allocate(strategy_label=...)</code> again with a
+different key from <code>allocation_strategies</code> (<code>"price"</code>, <code>"mass"</code>,
+<code>"equal"</code>, <code>"manual_allocation"</code>, or any strategy you've registered via
+<code>custom_allocation.add_custom_property_allocation_to_project()</code>) to re-derive the split
+and overwrite the previous allocated processes:
+</p>
+<pre><code>cow.allocate(strategy_label="price")
+for exc in cow.functional_edges():
+    print("price:", exc["name"], exc["mf_allocation_factor"])
+
+cow.allocate(strategy_label="equal")
+for exc in cow.functional_edges():
+    print("equal:", exc["name"], exc["mf_allocation_factor"])</code></pre>
+<pre class="output"><code>price: beef 0.9552238805970149
+price: hide 0.04477611940298507
+equal: beef 0.5
+equal: hide 0.5</code></pre>
+<p>
+Economic allocation by <code>price</code> (8.0 vs 1.5 $/kg) skews heavily toward beef
+(120×8.0 = 960 vs 30×1.5 = 45, so 960/1005 ≈ 0.955), while <code>"equal"</code>
+(<code>allocation.py</code> line 201, <code>func=lambda x, y: 1.0</code>) ignores properties
+entirely and gives every functional edge the same weight regardless of amount.
+</p>
+
+<h2>7. Inspect the resulting single-output processes</h2>
+<p>
+Each call to <code>.allocate()</code> re-runs <code>generic_allocation()</code>, which stamps a
+fresh <code>mf_allocation_run_uuid</code> on the parent (<code>allocation.py</code> line ~54) and
+regenerates the allocated processes; <code>MaybeMultifunctionalProcess.save()</code> /
+<code>ReadOnlyProcessWithReferenceProduct.save()</code> call
+<code>utils.purge_expired_linked_readonly_processes()</code> so stale processes from a previous
+strategy don't linger. After the <code>"equal"</code> run above, the database holds one read-only
+process per co-product, each with the functional edge kept at its original amount and every
+non-functional edge rescaled by that co-product's factor:
+</p>
+<pre><code>for act in db:
+    if act.get("type") == "readonly_process":
+        print(act.get("reference product"), "production amount=", act.get("production amount"))
+        for e in act.technosphere():
+            print("   technosphere:", e["name"], e["amount"])</code></pre>
+<pre class="output"><code>beef production amount= 120
+   technosphere: cattle feed 100.0
+hide production amount= 30
+   technosphere: cattle feed 100.0</code></pre>
+<p>
+With <code>"equal"</code> allocation both processes take half of the 200&nbsp;kg feed input
+(100&nbsp;kg each) regardless of how much beef or hide they actually produce — a visible
+illustration of why the allocation strategy matters. Each of these
+<code>ReadOnlyProcessWithReferenceProduct</code> nodes (<code>node_classes.py</code>) is a normal,
+single-output process as far as <code>bw2calc</code> is concerned: it has exactly one functional
+(production) edge, so it slots into a square technosphere matrix. They're read-only — their
+<code>__setitem__</code>, <code>copy()</code>, and <code>new_edge()</code> all raise
+<code>NotImplementedError</code> — because they're generated data; edit the parent multifunctional
+process (reachable from a read-only process via its <code>.parent</code> property) and re-run
+<code>.allocate()</code> instead.
+</p>
+
+<h2>8. Processing a database allocates automatically</h2>
+<p>
+You don't normally need to call <code>.allocate()</code> by hand at all.
+<code>MultifunctionalDatabase.process()</code> (<code>database.py</code> lines ~59-66) calls
+<code>node.allocate(...)</code> on every multifunctional node in the database before building the
+<code>bw_processing</code> datapackage that <code>bw2calc.LCA</code> consumes — the same
+processing step that runs automatically after every write. So as long as a process's
+<code>default_allocation</code> (or its database's) is set, saving the database is enough to keep
+the allocated processes current:
+</p>
+<pre><code>db.process()  # re-allocates every multifunctional node, then builds the datapackage
+print("processed OK")</code></pre>
+<pre class="output"><code>processed OK</code></pre>
+
+<h2>Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("mf_tutorial")
+
+db = bd.Database("meat_and_leather", backend="multifunctional")
+db.register(default_allocation="mass")
+
+feed = db.new_activity(code="feed", name="cattle feed production", unit="kilogram", location="GLO", type="process")
+feed.save()
+feed.new_exchange(input=feed.key, amount=1, type="production").save()
+
+beef_product = db.new_node(code="beef", name="beef", unit="kilogram", location="GLO", type="product")
+beef_product.save()
+hide_product = db.new_node(code="hide", name="hide", unit="kilogram", location="GLO", type="product")
+hide_product.save()
+
+cow = db.new_activity(code="cow_slaughter", name="cow slaughter", unit="cow", location="GLO", type="multifunctional")
+cow.save()
+
+cow.new_exchange(
+    input=beef_product.key, amount=120, type="production", functional=True,
+    name="beef", unit="kilogram", properties={"mass": 1.0, "price": 8.0},
+).save()
+cow.new_exchange(
+    input=hide_product.key, amount=30, type="production", functional=True,
+    name="hide", unit="kilogram", properties={"mass": 1.0, "price": 1.5},
+).save()
+cow.new_exchange(input=feed.key, amount=200, type="technosphere", name="cattle feed", unit="kilogram").save()
+
+cow.allocate()  # default_allocation = "mass"
+for exc in cow.functional_edges():
+    print("mass:", exc["name"], exc["mf_allocation_factor"])
+
+cow.allocate(strategy_label="price")
+for exc in cow.functional_edges():
+    print("price:", exc["name"], exc["mf_allocation_factor"])
+
+cow.allocate(strategy_label="equal")
+for act in db:
+    if act.get("type") == "readonly_process":
+        print(act.get("reference product"), "production amount=", act.get("production amount"))
+        for e in act.technosphere():
+            print("   technosphere:", e["name"], e["amount"])</code></pre>
+<pre class="output"><code>mass: beef 0.8
+mass: hide 0.2
+price: beef 0.9552238805970149
+price: hide 0.04477611940298507
+beef production amount= 120
+   technosphere: cattle feed 100.0
+hide production amount= 30
+   technosphere: cattle feed 100.0</code></pre>
+
+<h2>Notes &amp; gotchas</h2>
+<ul>
+<li><b>Link functional exchanges to real product nodes, not to the process itself.</b>
+Self-referencing (the pattern a single-output activity uses) is legal but makes
+<code>generic_allocation()</code> resolve the "product" back to the parent process, so every
+allocated process ends up with the parent's name as its <code>reference product</code> instead of
+the actual co-product's name.</li>
+<li><b>The <code>"mass"</code>/<code>"price"</code> built-ins multiply amount × property.</b>
+<code>get_allocation_factor_from_property()</code> (<code>allocation.py</code> line ~172) does
+<code>edge_data["amount"] * edge_data["properties"][property_label]</code> by default
+(<code>normalize_by_production_amount=True</code>). If your property value is already a total
+(not a per-unit rate), use <code>"manual_allocation"</code> instead, which reads the property
+directly without multiplying by amount (line ~198), or pass
+<code>normalize_by_production_amount=False</code> to a custom
+<code>property_allocation()</code> strategy.</li>
+<li><b>Every functional edge needs the property, or allocation raises <code>KeyError</code>.</b>
+Validate first with <code>multifunctional.check_property_for_allocation()</code> /
+<code>list_available_properties()</code> (<code>custom_allocation.py</code>) rather than
+discovering a missing property mid-allocation.</li>
+<li><b>Re-allocating replaces, it doesn't accumulate.</b> Each <code>.allocate()</code> call
+stamps a new <code>mf_allocation_run_uuid</code> and
+<code>purge_expired_linked_readonly_processes()</code> deletes read-only processes left over from
+the previous run — you never end up with stale allocated processes from an old strategy sitting
+alongside new ones.</li>
+<li><b>Read-only processes really are read-only.</b> Trying to edit one directly (or its
+exchanges, wrapped in <code>ReadOnlyExchange</code>/<code>ReadOnlyExchanges</code> from
+<code>edge_classes.py</code>) raises <code>NotImplementedError</code>. Use
+<code>readonly_process.parent</code> to get back to the editable multifunctional process.</li>
+<li><b>A process with only one functional edge is a no-op.</b>
+<code>MaybeMultifunctionalProcess.allocate()</code> returns <code>NoAllocationNeeded</code>
+immediately (after saving) if <code>self.multifunctional</code> is <code>False</code> — allocation
+only does anything once a process has 2+ functional edges.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>
