@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: use formulas in exchanges — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2data/index.html">bw2data</a> · <a href="../bw2parameters/index.html">bw2parameters</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: use formulas in exchanges (parameterized activities)</h1>
+<p class="tagline">Define a project parameter, have an activity parameter and an exchange's <code>amount</code> both
+derive from it via a <code>formula</code> field, recalculate, and watch the numbers cascade when the parameter
+changes.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2data.parameters</code> API
+(<code>.venv/lib/python3.11/site-packages/bw2data/parameters.py</code>), which hands formula evaluation off to
+<a href="../bw2parameters/index.html"><code>bw2parameters</code></a>. Every snippet below, including the full
+example, was actually run against the installed source — see <a href="../bw2data/index.html">the bw2data module
+map</a> for how this fits into the rest of Brightway.
+</blockquote>
+
+<h2>1. Set up an activity with a parameterizable exchange</h2>
+<p>
+This is the same project/database/activity setup as the
+<a href="create-empty-database.html">empty-database tutorial</a>: a project, a database, a
+<code>steel production</code> activity with a production exchange, and an <code>iron ore</code> product it
+consumes as a technosphere input.
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("param_tutorial")
+db = bd.Database("example_db")
+db.register()
+
+iron_ore = db.new_node(code="raw_ore", name="iron ore", unit="kilogram", location="GLO", type="product")
+iron_ore.save()
+
+steel = db.new_activity(code="steel_production", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()</code></pre>
+
+<h2>2. Give an exchange a <code>formula</code> instead of a fixed amount</h2>
+<p>
+Any exchange dict can carry a <code>formula</code> field (a Python expression string) alongside its numeric
+<code>amount</code> — <code>Exchange</code> (<code>bw2data/backends/proxies.py</code>) is a plain
+<code>MutableMapping</code> proxy over the row, so this is nothing more than an extra key:
+</p>
+<pre><code>exc = steel.new_exchange(input=iron_ore.key, amount=1, type="technosphere", formula="scale * 1.5")
+exc.save()
+
+print(exc["amount"], exc["formula"])</code></pre>
+<pre class="output">1 scale * 1.5</pre>
+<p>
+Note the <code>amount</code> is still <code>1</code> — saving a <code>formula</code> field does <b>not</b>
+evaluate it. <code>Exchange.save()</code> just writes the row; nothing in <code>bw2data</code> looks at
+<code>formula</code> strings until you explicitly register this activity's parameters and exchanges with the
+<code>ParameterManager</code> and recalculate, which is what the rest of this tutorial does.
+</p>
+
+<h2>3. Define a project-level parameter</h2>
+<p>
+Project parameters are the outermost scope — plain named values (or formulas of their own) visible to every
+database/activity parameter in the project. Create them with
+<code>bd.parameters.new_project_parameters()</code> (<code>ParameterManager.new_project_parameters</code>,
+<code>parameters.py:1326</code>), which upserts a list of <code>{"name", "amount", "formula", ...}</code> dicts
+into the <code>ProjectParameter</code> table and immediately recalculates the <code>"project"</code> group:
+</p>
+<pre><code>bd.parameters.new_project_parameters([{"name": "ore_price", "amount": 2.5}])</code></pre>
+
+<h2>4. Define an activity parameter that depends on it</h2>
+<p>
+Activity parameters live in a named <b>group</b> (usually one group per activity, but a group can span several
+activities) and can reference project — and other activity — parameters by name in their own
+<code>formula</code>. Create them with <code>bd.parameters.new_activity_parameters(data, group)</code>
+(<code>parameters.py:1440</code>):
+</p>
+<pre><code>from bw2data.parameters import ActivityParameter
+
+bd.parameters.new_activity_parameters(
+    [{"name": "scale", "database": "example_db", "code": "steel_production", "formula": "ore_price * 2"}],
+    "steel_group",
+)
+print(ActivityParameter.get(group="steel_group", name="scale").amount)</code></pre>
+<pre class="output">5.0</pre>
+<p>
+<code>new_activity_parameters</code> already evaluates <code>scale</code> for you (<code>2.5 * 2 = 5.0</code>) —
+it ends by calling <code>ActivityParameter.recalculate(group)</code> (<code>parameters.py:1509</code>), which
+resolves the dependency chain (<code>ActivityParameter.dependency_chain()</code>), recalculates any expired
+upstream project/database parameters first, then evaluates this group's own parameters with a
+<a href="../bw2parameters/index.html"><code>bw2parameters.ParameterSet</code></a>
+(<code>ParameterSet(data, static).evaluate_and_set_amount_field()</code>, <code>parameters.py:843</code>) — the
+same topological-sort-then-evaluate engine documented on the bw2parameters page.
+</p>
+
+<h2>5. Link the exchange's formula into the group, then recalculate</h2>
+<p>
+An exchange's <code>formula</code> field is inert until it's registered as a
+<code>ParameterizedExchange</code> row in the same group as the activity parameters it references. Do that with
+<code>bd.parameters.add_exchanges_to_group(group, activity)</code> (<code>parameters.py:1271</code>), which scans
+<code>activity.exchanges()</code> for any exchange carrying a <code>formula</code> key and creates/updates a
+matching <code>ParameterizedExchange</code>; then call <code>bd.parameters.recalculate()</code>
+(<code>parameters.py:1610</code>) to actually run the formulas:
+</p>
+<pre><code>bd.parameters.add_exchanges_to_group("steel_group", steel)
+bd.parameters.recalculate()
+
+exc = next(e for e in steel.exchanges() if e["input"] == iron_ore.key)
+print(exc["amount"])</code></pre>
+<pre class="output">7.5</pre>
+<p>
+<code>scale</code> is <code>5.0</code> and the exchange's formula is <code>"scale * 1.5"</code>, so
+<code>5.0 * 1.5 = 7.5</code> — and that's now what's stored as the exchange's <code>amount</code> on disk.
+</p>
+
+<h2>6. Change the parameter and watch the exchange amount follow</h2>
+<p>
+Calling <code>new_project_parameters()</code> again with the same name overwrites it (the default
+<code>overwrite=True</code>) and marks the <code>"project"</code> group's downstream dependents expired via
+<code>ProjectParameter.expire_downstream("project")</code> (<code>parameters.py:201</code>). A subsequent
+<code>bd.parameters.recalculate()</code> walks every non-fresh <code>Group</code>
+(<code>parameters.py:1617</code>) and re-evaluates it — project parameter, then dependent activity parameter,
+then dependent exchange, in that order:
+</p>
+<pre><code>bd.parameters.new_project_parameters([{"name": "ore_price", "amount": 10}])
+bd.parameters.recalculate()
+
+exc = next(e for e in steel.exchanges() if e["input"] == iron_ore.key)
+print("scale =", ActivityParameter.get(group="steel_group", name="scale").amount)
+print("exchange amount =", exc["amount"])</code></pre>
+<pre class="output">scale = 20.0
+exchange amount = 30.0</pre>
+<p>
+<code>ore_price</code> going from <code>2.5</code> to <code>10</code> re-derives <code>scale = 10 * 2 = 20.0</code>,
+which re-derives the exchange amount <code>20.0 * 1.5 = 30.0</code> — one parameter change, cascaded through two
+formulas, with no manual recomputation of either downstream value.
+</p>
+
+<h2>Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+from bw2data.parameters import ActivityParameter
+
+bd.projects.set_current("param_tutorial")
+
+db = bd.Database("example_db")
+db.register()
+
+iron_ore = db.new_node(code="raw_ore", name="iron ore", unit="kilogram", location="GLO", type="product")
+iron_ore.save()
+
+steel = db.new_activity(code="steel_production", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=iron_ore.key, amount=1, type="technosphere", formula="scale * 1.5").save()
+
+bd.parameters.new_project_parameters([{"name": "ore_price", "amount": 2.5}])
+bd.parameters.new_activity_parameters(
+    [{"name": "scale", "database": "example_db", "code": "steel_production", "formula": "ore_price * 2"}],
+    "steel_group",
+)
+bd.parameters.add_exchanges_to_group("steel_group", steel)
+bd.parameters.recalculate()
+
+exc = next(e for e in steel.exchanges() if e["input"] == iron_ore.key)
+print("ore_price = 2.5  ->  scale =", ActivityParameter.get(group="steel_group", name="scale").amount,
+      " exchange amount =", exc["amount"])
+
+bd.parameters.new_project_parameters([{"name": "ore_price", "amount": 10}])
+bd.parameters.recalculate()
+
+exc = next(e for e in steel.exchanges() if e["input"] == iron_ore.key)
+print("ore_price = 10   ->  scale =", ActivityParameter.get(group="steel_group", name="scale").amount,
+      " exchange amount =", exc["amount"])</code></pre>
+<pre class="output">ore_price = 2.5  ->  scale = 5.0  exchange amount = 7.5
+ore_price = 10   ->  scale = 20.0  exchange amount = 30.0</pre>
+
+<h2>Notes &amp; gotchas</h2>
+<ul>
+<li><b>A <code>formula</code> field alone does nothing.</b> It's just a string stored on the exchange row until
+you (a) register the activity's parameters via <code>new_activity_parameters</code>/<code>add_to_group</code>,
+(b) link its formula-carrying exchanges into that same group with <code>add_exchanges_to_group</code>, and (c)
+call <code>recalculate()</code>. Skipping step (b) is the easiest mistake — the exchange keeps its stale
+<code>amount</code> forever, silently.</li>
+<li><b>Two different formula evaluators are involved, at two different layers.</b> Activity/project/database
+<i>parameter</i> values are evaluated together as an interdependent set via
+<a href="../bw2parameters/index.html"><code>bw2parameters.ParameterSet</code></a> (topologically sorted so a
+parameter can reference another parameter in any order, <code>parameters.py:843</code>). <i>Exchange</i>
+formulas, by contrast, are evaluated one at a time with a plain <code>asteval.Interpreter</code> — not
+<code>bw2parameters.Interpreter</code> — seeded with the group's already-resolved parameter values
+(<code>ActivityParameter.recalculate_exchanges()</code>, <code>parameters.py:861-873</code>). Practically this
+means an exchange formula can reference any parameter in its group, but not another exchange.</li>
+<li><b>Groups, not activities, are the unit of recalculation.</b> <code>Group</code>
+(<code>parameters.py:1109</code>) tracks a <code>fresh</code> flag; any parameter or
+<code>ParameterizedExchange</code> save expires its group (<code>ActivityParameter.save()</code>,
+<code>ParameterizedExchange.save()</code>, <code>parameters.py:882-883</code> and <code>:1087</code>), and
+<code>ParameterManager.recalculate()</code> (<code>parameters.py:1610</code>) only touches groups that are
+actually stale — calling it repeatedly is cheap once everything is fresh.</li>
+<li><b>Dependencies cascade automatically, in order.</b> <code>ActivityParameter.recalculate(group)</code> walks
+<code>ActivityParameter.dependency_chain(group)</code> and recalculates upstream project/database groups first
+(<code>parameters.py:823-836</code>) before this group's own parameters, then finishes by calling
+<code>recalculate_exchanges()</code> for this group (<code>parameters.py:855</code>) — that's the whole chain
+behind step 6 above updating both <code>scale</code> and the exchange amount from one project-parameter edit.</li>
+<li><b>The exchange amount really is overwritten, not just displayed.</b>
+<code>recalculate_exchanges()</code> sets <code>exc.data["amount"]</code> directly on the underlying
+<code>ExchangeDataset</code> row and saves it (<code>parameters.py:872-873</code>) — the original amount you
+passed to <code>new_exchange()</code> is gone unless you'd captured it. <code>add_exchanges_to_group()</code>
+stashes it as <code>original_amount</code> the first time (<code>parameters.py:1300-1302</code>), and
+<code>remove_exchanges_from_group(..., restore_original=True)</code> (the default) restores it if you later pull
+the activity out of parameterization.</li>
+<li><b>A skipped step:</b> real usage often defines activity parameters via
+<code>activity["parameters"] = [...]; bd.parameters.add_to_group(group, activity)</code> instead of calling
+<code>new_activity_parameters</code> directly — <code>add_to_group</code> (<code>parameters.py:1175</code>) reads
+that list off the activity dict, creates the <code>ActivityParameter</code> rows, then calls
+<code>add_exchanges_to_group</code> itself, folding steps 4 and 5 above into one call. This tutorial keeps them
+separate to show what each one actually does.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>
