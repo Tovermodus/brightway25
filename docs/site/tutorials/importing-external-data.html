@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: import external inventory data — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2io/index.html">bw2io</a> · <a href="../bw2data/index.html">bw2data</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: import external inventory data</h1>
+<p class="tagline">Step by step through <code>bw2io</code>'s <b>extract → apply strategies → check for unlinked
+exchanges → match/link → write</b> pipeline, using <code>ExcelImporter</code> and the bundled
+<code>example.xlsx</code> fixture to bring an external spreadsheet into a real <code>bw2data</code> database.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2io</code>/<code>bw2data</code> API
+(<code>.venv/lib/python3.11/site-packages/bw2io/</code>, <code>.venv/lib/python3.11/site-packages/bw2data/</code>),
+verified by running it. See <a href="../bw2io/index.html">the bw2io module map</a> for the full importer/strategy
+landscape and <a href="../bw2data/index.html">the bw2data module map</a> for what a "database" and "activity" are
+underneath. See also <a href="../examples/index.html">the site-wide Examples page</a> for more verified,
+runnable snippets across every module.
+</blockquote>
+
+<h2>1. Set up a project and a stand-in biosphere database</h2>
+<p>
+Brightway isolates data into <b>projects</b> (see <a href="create-empty-database.html">the empty-database
+tutorial</a> for the basics), so pick one first:
+</p>
+<pre><code>import bw2data as bd
+import bw2io as bi
+
+bd.projects.set_current("import_tutorial")</code></pre>
+<p>
+The example workbook has exchanges pointing at a <code>biosphere3</code> database (elementary flows like
+"Ammonia" and "Carbon dioxide, fossil"). In a normal project this already exists, built once by
+<code>bw2io.bw2setup()</code> / <code>create_default_biosphere3()</code> (see the bw2io module map). This tutorial
+doesn't want to depend on downloading that, so we hand-build a tiny stand-in with just the five flows this
+exact file needs — inspected up front with <code>openpyxl</code> to see which ones those are:
+</p>
+<pre><code>biosphere = bd.Database("biosphere3")
+biosphere.register()
+flows = [
+    {"name": "Ammonia", "categories": ("air", "urban air close to ground"), "unit": "kilogram"},
+    {"name": "Methanol", "categories": ("air",), "unit": "kilogram"},
+    {"name": "BOD5, Biological Oxygen Demand", "categories": ("water", "surface water"), "unit": "kilogram"},
+    {"name": "Carbon dioxide, fossil", "categories": ("air",), "unit": "kilogram"},
+    {"name": "Suspended solids, unspecified", "categories": ("water",), "unit": "kilogram"},
+]
+for flow in flows:
+    node = biosphere.new_node(code=flow["name"], location=None, type="emission", **flow)
+    node.save()
+
+print(len(biosphere))  # 5</code></pre>
+<p>
+Note the explicit <code>location=None</code>. <code>SQLiteBackend.new_node()</code>
+(<code>bw2data/backends/base.py</code> ~line 867: <code>if "location" not in kwargs: obj["location"] =
+config.global_location</code>) silently defaults a node's location to <code>"GLO"</code> if you don't pass one —
+but the biosphere exchanges in the workbook have no <code>location</code> field at all once the importer's
+<code>strip_biosphere_exc_locations</code> strategy runs. Since the matching logic hashes on location too (see
+step 4), a node stamped <code>"GLO"</code> would never match an exchange with no location and would stay
+silently unlinked.
+</p>
+<p>
+This matters <em>before</em> we even build the importer: <code>ExcelImporter</code>'s built-in strategy list
+already tries to link biosphere exchanges against <code>bw2data.config.biosphere</code> (defaults to
+<code>"biosphere3"</code>) as one of its standard steps — see step 3. That strategy only succeeds if the
+database it points at already has matching data in it, so the biosphere has to exist first.
+</p>
+
+<h2>2. Locate the workbook and construct the importer</h2>
+<p>
+<code>bw2io</code> ships this fixture at <code>data/examples/example.xlsx</code>; <code>get_xlsx_example_filepath()</code>
+(<code>bw2io/__init__.py</code>) returns its path. <code>ExcelImporter.__init__</code>
+(<code>bw2io/importers/excel.py</code> lines 99–139) does the <b>extract</b> stage immediately — before you call
+anything else — by handing the filepath to <code>ExcelExtractor.extract()</code>, dropping any worksheet whose
+first cell is literally <code>"skip"</code> (<code>valid_first_cell</code>, line 31; the fixture has one such sheet
+used purely as an in-file comment), locating the single <code>"Database"</code> metadata block
+(<code>get_database</code>, line 141), and walking every <code>"Activity"</code> section into a plain dict with an
+<code>"exchanges"</code> list (<code>process_activities</code>/<code>get_activity</code>, lines 254–383). Nothing
+touches <code>bw2data</code> yet — <code>imp.data</code> is just Python dicts:
+</p>
+<pre><code>fp = bi.get_xlsx_example_filepath()
+print(fp.name)  # example.xlsx
+
+imp = bi.ExcelImporter(fp)
+print(imp.db_name)                        # BW2 Excel example
+print(len(imp.data))                      # 3
+print(sorted(ds["name"] for ds in imp.data))
+# ['Acetic acid, at plant', 'Electricity, at Grid, US, 2008', 'Methanol, at plant']</code></pre>
+
+<h2>3. Apply the strategy pipeline</h2>
+<p>
+<code>imp.strategies</code> is the ordered list <code>ExcelImporter.__init__</code> builds
+(<code>excel.py</code> lines 100–120): CSV/Excel-cell cleanup (<code>csv_restore_tuples</code>,
+<code>csv_numerize</code>, ...), unit normalization, <code>set_code_by_activity_hash</code>, a biosphere-linking
+step, <code>assign_only_product_as_production</code>, <code>link_technosphere_by_activity_hash</code>, and
+uncertainty cleanup. <code>ImportBase.apply_strategies</code> (<code>bw2io/importers/base.py</code> lines 98–135)
+runs each one in order via <code>apply_strategy</code> (lines 51–96), which calls <code>self.data =
+strategy(self.data)</code>, appends the function's name to <code>self.applied_strategies</code>, and — notably —
+catches <code>StrategyError</code> and just <em>prints</em> it rather than raising, so one misbehaving strategy
+doesn't abort the whole pipeline:
+</p>
+<pre><code>imp.apply_strategies(verbose=False)
+print(imp.applied_strategies)
+# ['csv_restore_tuples', 'csv_restore_booleans', 'csv_numerize', 'csv_drop_unknown',
+#  'csv_restore_temporal_distributions', 'csv_add_missing_exchanges_section', 'normalize_units',
+#  'strip_biosphere_exc_locations', 'set_code_by_activity_hash', 'link_iterable_by_fields',
+#  'assign_only_product_as_production', 'link_technosphere_by_activity_hash',
+#  'drop_falsey_uncertainty_fields_but_keep_zeros', 'convert_uncertainty_types_to_integers',
+#  'convert_activity_parameters_to_list']
+
+nodes, edges, unlinked, multifunctional = imp.statistics(print_stats=False)
+print(nodes, edges, unlinked, multifunctional)  # 3 9 3 0</code></pre>
+<p>
+The <code>link_iterable_by_fields</code> entry in that list is
+<code>functools.partial(link_iterable_by_fields, other=Database(config.biosphere), edge_kinds=["biosphere"])</code>
+(<code>excel.py</code> lines 110–114) — it's what just linked all 5 biosphere exchanges against the
+<code>biosphere3</code> stand-in from step 1, with no extra call needed on our part.
+</p>
+
+<h2>4. Check what's still unlinked</h2>
+<p>
+<code>LCIImporter.statistics()</code> (<code>bw2io/importers/base_lci.py</code> lines 91–154) is the summary view
+(it's what printed the <code>3 9 3 0</code> above); <code>ImportBase.unlinked</code>
+(<code>bw2io/importers/base.py</code> lines 137–159) iterates the actual unique unlinked exchange dicts,
+deduplicated by <code>activity_hash</code>:
+</p>
+<pre><code>print(sorted((exc["type"], exc["name"]) for exc in imp.unlinked))
+# [('production', 'Acetic acid, at plant'), ('technosphere', 'Methanol, at plant')]</code></pre>
+<p>
+That's surprising: both "Acetic acid, at plant" and "Methanol, at plant" <em>are</em> in <code>imp.data</code> —
+this is a self-contained file, everything should link internally. The cause is
+<code>activity_hash</code>'s default field list, <code>("name", "categories", "unit", "reference product",
+"location")</code> (<code>bw2io/utils.py</code> line 44): <code>assign_only_product_as_production</code>
+(<code>strategies/generic.py</code> lines 264–278), which ran earlier in the pipeline, writes a
+<code>"reference product"</code> key onto each <b>node</b> dict, but the corresponding production/technosphere
+<b>exchange</b> dict pointing at it never gets that key — so their hashes disagree and
+<code>link_technosphere_by_activity_hash</code> silently fails to connect them, with no warning:
+</p>
+<pre><code>from bw2io.utils import activity_hash
+
+acetic = next(ds for ds in imp.data if ds["name"] == "Acetic acid, at plant")
+print(repr(acetic.get("reference product")))  # 'Acetic acid, at plant'
+
+prod_exc = next(e for e in acetic["exchanges"] if e["type"] == "production")
+print("reference product" in prod_exc)  # False
+
+print(activity_hash(acetic) == activity_hash(prod_exc))  # False -- the mismatch</code></pre>
+
+<h2>5. Link the remaining exchanges explicitly</h2>
+<p>
+<code>LCIImporter.match_database(db_name=None, fields=..., ...)</code> (<code>base_lci.py</code> lines 391–449)
+wraps the same <code>link_iterable_by_fields</code> call, internally (<code>db_name=None</code>) or against
+another written database (<code>db_name="some_other_db"</code>). Passing an explicit <code>fields</code> list
+that leaves out <code>"reference product"</code> sidesteps the gotcha from step 4:
+</p>
+<pre><code>imp.match_database(fields=["name", "unit", "location", "categories"])
+
+nodes, edges, unlinked, multifunctional = imp.statistics(print_stats=False)
+print(nodes, edges, unlinked, multifunctional)  # 3 9 0 0
+print(imp.all_linked)                            # True</code></pre>
+
+<h2>6. Write to bw2data</h2>
+<p>
+<code>LCIImporter.write_database(...)</code> (<code>base_lci.py</code> lines 286–373) validates every dataset
+belongs to the same database name (raising <code>WrongDatabase</code> otherwise) and that codes are unique
+(<code>NonuniqueCode</code>), registers the database if it doesn't exist yet, then calls
+<code>bw2data.Database(db_name).write(existing, ...)</code> — the same low-level write the
+<a href="create-empty-database.html">empty-database tutorial</a> shows via <code>db.write(data)</code> directly.
+<code>ExcelImporter</code> overrides <code>write_database</code> only to default <code>activate_parameters=True</code>
+(<code>excel.py</code> lines 298–301):
+</p>
+<pre><code>def write_database(self, **kwargs):
+    kwargs["activate_parameters"] = kwargs.get("activate_parameters", True)
+    super(ExcelImporter, self).write_database(**kwargs)</code></pre>
+<p>
+That override calls <code>super().write_database(**kwargs)</code> without a <code>return</code> — so
+<code>imp.write_database()</code> on an <code>ExcelImporter</code> gives you <code>None</code>, even though the
+base <code>LCIImporter.write_database</code> it calls does return the new <code>Database</code> instance. Fetch
+the written database separately:
+</p>
+<pre><code>imp.write_database()
+
+db = bd.Database("BW2 Excel example")
+print(len(db))  # 3
+for act in sorted(db, key=lambda a: a["name"]):
+    print(act["name"], sorted(
+        (e["type"], e.input["name"], round(e["amount"], 6)) for e in act.exchanges()
+    ))
+# Acetic acid, at plant [('biosphere', 'Ammonia', 0.00057), ('biosphere', 'Methanol', 4e-05),
+#                         ('production', 'Acetic acid, at plant', 1), ('technosphere', 'Methanol, at plant', 0.539)]
+# Electricity, at Grid, US, 2008 []
+# Methanol, at plant [('biosphere', 'BOD5, Biological Oxygen Demand', 5.8e-05),
+#                      ('biosphere', 'Carbon dioxide, fossil', 0.53),
+#                      ('biosphere', 'Suspended solids, unspecified', 8.8e-05),
+#                      ('production', 'Methanol, at plant', 1),
+#                      ('technosphere', 'Electricity, at Grid, US, 2008', 0.00805)]</code></pre>
+<p>
+Every exchange resolved to a real activity — <code>db.write()</code> also rebuilds the
+<code>bw_processing</code> datapackage automatically, so this database is immediately usable by
+<code>bw2calc.LCA</code> just like any other.
+</p>
+
+<h2>Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2io as bi
+
+bd.projects.set_current("import_tutorial")
+
+# 1. Minimal biosphere3 stand-in matching only the flows example.xlsx needs.
+biosphere = bd.Database("biosphere3")
+biosphere.register()
+flows = [
+    {"name": "Ammonia", "categories": ("air", "urban air close to ground"), "unit": "kilogram"},
+    {"name": "Methanol", "categories": ("air",), "unit": "kilogram"},
+    {"name": "BOD5, Biological Oxygen Demand", "categories": ("water", "surface water"), "unit": "kilogram"},
+    {"name": "Carbon dioxide, fossil", "categories": ("air",), "unit": "kilogram"},
+    {"name": "Suspended solids, unspecified", "categories": ("water",), "unit": "kilogram"},
+]
+for flow in flows:
+    node = biosphere.new_node(code=flow["name"], location=None, type="emission", **flow)
+    node.save()
+
+# 2. Extract (happens inside the constructor).
+fp = bi.get_xlsx_example_filepath()
+imp = bi.ExcelImporter(fp)
+
+# 3. Apply strategies (also auto-links biosphere against the database above).
+imp.apply_strategies(verbose=False)
+
+# 4. Check for unlinked exchanges.
+nodes, edges, unlinked, multifunctional = imp.statistics(print_stats=False)
+print("after strategies:", nodes, edges, unlinked, multifunctional)
+
+# 5. Match/link the rest internally (excluding "reference product" -- see step 4 above).
+imp.match_database(fields=["name", "unit", "location", "categories"])
+nodes, edges, unlinked, multifunctional = imp.statistics(print_stats=False)
+print("after matching:  ", nodes, edges, unlinked, multifunctional)
+print("all_linked:", unlinked == 0)  # imp.all_linked would print the same statistics again
+
+# 6. Write.
+imp.write_database()
+db = bd.Database("BW2 Excel example")
+print(len(db), "activities written")</code></pre>
+<pre class="output"><code>after strategies: 3 9 3 0
+Applying strategy: link_iterable_by_fields
+after matching:   3 9 0 0
+all_linked: True
+Created database: BW2 Excel example
+3 activities written</code></pre>
+
+<h2>Notes &amp; gotchas</h2>
+<ul>
+<li><b>Silent non-linking, not errors.</b> Every mismatch in this tutorial (the <code>location</code> default,
+the <code>"reference product"</code> hash gotcha) leaves exchanges unlinked with no exception and no warning —
+the only way to catch it is to actually call <code>.statistics()</code> or check <code>.all_linked</code> before
+<code>.write_database()</code>. Nothing stops you from writing a database full of unlinked exchanges.</li>
+<li><b><code>new_node()</code> defaults <code>location</code> to <code>config.global_location</code>
+("GLO")</b> if you don't pass one (<code>bw2data/backends/base.py</code> ~line 867) — pass
+<code>location=None</code> explicitly when hand-building nodes meant to match exchanges that have no location
+field, as biosphere exchanges do once <code>strip_biosphere_exc_locations</code> has run.</li>
+<li><b><code>activity_hash</code>'s default fields include <code>"reference product"</code>.</b>
+<code>assign_only_product_as_production</code> sets that field on process nodes but not on the exchanges
+pointing at them, so internal technosphere/production linking via the importer's default strategy list
+(<code>fields=None</code>) will under-link on data shaped like this workbook. Passing an explicit
+<code>fields</code> list to <code>match_database</code> (or to <code>link_technosphere_by_activity_hash</code> /
+<code>link_iterable_by_fields</code> directly) that excludes it fixes this.</li>
+<li><b><code>ExcelImporter.write_database()</code> returns <code>None</code></b>, not the <code>Database</code>
+instance the base <code>LCIImporter.write_database()</code> it wraps returns (<code>excel.py</code> lines
+298–301 call <code>super()...</code> without a <code>return</code>). Look the database up with
+<code>bd.Database(db_name)</code> afterward instead of relying on the return value.</li>
+<li><b>The <code>"skip"</code> and <code>"cutoff"</code> conventions are real, not documentation fluff.</b> The
+bundled <code>example.xlsx</code> actually has a worksheet whose A1 cell is <code>"skip"</code> (silently
+dropped, <code>valid_first_cell</code> in <code>excel.py</code> line 31), and its first data sheet uses
+<code>cutoff</code> in A1 to tell the extractor to ignore columns past a given index
+(<code>process_activities</code>/<code>cut_worksheet</code>, <code>excel.py</code> lines 264–272) — handy for
+keeping notes/formulas in the spreadsheet itself without the importer choking on them.</li>
+<li><b>This is one importer among many.</b> Every format-specific importer (<code>SimaProCSVImporter</code>,
+<code>SingleOutputEcospold2Importer</code>, ...) is a subclass of the same <code>ImportBase</code> /
+<code>LCIImporter</code> shown here, with a different <code>extractor</code> and a different
+<code>self.strategies</code> list tailored to that format's quirks — see the
+<a href="../bw2io/index.html">bw2io module map</a>'s "Where to look" section for the SimaPro and ecoinvent
+equivalents of this walkthrough.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>
