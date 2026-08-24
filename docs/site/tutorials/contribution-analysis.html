@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: contribution analysis — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2analyzer/index.html">bw2analyzer</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: find an LCA result's biggest contributors</h1>
+<p class="tagline">How to take an already-solved <code>bw2calc.LCA</code> result and use <code>bw2analyzer.ContributionAnalysis</code> to find which processes and which biosphere flows actually drive the score.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2analyzer</code> API (<code>.venv/lib/python3.11/site-packages/bw2analyzer/</code>), verified by running it. See <a href="../bw2analyzer/index.html">the bw2analyzer module map</a> for the full picture of what else it can do, and <a href="../bw2calc/index.html">the bw2calc module map</a> for how <code>LCA</code> itself works.
+</blockquote>
+
+<h2 id="1-build-a-tiny-multi-process-system">1. Build a tiny multi-process system</h2>
+<p>
+A single-process inventory (like the <a href="../examples/index.html#ex3">bw2data example</a> this
+tutorial continues from) has nothing to rank — contribution analysis is only interesting once
+several activities and flows can compete for "biggest". Here a <code>car assembly</code> process
+draws on two component processes, each with its own emissions:
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("tutorial-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+ch4 = biosphere.new_node(code="ch4", name="methane", unit="kilogram", type="emission")
+ch4.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()
+
+electricity = db.new_node(code="electricity", name="electricity production", unit="kilowatt hour", location="GLO")
+electricity.save()
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+electricity.new_exchange(input=co2.key, amount=0.4, type="biosphere").save()
+electricity.new_exchange(input=ch4.key, amount=0.02, type="biosphere").save()
+
+car = db.new_node(code="car", name="car assembly", unit="unit", location="GLO")
+car.save()
+car.new_exchange(input=car.key, amount=1, type="production").save()
+car.new_exchange(input=steel.key, amount=900, type="technosphere").save()
+car.new_exchange(input=electricity.key, amount=2000, type="technosphere").save()</code></pre>
+<p>
+<code>car assembly</code> has no biosphere exchanges of its own — every gram of CO&#8322;/CH&#8324;
+in this system comes from the two components it draws on, in different amounts. That asymmetry is
+what the rest of this tutorial ranks.
+</p>
+
+<h2 id="2-characterize-and-solve-the-lca">2. Characterize and solve the LCA</h2>
+<p>
+Register a <a href="../bw2data/index.html#Method">Method</a> giving methane a much higher
+characterization factor than CO&#8322; (a simplified GWP100), then solve for one car:
+</p>
+<pre><code>import bw2calc as bc
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0), (ch4.key, 28.0)])   # CH4 = 28x CO2-eq (GWP100)
+
+lca = bc.LCA({car.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print(lca.score)</code></pre>
+<pre class="output"><code>3539.999943971635</code></pre>
+<p>
+<code>lca.score</code> is a single number — useful for comparing scenarios, useless for explaining
+<em>why</em> the number is what it is. That's what <code>bw2analyzer</code> is for.
+</p>
+
+<h2 id="3-rank-the-processes">3. Rank the processes</h2>
+<p>
+<code>ContributionAnalysis.annotated_top_processes(lca)</code>
+(<code>contribution.py</code> line ~127) sums <code>lca.characterized_inventory</code> per
+technosphere activity and returns <code>(score, supply_amount, activity)</code> tuples, sorted by
+<code>abs(score)</code> descending:
+</p>
+<pre><code>import bw2analyzer as ba
+
+ca = ba.ContributionAnalysis()
+for score, amount, act in ca.annotated_top_processes(lca):
+    print(f"{score:8.1f} kg CO2-eq   {amount:8.1f} {act['unit']:12s} {act}")</code></pre>
+<pre class="output"><code>  1920.0 kg CO2-eq     2000.0 kilowatt hour 'electricity production' (kilowatt hour, GLO, None)
+  1620.0 kg CO2-eq      900.0 kilogram     'steel production' (kilogram, GLO, None)
+     0.0 kg CO2-eq        1.0 unit         'car assembly' (unit, GLO, None)</code></pre>
+<p>
+<code>electricity production</code> edges out <code>steel production</code> here even though
+<code>car assembly</code> uses more mass of steel — because per-unit, electricity carries the
+(28&times;-weighted) methane emission steel doesn't. <code>car assembly</code> itself scores
+<code>0.0</code>: it has no biosphere exchanges of its own, so it contributes nothing
+<em>directly</em> — see the gotcha about this below.
+</p>
+
+<h2 id="4-rank-the-biosphere-flows">4. Rank the biosphere flows</h2>
+<p>
+<code>annotated_top_emissions(lca)</code> (<code>contribution.py</code> line ~147) does the same
+sort, but summing per <em>biosphere flow</em> instead of per activity — <code>(score,
+inventory_amount, flow)</code> tuples:
+</p>
+<pre><code>for score, amount, flow in ca.annotated_top_emissions(lca):
+    print(f"{score:8.1f} kg CO2-eq   {amount:8.3f} {flow['unit']:8s} {flow}")</code></pre>
+<pre class="output"><code>  2420.0 kg CO2-eq   2420.000 kilogram 'carbon dioxide' (kilogram, GLO, None)
+  1120.0 kg CO2-eq     40.000 kilogram 'methane' (kilogram, GLO, None)</code></pre>
+<p>
+By raw mass, CO&#8322; outweighs CH&#8324; by 60&times; (2420 kg vs. 40 kg) — but by characterized
+score it's only about 2&times;, because the GWP100 factor written in step 2 weights every kilogram
+of methane 28&times; more heavily. This is the actual point of contribution analysis: it ranks by
+<em>impact</em>, not by inventory quantity, which is often not the same ordering.
+</p>
+
+<h2 id="full-example-start-to-finish">Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+import bw2analyzer as ba
+
+bd.projects.set_current("tutorial-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+ch4 = biosphere.new_node(code="ch4", name="methane", unit="kilogram", type="emission")
+ch4.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()
+
+electricity = db.new_node(code="electricity", name="electricity production", unit="kilowatt hour", location="GLO")
+electricity.save()
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+electricity.new_exchange(input=co2.key, amount=0.4, type="biosphere").save()
+electricity.new_exchange(input=ch4.key, amount=0.02, type="biosphere").save()
+
+car = db.new_node(code="car", name="car assembly", unit="unit", location="GLO")
+car.save()
+car.new_exchange(input=car.key, amount=1, type="production").save()
+car.new_exchange(input=steel.key, amount=900, type="technosphere").save()
+car.new_exchange(input=electricity.key, amount=2000, type="technosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0), (ch4.key, 28.0)])
+
+lca = bc.LCA({car.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print(lca.score)
+
+ca = ba.ContributionAnalysis()
+for score, amount, act in ca.annotated_top_processes(lca):
+    print(round(score, 1), act["name"])
+for score, amount, flow in ca.annotated_top_emissions(lca):
+    print(round(score, 1), flow["name"])</code></pre>
+<pre class="output"><code>3539.999943971635
+1920.0 electricity production
+1620.0 steel production
+0.0 car assembly
+2420.0 carbon dioxide
+1120.0 methane</code></pre>
+
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
+<ul>
+<li><b>This ranks direct contributions, not subtree totals.</b> Each activity's score is its own
+row/column sum of <code>lca.characterized_inventory</code> — already scaled by how much of that
+activity the solved technosphere system needed, but not rolled up with the activities it
+consumes. That's why <code>car assembly</code> scores <code>0.0</code> above even though it's the
+functional unit: it has no biosphere exchanges of its own, and its component activities' scores
+aren't added into it. For a genuinely recursive, percentage-of-parent breakdown down the supply
+chain, use <code>bw2analyzer.utils.print_recursive_calculation</code> instead
+(<code>utils.py</code>, needs a method) or <code>tagged.py</code>
+<code>traverse_tagged_databases</code> if you want to aggregate by a custom tag rather than by
+individual activity.</li>
+<li><b>Sorted by <code>abs(value)</code>, default limit 25.</b> Both methods funnel through
+<code>sort_array</code> (<code>contribution.py</code> line ~6), which sorts by absolute value (so
+a large negative — e.g. an avoided-burden credit — ranks as "top" too) and returns at most 25
+rows by default. Pass <code>limit=10</code> for fewer, or
+<code>limit_type="percent", limit=0.05</code> to return everything at or above 5% of the total
+instead of a fixed count.</li>
+<li><b><code>names=True</code> (the default) costs one database lookup per result.</b>
+<code>annotated_top_processes</code>/<code>annotated_top_emissions</code> call
+<code>bw2data.get_activity()</code> for every row to attach the full activity/flow object. Pass
+<code>names=False</code> to get raw <code>(database, code)</code> keys instead if you're ranking
+hundreds of rows and don't need the metadata immediately.</li>
+<li><b>Lower-level building blocks, if you need them.</b> <code>top_processes(matrix, **kwargs)</code>
+and <code>top_emissions(matrix, **kwargs)</code> do the same ranking without the activity lookup —
+useful if you're working directly with a characterized-inventory-shaped matrix that didn't come
+from a live <code>LCA</code> object. <code>sort_array</code> itself is the generic "rank this 1-d
+array" primitive underneath both.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

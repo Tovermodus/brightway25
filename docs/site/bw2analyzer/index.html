@@ -96,7 +96,10 @@ print_recursive_calculation(activity, ("some", "method"), max_level=3, cutoff=0.
   <code>.annotated_top_processes(lca)</code> or <code>.annotated_top_emissions(lca)</code>
   for human-readable <code>(score, amount, name)</code> results;
   <code>.top_matrix()</code> / <code>.sort_array()</code> are the lower-level numeric
-  building blocks.</p>
+  building blocks. See the
+  <a href="../tutorials/contribution-analysis.html">step-by-step tutorial</a> for a
+  worked multi-process example and the gotchas (direct-vs-subtree contribution, sort
+  order, the <code>names=False</code> shortcut).</p>
 
   <h3 id="how-do-i-compare-two-activities-or-see-why-their-lca-scores-differ">How do I compare two activities, or see why their LCA scores differ?</h3>
   <p><code>comparisons.py</code>: <code>compare_activities_by_lcia_score</code>
