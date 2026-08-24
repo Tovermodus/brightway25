@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>randonneur_data — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -25,7 +25,7 @@
     sources (e.g. ecoinvent version-to-version, SimaPro → ecoinvent, Agribalyse → ecoinvent). It holds
     the data; the separate <code>randonneur</code> package is the engine that applies it.</p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
     <tbody>
@@ -36,7 +36,7 @@
     </tbody>
   </table>
 
-  <h3>Sample of bundled datasets</h3>
+  <h3 id="sample-of-bundled-datasets">Sample of bundled datasets</h3>
   <p>Dataset names registered in <code>data/registry.json</code> (not file paths) fall into a few families:</p>
   <div class="grid">
     <div class="card"><a class="name" href="#">ecoinvent-3.9.1-cutoff-ecoinvent-3.10-cutoff</a><p>ecoinvent version-to-version cutoff migration.</p></div>
@@ -53,7 +53,7 @@
     (typically <code>["edges"]</code> for biosphere/flow mappings, <code>["nodes"]</code> for
     activity/product renames).</p>
 
-  <h2>The <code>Registry</code> class</h2>
+  <h2 id="the-registry-class">The <code>Registry</code> class</h2>
   <p><code>Registry</code> (defined in <code>__init__.py</code>) is a
     <code>collections.abc.MutableMapping</code> keyed by dataset name, backed directly by
     <code>registry.json</code> on disk — every read or write reloads/rewrites the whole file, there is
@@ -74,7 +74,7 @@
     </tbody>
   </table>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <pre><code>from randonneur_data import Registry
 
 registry = Registry()  # uses bundled data/registry.json
@@ -96,7 +96,7 @@ data = registry.get_file("ecoinvent-3.9.1-cutoff-ecoinvent-3.10-cutoff")
 data.keys()  # e.g. dict_keys(['update', 'mapping', 'name', ...])
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
   <blockquote><strong>How do I find what migration datasets are available?</strong><br>
     Instantiate <code>Registry()</code> and iterate it, or <code>print(registry)</code> for the
     formatted summary — each key is a dataset name from <code>data/registry.json</code>.</blockquote>

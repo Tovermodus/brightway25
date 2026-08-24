@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>bw2analyzer — code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -31,7 +31,7 @@
 <a class="api-link" href="../api/bw2analyzer/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw2analyzer</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <tr><th>File</th><th>Role</th></tr>
     <tr><td><code>__init__.py</code></td><td>Public API (<code>__all__</code>)</td></tr>
@@ -49,7 +49,7 @@
     <tr><td><code>version.py</code></td><td><code>version = (0, 11, 8)</code>, re-exported as <code>bw2analyzer.__version__</code></td></tr>
   </table>
 
-  <h2>Main classes / entry points</h2>
+  <h2 id="main-classes-entry-points">Main classes / entry points</h2>
   <p>All below are re-exported from <code>bw2analyzer</code> top-level (see <code>__init__.py</code> <code>__all__</code>):</p>
   <div class="grid">
     <div class="card"><a class="name" href="#">ContributionAnalysis</a><p>contribution.py — top-N contributors, sorted matrix values.</p></div>
@@ -64,7 +64,7 @@
     <div class="card"><a class="name" href="#">print_recursive_supply_chain</a><p>utils.py — print an unweighted supply-chain trace.</p></div>
   </div>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <pre><code>import bw2data as bd
 import bw2calc as bc
 from bw2analyzer import ContributionAnalysis
@@ -89,42 +89,42 @@ from bw2analyzer import print_recursive_calculation
 print_recursive_calculation(activity, ("some", "method"), max_level=3, cutoff=0.02)
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>I have a solved <code>bw2calc.LCA</code>, how do I find its biggest contributors?</h3>
+  <h3 id="i-have-a-solved-bw2calc-lca-how-do-i-find-its-biggest-contributors">I have a solved <code>bw2calc.LCA</code>, how do I find its biggest contributors?</h3>
   <p><code>contribution.py</code> <code>ContributionAnalysis</code> — call
   <code>.annotated_top_processes(lca)</code> or <code>.annotated_top_emissions(lca)</code>
   for human-readable <code>(score, amount, name)</code> results;
   <code>.top_matrix()</code> / <code>.sort_array()</code> are the lower-level numeric
   building blocks.</p>
 
-  <h3>How do I compare two activities, or see why their LCA scores differ?</h3>
+  <h3 id="how-do-i-compare-two-activities-or-see-why-their-lca-scores-differ">How do I compare two activities, or see why their LCA scores differ?</h3>
   <p><code>comparisons.py</code>: <code>compare_activities_by_lcia_score</code>
   (band-based ranking of several activities by score) and
   <code>compare_activities_by_grouped_leaves</code> /
   <code>find_differences_in_inputs</code> (diff underlying leaf-level inputs, via
   <code>find_leaves</code> / <code>group_leaves</code>).</p>
 
-  <h3>How do I aggregate impacts by a custom tag instead of by activity?</h3>
+  <h3 id="how-do-i-aggregate-impacts-by-a-custom-tag-instead-of-by-activity">How do I aggregate impacts by a custom tag instead of by activity?</h3>
   <p><code>tagged.py</code> <code>traverse_tagged_databases</code> (single LCIA method)
   and <code>multi_traverse_tagged_databases</code> (several methods at once); tags
   come from an activity/exchange <code>"tag"</code> key (configurable <code>label</code>
   arg), falling back to <code>default_tag</code> when absent.</p>
 
-  <h3>How do I turn a <code>GraphTraversal</code> result into a treemap / force-directed
+  <h3 id="how-do-i-turn-a-graphtraversal-result-into-a-treemap-force-directed-graph-or-simplify-it">How do I turn a <code>GraphTraversal</code> result into a treemap / force-directed
   graph, or simplify it?</h3>
   <p><code>sc_graph.py</code> <code>GTManipulator</code> — <code>unroll_graph</code>,
   <code>simplify</code> / <code>simplify_naive</code>, <code>d3_treemap</code>,
   <code>d3_force_directed</code>.</p>
 
-  <h3>How do I sanity-check a whole database for data-quality issues?</h3>
+  <h3 id="how-do-i-sanity-check-a-whole-database-for-data-quality-issues">How do I sanity-check a whole database for data-quality issues?</h3>
   <p><code>health_check.py</code> <code>DatabaseHealthCheck(database).check()</code> —
   bundles duplicate/unlinked exchange checks, uncertainty-distribution sanity
   checks, multi-output/self-production checks, and PageRank-based importance
   ranking (delegates to <code>page_rank.py</code> and
   <code>matrix_grapher.py</code>).</p>
 
-  <h3>How do I get the inventory as a labeled table, or print a
+  <h3 id="how-do-i-get-the-inventory-as-a-labeled-table-or-print-a-human-readable-supply-chain-trace">How do I get the inventory as a labeled table, or print a
   human-readable supply-chain trace?</h3>
   <p><code>lci.py</code> <code>get_labeled_inventory(lca)</code> for a labeled
   <code>pandas.DataFrame</code>; <code>utils.py</code>
@@ -133,7 +133,7 @@ print_recursive_calculation(activity, ("some", "method"), max_level=3, cutoff=0.
   console output.</p>
 
   <div class="related">
-    <h2>Related modules</h2>
+    <h2 id="related-modules">Related modules</h2>
     <a href="../bw2calc/index.html">bw2calc</a> — produces the solved <code>LCA</code> objects (score, inventory, technosphere matrix) that bw2analyzer's contribution/comparison/health-check functions consume.<br>
     <a href="../bw2data/index.html">bw2data</a> — supplies the <code>Activity</code>/<code>Database</code> objects, exchanges, and tags that bw2analyzer reads and reports on.<br>
     <a href="../bw_graph_tools/index.html">bw_graph_tools</a> — the lower-level supply-chain graph traversal engine; <code>sc_graph.py</code> here post-processes the <code>nodes</code>/<code>edges</code> results that traversal produces.

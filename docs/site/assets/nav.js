@@ -181,6 +181,13 @@
     });
   }
 
+  // Kept in sync with the id scheme baked statically into every h2-h6 in
+  // docs/site/**/*.html (all handwritten pages already carry these ids in
+  // the committed markup — Pagefind crawls the static HTML at build time,
+  // never runs this script, so ids added only at runtime here would be
+  // invisible to it; see assets/search.js's sub-result anchor note). This
+  // function's own `if (!h.id)` below only still fires for a heading some
+  // page hasn't been given a static id for yet.
   function slugify(text) {
     return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }

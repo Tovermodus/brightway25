@@ -64,6 +64,12 @@
     "--pagefind-ui-background:#171a21;--pagefind-ui-border:#2a2f3a;" +
     "--pagefind-ui-tag:#1b1f27;" +
     "--pagefind-ui-font:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif}" +
+    // pagefind-ui.css's own .pagefind-ui__search-input rule never sets
+    // `color` (only background/border, via the --pagefind-ui-* vars above),
+    // so the typed text falls back to the browser's default input color
+    // (black) — invisible against the dark --pagefind-ui-background here.
+    // Force it to match the rest of the modal's text explicitly.
+    ".pagefind-ui__search-input{color:#dbe0e8}" +
     ".pagefind-ui__result-link{color:#7ec3ff}";
 
   function injectStyles() {

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>matrix_utils — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -37,7 +37,7 @@
 <a class="api-link" href="../api/matrix_utils/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>matrix_utils</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
     <tbody>
@@ -53,7 +53,7 @@
     </tbody>
   </table>
 
-  <h2>Main classes &amp; entry points</h2>
+  <h2 id="main-classes-entry-points">Main classes &amp; entry points</h2>
   <p>Everything below is exported from the top-level package (see <code>__init__.py</code> <code>__all__</code>):</p>
   <div class="grid">
     <div class="card">
@@ -90,7 +90,7 @@
     </div>
   </div>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <p>Building a matrix from one or more <code>bw_processing</code> datapackages, then stepping through Monte Carlo iterations:</p>
   <pre><code>from bw_processing import load_datapackage, create_datapackage
 from matrix_utils import MappedMatrix
@@ -117,9 +117,9 @@ mm.input_provenance()     # [(datapackage, group_label, (start, end)), ...]
 mm.input_raw_indices()    # original ids, aligned with input_data_vector()
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>How does a datapackage row/col id become a matrix row/col index?</h3>
+  <h3 id="how-does-a-datapackage-row-col-id-become-a-matrix-row-col-index">How does a datapackage row/col id become a matrix row/col index?</h3>
   <p><code>ArrayMapper</code> in <code>matrix_utils/array_mapper.py</code>. It dedupes and sorts the input id
   array, builds a one-column sparse lookup, and exposes <code>map_array()</code> (returns <code>-1</code>
   for unmapped ids), plus <code>to_dict()</code>/<code>reverse_dict()</code> for debugging. <code>MappedMatrix.__init__</code>
@@ -127,14 +127,14 @@ mm.input_raw_indices()    # original ids, aligned with input_data_vector()
   (used to force alignment with an existing mapping, e.g. reusing a biosphere row mapping
   when building a characterization matrix).</p>
 
-  <h3>How do I build a matrix from a set of datapackages?</h3>
+  <h3 id="how-do-i-build-a-matrix-from-a-set-of-datapackages">How do I build a matrix from a set of datapackages?</h3>
   <p><code>MappedMatrix.__init__</code> in <code>matrix_utils/mapped_matrix.py</code>. Flow: filter resource
   groups down to the requested <code>matrix</code> label (<code>utils.filter_groups_for_packages</code>) →
   wrap each in a <code>ResourceGroup</code> → build/attach row &amp; column <code>ArrayMapper</code>s →
   assemble an empty <code>scipy.sparse.coo_matrix</code> sized to the mapped dimensions → <code>.tocsr()</code>
   → <code>rebuild_matrix()</code> to fill in data. Raises <code>AllArraysEmpty</code> unless <code>empty_ok=True</code>.</p>
 
-  <h3>How does Monte Carlo / scenario iteration work?</h3>
+  <h3 id="how-does-monte-carlo-scenario-iteration-work">How does Monte Carlo / scenario iteration work?</h3>
   <p><code>matrix_utils/indexers.py</code> defines the indexer types; <code>MappedMatrix.add_indexers</code>
   (in <code>mapped_matrix.py</code>) picks one indexer per datapackage based on its metadata
   (<code>combinatorial</code>, <code>sequential</code>, or falls back to a seeded <code>RandomIndexer</code>), shared
@@ -142,7 +142,7 @@ mm.input_raw_indices()    # original ids, aligned with input_data_vector()
   <code>MappedMatrix.__next__</code> → <code>iterate_indexers()</code> then <code>rebuild_matrix()</code>, which recomputes
   each group's <code>(row, col, data)</code> via <code>ResourceGroup.calculate()</code>.</p>
 
-  <h3>How do several matrices stay aligned across scenarios (e.g. per-database matrices)?</h3>
+  <h3 id="how-do-several-matrices-stay-aligned-across-scenarios-e-g-per-database-matrices">How do several matrices stay aligned across scenarios (e.g. per-database matrices)?</h3>
   <p><code>MappedMatrixDict</code> in <code>matrix_utils/mapped_matrix_dict.py</code>. It forces every
   <code>MappedMatrix</code> it builds to share the same <code>row_mapper</code>/<code>col_mapper</code> and the same
   <code>global_indexer</code>, so <code>next(mapped_matrix_dict)</code> advances all of them together.
@@ -150,7 +150,7 @@ mm.input_raw_indices()    # original ids, aligned with input_data_vector()
   against a sparse matrix or another dict in one call, using <code>utils.unroll</code> to merge
   tuple keys.</p>
 
-  <h3>What's the difference between a resource group's <code>.row_mapped</code> and <code>.row</code>?</h3>
+  <h3 id="what-s-the-difference-between-a-resource-group-s-row-mapped-and-row">What's the difference between a resource group's <code>.row_mapped</code> and <code>.row</code>?</h3>
   <p><code>ResourceGroup</code> in <code>matrix_utils/resource_group.py</code> — see the class docstring
   (top of the file) for a worked example. <code>.row_mapped</code>/<code>.col_mapped</code> are raw datapackage
   ids run through the <code>ArrayMapper</code> (may contain <code>-1</code> for unmapped ids); <code>.row</code>/<code>.col</code>
@@ -158,7 +158,7 @@ mm.input_raw_indices()    # original ids, aligned with input_data_vector()
   (<code>sum_intra_duplicates</code>, via <code>aggregation.aggregate_with_sparse</code>) and masking out
   unmapped or filtered elements.</p>
 
-  <h3>What exceptions can this package raise?</h3>
+  <h3 id="what-exceptions-can-this-package-raise">What exceptions can this package raise?</h3>
   <p><code>matrix_utils/errors.py</code>: <code>AllArraysEmpty</code> (no data available to build the
   requested matrix — message built by <code>utils.handle_all_arrays_empty</code>), <code>EmptyArray</code>
   (an <code>ArrayMapper</code> got/was asked to map an empty array without <code>empty_ok=True</code>),

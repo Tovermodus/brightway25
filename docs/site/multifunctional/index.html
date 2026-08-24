@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>multifunctional — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -30,7 +30,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/multifunctional/</code>, v
 <a class="api-link" href="../api/multifunctional/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>multifunctional</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-<h2>Key files</h2>
+<h2 id="key-files">Key files</h2>
 <table>
 <tr><th>File</th><th>Role</th></tr>
 <tr><td><code>__init__.py</code></td><td>Entry point. Builds <code>__all__</code> and registers <code>MultifunctionalDatabase</code> / <code>multifunctional_node_dispatcher</code> into <code>bw2data</code>'s backend and node-class mappings (see below). Adds <code>"readonly_process"</code> to <code>bw2data.labels</code> node-type lists.</td></tr>
@@ -43,7 +43,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/multifunctional/</code>, v
 <tr><td><code>utils.py</code></td><td>Data-prep and bookkeeping helpers used by <code>write()</code>, <code>allocate()</code> and <code>save()</code>: type labeling, filling missing exchange inputs, writing allocation results back as real nodes/edges, and purging stale read-only processes from earlier allocation runs.</td></tr>
 </table>
 
-<h2>Main classes / entry points</h2>
+<h2 id="main-classes-entry-points">Main classes / entry points</h2>
 <p>From <code>__init__.py</code> <code>__all__</code>:</p>
 <div class="grid">
   <div class="card"><a class="name">MultifunctionalDatabase</a><p><code>database.py</code>. The database backend class — use via <code>bd.Database(name, backend="multifunctional")</code>.</p></div>
@@ -56,7 +56,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/multifunctional/</code>, v
   <div class="card"><a class="name">allocation_before_writing</a><p><code>utils.py</code>. Allocate a dict-of-datasets before it is written to a database.</p></div>
 </div>
 
-<h3>The plugin mechanism</h3>
+<h3 id="the-plugin-mechanism">The plugin mechanism</h3>
 <p>
 <code>multifunctional</code> doesn't monkeypatch <code>bw2data</code> — it registers itself into two
 mapping dicts that <code>bw2data</code> consults by <code>backend</code> string:
@@ -74,7 +74,7 @@ time, simply having this package installed is enough: any database created with
 for allocation-generated nodes, <code>MaybeMultifunctionalProcess</code> for everything else.
 </p>
 
-<h2>Typical usage</h2>
+<h2 id="typical-usage">Typical usage</h2>
 <pre><code>import bw2data as bd
 
 bd.projects.set_current("mf-example")
@@ -108,47 +108,47 @@ db.process()
 electricity = bd.get_node(database="mf-db", name="electricity")
 </code></pre>
 
-<h2>Where to look</h2>
+<h2 id="where-to-look">Where to look</h2>
 
-<h3>How does a "multifunctional" backend database actually activate this package?</h3>
+<h3 id="how-does-a-multifunctional-backend-database-actually-activate-this-package">How does a "multifunctional" backend database actually activate this package?</h3>
 <p><code>__init__.py</code> — registers <code>MultifunctionalDatabase</code> into
 <code>bw2data.subclass_mapping.DATABASE_BACKEND_MAPPING["multifunctional"]</code> and
 <code>multifunctional_node_dispatcher</code> into <code>NODE_PROCESS_CLASS_MAPPING["multifunctional"]</code>.
 See "The plugin mechanism" above.</p>
 
-<h3>Where does allocation actually run, and when?</h3>
+<h3 id="where-does-allocation-actually-run-and-when">Where does allocation actually run, and when?</h3>
 <p><code>database.py</code> <code>MultifunctionalDatabase.process()</code> calls <code>node.allocate()</code>
 on every multifunctional node before building the datapackage; the per-node logic is
 <code>node_classes.py</code> <code>MaybeMultifunctionalProcess.allocate()</code>, which dispatches to
 <code>allocation.py</code> <code>generic_allocation()</code>.</p>
 
-<h3>How do I add a custom allocation strategy, e.g. by a "volume" property?</h3>
+<h3 id="how-do-i-add-a-custom-allocation-strategy-e-g-by-a-volume-property">How do I add a custom allocation strategy, e.g. by a "volume" property?</h3>
 <p><code>custom_allocation.py</code> <code>add_custom_property_allocation_to_project("volume")</code> —
 registers it in <code>allocation_strategies</code> and persists it to the current project (restored
 on project switch via <code>update_allocation_strategies_on_project_change</code>). Validate first
 with <code>check_property_for_allocation()</code> / <code>list_available_properties()</code>.</p>
 
-<h3>What is a "read-only" process, and why can't I edit it directly?</h3>
+<h3 id="what-is-a-read-only-process-and-why-can-t-i-edit-it-directly">What is a "read-only" process, and why can't I edit it directly?</h3>
 <p><code>node_classes.py</code> <code>ReadOnlyProcessWithReferenceProduct</code> — generated per functional
 product by allocation; its <code>__setitem__</code>/<code>copy</code>/<code>new_edge</code> raise
 <code>NotImplementedError</code>, and its exchanges use <code>edge_classes.py</code>
 <code>ReadOnlyExchange</code>/<code>ReadOnlyExchanges</code> which block mutation too. Edit the parent
 process (<code>.parent</code> property, via <code>mf_parent_key</code>) and re-run allocation instead.</p>
 
-<h3>How are stale allocation results cleaned up when I edit a process?</h3>
+<h3 id="how-are-stale-allocation-results-cleaned-up-when-i-edit-a-process">How are stale allocation results cleaned up when I edit a process?</h3>
 <p><code>utils.py</code> <code>purge_expired_linked_readonly_processes()</code>, called from
 <code>MaybeMultifunctionalProcess.save()</code>. Each allocation run stamps a fresh
 <code>mf_allocation_run_uuid</code> on the parent (in <code>allocation.py</code>
 <code>generic_allocation()</code>); read-only children with a stale UUID are deleted.</p>
 
-<h3>What built-in allocation strategies exist and what data do they need?</h3>
+<h3 id="what-built-in-allocation-strategies-exist-and-what-data-do-they-need">What built-in allocation strategies exist and what data do they need?</h3>
 <p><code>allocation.py</code> <code>allocation_strategies</code>: <code>"price"</code> and <code>"mass"</code>
 (numeric property on the functional edge or its linked product, normalized by production
 amount), <code>"equal"</code> (factor <code>1.0</code> per functional edge), <code>"manual_allocation"</code>
 (uses a <code>manual_allocation</code> property directly, not normalized).</p>
 
 <div class="related">
-  <h2>Related modules</h2>
+  <h2 id="related-modules">Related modules</h2>
   <a href="../bw2data/index.html">bw2data</a> — the core data model this package plugs into; provides <code>SQLiteBackend</code>, <code>Activity</code>/<code>Exchange</code>, and the <code>DATABASE_BACKEND_MAPPING</code> / <code>NODE_PROCESS_CLASS_MAPPING</code> extension points multifunctional registers into.<br>
   <a href="../bw2calc/index.html">bw2calc</a> — runs LCA calculations against the allocated, single-output read-only processes this package produces (via the <code>bw_processing</code> datapackage bw2data writes).<br>
   <a href="../bw2io/index.html">bw2io</a> — importers (e.g. from ecoinvent/SimaPro) that commonly write multi-output processes into a <code>multifunctional</code>-backed database for allocation.
