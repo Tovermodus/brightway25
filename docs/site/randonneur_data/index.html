@@ -116,10 +116,16 @@ data.keys()  # e.g. dict_keys(['update', 'mapping', 'name', ...])
   <blockquote><strong>Where are the actual JSON/gz data files?</strong><br>
     <code>randonneur_data/data/</code>, next to <code>__init__.py</code> —
     <code>registry.json</code> is the index, everything else is one file per dataset.</blockquote>
+  <blockquote><strong>Who calls <code>Registry.get_file()</code> during an actual bw2io import?</strong><br>
+    <code>bw2io</code>'s <code>importers/base_lci.py</code> <code>LCIImporter.randonneur(label=..., ...)</code>
+    (line ~675, no <code>datapackage=</code> given) — internally
+    <code>randonneur.migrate_edges_with_stored_data</code>/<code>migrate_nodes_with_stored_data</code>
+    build a <code>Registry(data_registry_path)</code> and call <code>.get_file(label)</code> to fetch
+    the datapackage by name, e.g. one of the ecoinvent-version or SimaPro-to-ecoinvent entries above.</blockquote>
 
   <div class="related">
     <a href="../randonneur/index.html">→ randonneur</a>
-    <a href="../bw2io/index.html">→ bw2io</a>
+    <a href="../bw2io/index.html">→ bw2io</a> — <code>LCIImporter.randonneur()</code> is the real-world caller of this registry.
   </div>
 
 </div>

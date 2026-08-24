@@ -210,6 +210,22 @@ next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distributi
     resolution/range.
   </p>
 
+  <h3>How does this show up in a real Monte Carlo LCA run?</h3>
+  <p>
+    <code>bw2calc.LCA(demand, method, use_distributions=True,
+    seed_override=42)</code> samples a fresh value per uncertain exchange on
+    every <code>next(lca)</code> call — each exchange's uncertainty is
+    stored in <code>bw2data</code> as <code>"uncertainty type"</code>/
+    <code>"loc"</code>/<code>"scale"</code>/... fields using exactly these
+    <code>UncertaintyType</code> ids (normal == 3), which flow unchanged
+    into <code>bw_processing</code>'s <code>UNCERTAINTY_DTYPE</code> and are
+    sampled by <code>MCRandomNumberGenerator</code> under the hood. Full
+    runnable script + captured output:
+    <a href="../examples/index.html#ex7">Example 7 on the Examples page</a>
+    (bw2calc section) — see also <a href="../bw2calc/index.html">the bw2calc
+    module map</a>.
+  </p>
+
   <div class="related">
     <strong>Related modules:</strong><br>
     <a href="../bw_processing/index.html">bw_processing</a> — stores exchange/parameter uncertainty using the same field layout in <code>UNCERTAINTY_DTYPE</code> (mirrors <code>stats_arrays</code>' params array dtype).<br>

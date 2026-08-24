@@ -52,6 +52,14 @@ Note: `report.SerializedLCAReport` is defined but deliberately commented out
 of `__all__`/the top-level import in `__init__.py` — it is not part of the
 stable public surface.
 
+## Worked examples
+
+Three runnable, verified scripts live on the site-wide examples page:
+`docs/site/examples/index.html#ex13` (`ContributionAnalysis.annotated_top_processes`/
+`annotated_top_emissions` on a solved LCA), `#ex7`
+(`compare_activities_by_lcia_score` across two candidate processes), and `#ex8`
+(`print_recursive_calculation` for a quick console supply-chain trace).
+
 ## Where to look
 
 **"I have a solved `bw2calc.LCA`, how do I find its biggest contributors?"**

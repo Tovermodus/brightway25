@@ -172,7 +172,7 @@ migrate_nodes_with_stored_data(
   <div class="related">
     <h2 id="related-modules">Related modules</h2>
     <a href="../randonneur_data/index.html">randonneur_data</a> — supplies the pre-built migration datasets (mappings between ecoinvent/SimaPro/Brightway naming) consumed via <code>migrate_*_with_stored_data()</code>.<br>
-    <a href="../bw2io/index.html">bw2io</a> — Brightway's import/export layer; uses randonneur-style migrations during database import to reconcile source-data naming with Brightway's schema.<br>
+    <a href="../bw2io/index.html">bw2io</a> — Brightway's import/export layer; every <code>LCIImporter</code> subclass gets a <code>.randonneur(label=..., ...)</code> method (<code>importers/base_lci.py</code>, line ~675) that calls straight into this package's <code>migrate_edges_with_stored_data</code>/<code>migrate_nodes_with_stored_data</code> against the importer's in-progress data — a separate mechanism from bw2io's own <code>Migration</code>/strategies system.<br>
     <a href="../bw_migrations/index.html">bw_migrations</a> — Brightway-specific migration data/tooling built on the same migrate-graph pattern.
   </div>
 
