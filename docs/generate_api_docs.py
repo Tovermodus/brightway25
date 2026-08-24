@@ -34,6 +34,7 @@ version of each package is actually installed in .venv.
 from __future__ import annotations
 
 import importlib
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -41,6 +42,56 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SITE_DIR = REPO_ROOT / "docs" / "site"
 API_DIR = SITE_DIR / "api"
+
+# Inserted into every generated pdoc page, right after <body>, so a reader who
+# lands on an API page directly (deep link, search engine) can get back to
+# the handwritten module map and the rest of the code map. pdoc's own template
+# knows nothing about docs/site/, so this is injected as plain inline-styled
+# HTML rather than relying on assets/style.css classes. Kept intentionally
+# tiny — it must not fight pdoc's own layout.
+_BACKLINK_TEMPLATE = (
+    '<div style="background:#171a21;color:#9aa4b2;font:0.82rem -apple-system,'
+    "Helvetica,Arial,sans-serif;padding:0.5rem 1rem;border-bottom:1px solid "
+    '#2a2f3a">'
+    '<a href="{home}" style="color:#7ec3ff;text-decoration:none">'
+    "← brightway25 code map</a>"
+    ' &middot; <a href="{module}" style="color:#7ec3ff;text-decoration:none">'
+    "{package} module map</a>"
+    ' &middot; <a href="{examples}" style="color:#7ec3ff;text-decoration:none">'
+    "Examples</a>"
+    "</div>"
+)
+
+
+def inject_backlinks(out_dir: Path, package: str) -> None:
+    """Best-effort: add a back-to-code-map banner to every page pdoc wrote.
+
+    Runs after a successful `generate()`; never fails the build — a page
+    pdoc wrote without a banner is still a usable page, so any surprise in
+    pdoc's output format is swallowed per-file rather than raised.
+    """
+    for html_file in out_dir.rglob("*.html"):
+        try:
+            text = html_file.read_text(encoding="utf-8")
+            if "brightway25 code map</a>" in text:
+                continue  # already injected (e.g. re-run without a clean)
+            site_rel = os.path.relpath(SITE_DIR, html_file.parent).replace(os.sep, "/")
+            if site_rel == ".":
+                site_rel = ""
+            else:
+                site_rel += "/"
+            banner = _BACKLINK_TEMPLATE.format(
+                home=f"{site_rel}index.html",
+                module=f"{site_rel}{package}/index.html",
+                examples=f"{site_rel}examples/index.html",
+                package=package,
+            )
+            new_text = text.replace("<body>", "<body>" + banner, 1)
+            if new_text == text:
+                continue  # unexpected template shape — skip rather than guess
+            html_file.write_text(new_text, encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001 - cosmetic banner, never fatal
+            print(f"  (skip backlink banner for {html_file}: {exc})", file=sys.stderr)
 
 # Directories under docs/site/ that are not package map pages.
 NON_PACKAGE_DIRS = {"assets", "api", "examples", "tutorials"}
@@ -74,6 +125,7 @@ def generate(package: str) -> bool:
     if result.returncode != 0:
         print(f"  FAILED: {package}\n{result.stdout}\n{result.stderr}", file=sys.stderr)
         return False
+    inject_backlinks(out_dir, package)
     return True
 
 
