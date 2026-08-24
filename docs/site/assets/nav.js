@@ -52,7 +52,7 @@
 
   var EXTRAS = [
     ["examples", "Examples", ROOT + "examples/index.html"],
-    ["tutorials", "Tutorials", ROOT + "tutorials/create-empty-database.html"]
+    ["tutorials", "Tutorials", ROOT + "tutorials/index.html"]
   ];
 
   var KNOWN_IDS = {};
@@ -229,7 +229,8 @@
   // Tutorials indexed by the module id they're about — extend this as more
   // tutorials are added (each module page picks up its own automatically).
   var TUTORIALS = {
-    bw2data: [["Create an empty database", "tutorials/create-empty-database.html"]]
+    bw2data: [["Create an empty database", "tutorials/create-empty-database.html"]],
+    bw2analyzer: [["Find an LCA result's biggest contributors", "tutorials/contribution-analysis.html"]]
   };
 
   // Every module page gets the same cross-link strip right under its <h1>:

@@ -56,9 +56,22 @@ stable public surface.
 
 **"I have a solved `bw2calc.LCA`, how do I find its biggest contributors?"**
 → `contribution.py` `ContributionAnalysis` — call `.annotated_top_processes(lca)`
-or `.annotated_top_emissions(lca)` for human-readable (name, amount, score)
+or `.annotated_top_emissions(lca)` for human-readable (score, amount, activity)
 tuples; `.top_matrix()`/`.sort_array()` are the lower-level numeric building
-blocks.
+blocks. Both funnel through `sort_array` (line ~6, default `limit=25`), which
+sorts by `abs(value)` descending — a large negative (avoided-burden credit)
+ranks as "top" too. Crucially, each row is that activity/flow's own **direct**
+contribution (its own row/column sum of `lca.characterized_inventory`, already
+scaled by the solved supply amount) — not a rolled-up subtree total, so a
+functional-unit activity with no biosphere exchanges of its own scores `0.0`
+even though everything downstream of it is what's being ranked. For a
+recursive, percentage-of-parent breakdown instead, use `utils.py`
+`print_recursive_calculation` (needs a method) or `tagged.py`
+`traverse_tagged_databases` to aggregate by a custom tag. `names=True`
+(default) costs one `bw2data.get_activity()` call per row — pass
+`names=False` when ranking many rows and metadata isn't needed yet. Full
+runnable worked example (multi-process system, GWP-weighted CO₂ vs. CH₄):
+[docs/site/tutorials/contribution-analysis.html](../../docs/site/tutorials/contribution-analysis.html).
 
 **"How do I compare two activities / see why their LCA scores differ?"**
 → `comparisons.py`: `compare_activities_by_lcia_score` (band-based ranking of
