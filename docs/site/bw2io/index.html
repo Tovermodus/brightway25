@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bw2io — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -30,7 +30,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2io/</code>, version <co
 <a class="api-link" href="../api/bw2io/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw2io</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-<h2>Key files / subdirs</h2>
+<h2 id="key-files-subdirs">Key files / subdirs</h2>
 <table>
 <tr><th>Path</th><th>Role</th></tr>
 <tr><td><code>__init__.py</code></td><td>Public API surface; also defines convenience one-shot functions <code>bw2setup()</code>, <code>create_default_biosphere3()</code>, <code>create_default_lcia_methods()</code>, <code>useeio20()</code>, <code>exiobase_monetary()</code>, and registers <code>migrations</code>/<code>unlinked_data</code> into <code>bw2data.config.metadata</code>.</td></tr>
@@ -46,7 +46,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2io/</code>, version <co
 <tr><td><code>data/</code></td><td>Bundled reference data: unit-normalization tables, biosphere 2→3 / SimaPro↔ecoinvent migration JSON (feeds <code>migrations.py</code>), example CSV/XLSX files, pre-built LCIA method archive <code>data/lcia/lcia_39_ecoinvent.zip</code> (fast path for <code>create_default_lcia_methods</code>), <code>exiopol.py</code> (EXIOBASE metadata).</td></tr>
 </table>
 
-<h2>Import pipeline architecture</h2>
+<h2 id="import-pipeline-architecture">Import pipeline architecture</h2>
 <p>Every format follows the same three-stage shape:</p>
 <div class="arch">
 <pre><code>extractor.extract(filepath, ...)             # extractors/*.py — raw file -> plain dicts/lists
@@ -68,7 +68,7 @@ importer.write_database() / .write_methods()  # bw2data.Database(name).write(dat
 <p>Concretely: <code>ImportBase</code> (<code>importers/base.py</code>) owns <code>apply_strategy</code>/<code>apply_strategies</code> and the <code>.unlinked</code> property. <code>LCIImporter</code> (<code>importers/base_lci.py</code>) extends it for inventory data with <code>write_database(...)</code>, <code>match_database(db_name=None, fields=None, relink=False, ...)</code> and <code>statistics(...)</code>. <code>LCIAImporter</code> (<code>importers/base_lcia.py</code>) is the equivalent for characterization factor data, adding <code>write_methods(...)</code>. Format classes like <code>SingleOutputEcospold2Importer</code> and <code>SimaProCSVImporter</code> just wire up an extractor plus a hand-picked, ordered list of strategy functions in <code>__init__</code> — that list <em>is</em> the format-specific documentation of what quirks need fixing.</p>
 <p>A <strong>strategy</strong> is a plain function <code>data -&gt; data</code> (sometimes partially bound, e.g. <code>functools.partial(migrate_datasets, migration="default-units")</code>), living in <code>strategies/*.py</code>. A <strong>migration</strong> (<code>migrations.py</code> <code>Migration</code>) is reusable rename/unit lookup data stored per-project and applied by the <code>migrate_datasets</code>/<code>migrate_exchanges</code> strategies — think of migrations as data, strategies as the code that applies them.</p>
 
-<h2>Typical usage</h2>
+<h2 id="typical-usage">Typical usage</h2>
 <pre><code>import bw2data as bd
 import bw2io as bi
 
@@ -96,37 +96,37 @@ if sp.all_linked:
     sp.write_database()
 </code></pre>
 
-<h2>Where to look</h2>
+<h2 id="where-to-look">Where to look</h2>
 
-<h3>How does a SimaPro CSV import work end to end?</h3>
+<h3 id="how-does-a-simapro-csv-import-work-end-to-end">How does a SimaPro CSV import work end to end?</h3>
 <p><code>importers/simapro_csv.py</code> <code>SimaProCSVImporter.__init__</code> calls <code>extractors/simapro_csv.py</code> <code>SimaProCSVExtractor.extract()</code> to parse the raw CSV, then builds <code>self.strategies</code> (name/geo splitting, unit fixes, biosphere normalization, technosphere linking via <code>link_technosphere_based_on_name_unit_location</code>). Call <code>.apply_strategies()</code> then <code>.write_database()</code>. The newer <code>importers/simapro_block_csv.py</code> <code>SimaProBlockCSVImporter</code> instead delegates all CSV parsing to the external <code>bw_simapro_csv</code> package (<code>SimaProCSV.to_brightway()</code>) and only runs Brightway-side linking strategies afterward — prefer this path for new code (requires <code>multifunctional</code> installed).</p>
 
-<h3>How does an ecoinvent import work?</h3>
+<h3 id="how-does-an-ecoinvent-import-work">How does an ecoinvent import work?</h3>
 <p><code>ecoinvent.py</code> <code>import_ecoinvent_release(version, system_model, username, password, ...)</code> is the one-call entry point: it authenticates and downloads the release via <code>ecoinvent_interface</code>, then internally drives <code>importers/ecospold2_biosphere.py</code> <code>Ecospold2BiosphereImporter</code> (biosphere database) and <code>importers/ecospold2.py</code> <code>SingleOutputEcospold2Importer</code> (LCI database, using <code>extractors/ecospold2.py</code> <code>Ecospold2DataExtractor</code>, which can multiprocess XML parsing), plus LCIA method import.</p>
 
-<h3>What is a "strategy" and how is it applied?</h3>
+<h3 id="what-is-a-strategy-and-how-is-it-applied">What is a "strategy" and how is it applied?</h3>
 <p>A plain <code>data -&gt; data</code> function in <code>strategies/*.py</code>, re-exported from <code>strategies/__init__.py</code>. <code>importers/base.py</code> <code>ImportBase.apply_strategy</code> calls one, appends its name to <code>self.applied_strategies</code>, and catches (prints, doesn't raise) <code>StrategyError</code>; <code>apply_strategies</code> runs the whole ordered <code>self.strategies</code> list. Each importer's <code>__init__</code> builds its own tailored list.</p>
 
-<h3>How do I check/fix unlinked exchanges after applying strategies?</h3>
+<h3 id="how-do-i-check-fix-unlinked-exchanges-after-applying-strategies">How do I check/fix unlinked exchanges after applying strategies?</h3>
 <p><code>ImportBase.unlinked</code> (property, unique unlinked exchanges), <code>importers/base_lci.py</code> <code>LCIImporter.statistics()</code> (prints counts) and <code>.match_database(db_name=None, fields=None, relink=False, ...)</code> (link against another written database, or self-match). <code>unlinked_data.py</code> <code>UnlinkedData</code>/<code>unlinked_data</code> persists a project-level log.</p>
 
-<h3>How does data actually get written into bw2data?</h3>
+<h3 id="how-does-data-actually-get-written-into-bw2data">How does data actually get written into bw2data?</h3>
 <p><code>importers/base_lci.py</code> <code>LCIImporter.write_database(data=None, delete_existing=True, backend=None, activate_parameters=False, db_name=None, ...)</code> validates (<code>WrongDatabase</code>, <code>NonuniqueCode</code> in <code>errors.py</code>) then calls <code>bw2data.Database(db_name).write(data)</code>. <code>LCIAImporter.write_methods()</code> (<code>importers/base_lcia.py</code>) is the LCIA equivalent.</p>
 
-<h3>How is EXIOBASE / MRIO data handled?</h3>
+<h3 id="how-is-exiobase-mrio-data-handled">How is EXIOBASE / MRIO data handled?</h3>
 <p><code>extractors/exiobase.py</code> (<code>Exiobase3MonetaryDataExtractor</code>), <code>importers/exiobase3_monetary.py</code> (<code>Exiobase3MonetaryImporter</code>) and <code>importers/exiobase3_hybrid.py</code> (<code>Exiobase3HybridImporter</code>), <code>strategies/exiobase.py</code>. <code>__init__.py</code>'s <code>exiobase_monetary()</code> downloads a specific EXIOBASE release zip and drives <code>Exiobase3MonetaryImporter</code> end to end; the resulting large database typically uses <code>bw2data</code>'s <code>backends/iotable/</code> matrix-native backend.</p>
 
-<h3>Where do the default biosphere3 flows and LCIA methods come from?</h3>
+<h3 id="where-do-the-default-biosphere3-flows-and-lcia-methods-come-from">Where do the default biosphere3 flows and LCIA methods come from?</h3>
 <p><code>__init__.py</code> <code>create_default_biosphere3()</code> runs <code>importers/ecospold2_biosphere.py</code> <code>Ecospold2BiosphereImporter</code>; <code>create_default_lcia_methods()</code> by default fast-paths by loading the pre-baked <code>data/lcia/lcia_39_ecoinvent.zip</code> JSON archive directly, or falls back to <code>importers/ecoinvent_lcia.py</code> <code>EcoinventLCIAImporter</code> when <code>shortcut=False</code>. <code>bw2setup()</code> runs both plus <code>create_core_migrations()</code>.</p>
 
 <h3 id="node-types">How do I go from a single process/chimaera node to separate process + product nodes?</h3>
 <p><code>strategies/products.py</code> <code>separate_processes_from_products(data, field_exclusions, code_suffix)</code>: given datasets typed <code>"process"</code> or <code>"processwithreferenceproduct"</code> (chimaera — see <a href="../bw2data/index.html#node-types">bw2data's node-types explanation</a>), it copies each into a new <code>"product"</code> node (using the <code>"reference product"</code> field for the name if present), repoints the process's self-referencing production edge at that new node, and flips the process's own <code>type</code> to plain <code>"process"</code>. The inverse direction — collapsing a self-referencing process back into a chimaera node — is <code>bw2data.utils.set_correct_process_type()</code>, run automatically by <code>Database.write()</code>. The same file's <code>create_products_as_new_nodes(data)</code> creates unlinked product nodes from named-but-unlinked functional edges, earlier in a pipeline before internal links resolve.</p>
 
-<h3>How do I export a database out of Brightway?</h3>
+<h3 id="how-do-i-export-a-database-out-of-brightway">How do I export a database out of Brightway?</h3>
 <p><code>export/csv.py</code> <code>write_lci_csv</code>, <code>export/excel.py</code> <code>write_lci_excel</code>/<code>lci_matrices_to_excel</code>, <code>export/matlab.py</code> <code>lci_matrices_to_matlab</code>, <code>export/gexf.py</code> <code>DatabaseToGEXF</code> (Gephi graph export). For a full round-trippable archive of any <code>bw2data</code> <code>DataStore</code> object, use <code>package.py</code> <code>BW2Package.export_obj(...)</code> / <code>BW2Package.import_file(...)</code> instead.</p>
 
 <div class="related">
-  <h2>Related modules</h2>
+  <h2 id="related-modules">Related modules</h2>
   <a href="../bw2data/index.html">bw2data</a> — bw2io's write target: every importer ultimately calls <code>bw2data.Database(...).write(...)</code> / writes an LCIA <code>Method</code>.<br>
   <a href="../bw_simapro_csv/index.html">bw_simapro_csv</a> — parses SimaPro CSV exports for the newer <code>SimaProBlockCSVImporter</code>, replacing bw2io's own <code>extractors/simapro_csv.py</code> parser.<br>
   <a href="../ecoinvent_interface/index.html">ecoinvent_interface</a> — handles ecoinvent authentication and file downloads for <code>ecoinvent.py</code> <code>import_ecoinvent_release</code>.<br>

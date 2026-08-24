@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bw2parameters — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -30,7 +30,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2parameters/</code>, ver
 <a class="api-link" href="../api/bw2parameters/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw2parameters</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-<h2>Key files</h2>
+<h2 id="key-files">Key files</h2>
 <table>
 <tr><th>File</th><th>Role</th></tr>
 <tr><td><code>__init__.py</code></td><td>Public API surface — re-exports the classes/functions below and computes <code>__version__</code> via <code>utils.get_version_tuple()</code>.</td></tr>
@@ -42,7 +42,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2parameters/</code>, ver
 <tr><td><code>utils.py</code></td><td><code>isidentifier(ident)</code> — valid-Python-name check used to validate parameter labels; <code>get_version_tuple()</code> — reads the installed package version.</td></tr>
 </table>
 
-<h2>Main classes &amp; entry points</h2>
+<h2 id="main-classes-entry-points">Main classes &amp; entry points</h2>
 
 <div class="grid">
 <div class="card"><a class="name">Interpreter</a><p><code>interpreter.py</code> — subclasses <code>asteval.Interpreter</code>. Key methods: <code>eval(expr, known_symbols=None)</code>, <code>get_symbols(text)</code>, <code>get_unknown_symbols(text, known_symbols=None)</code>, <code>add_symbols</code>/<code>remove_symbols</code>, <code>is_numeric</code>.</p></div>
@@ -53,9 +53,9 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2parameters/</code>, ver
 <div class="card"><a class="name">mangle_formula / prefix_parameter_dict</a><p><code>mangling.py</code> — <code>mangle_formula(string, prefix, context=None)</code> renames free variables in one formula; <code>prefix_parameter_dict(dct, prefix)</code> does this across a whole parameter dict and records an <code>original</code> name on each value.</p></div>
 </div>
 
-<h2>Typical usage</h2>
+<h2 id="typical-usage">Typical usage</h2>
 
-<h3>Evaluating a formula directly with <code>Interpreter</code></h3>
+<h3 id="evaluating-a-formula-directly-with-interpreter">Evaluating a formula directly with <code>Interpreter</code></h3>
 <pre><code>from bw2parameters import Interpreter
 
 interp = Interpreter()
@@ -63,7 +63,7 @@ result = interp.eval("2 * mass + offset", known_symbols={"mass": 4, "offset": 1}
 # result == 9
 </code></pre>
 
-<h3>Evaluating interdependent named parameters with <code>ParameterSet</code></h3>
+<h3 id="evaluating-interdependent-named-parameters-with-parameterset">Evaluating interdependent named parameters with <code>ParameterSet</code></h3>
 <pre><code>from bw2parameters import ParameterSet
 
 params = {
@@ -81,7 +81,7 @@ result = ps.evaluate()
 ps.evaluate_and_set_amount_field()
 </code></pre>
 
-<h3>Namespacing parameters from two scopes before combining them</h3>
+<h3 id="namespacing-parameters-from-two-scopes-before-combining-them">Namespacing parameters from two scopes before combining them</h3>
 <pre><code>from bw2parameters import prefix_parameter_dict
 
 activity_params = {"efficiency": {"formula": "base_rate * 1.1"}}
@@ -89,28 +89,28 @@ namespaced, substitutions = prefix_parameter_dict(activity_params, "act1__")
 # namespaced == {"act1__efficiency": {"formula": "(base_rate * 1.1)", "original": "efficiency"}}
 </code></pre>
 
-<h2>Where to look</h2>
+<h2 id="where-to-look">Where to look</h2>
 
-<h3>How does a formula string actually get evaluated?</h3>
+<h3 id="how-does-a-formula-string-actually-get-evaluated">How does a formula string actually get evaluated?</h3>
 <p><code>interpreter.py</code>, <code>Interpreter.eval()</code> — injects <code>known_symbols</code> into the symbol table, calls the underlying <code>asteval.Interpreter.eval</code>, then removes them again; wraps <code>NameError</code>/<code>SyntaxError</code> into <code>errors.MissingName</code>.</p>
 
-<h3>How are dependent parameters evaluated in the correct order?</h3>
+<h3 id="how-are-dependent-parameters-evaluated-in-the-correct-order">How are dependent parameters evaluated in the correct order?</h3>
 <p><code>parameter_set.py</code>, <code>ParameterSet.get_references()</code> (builds a name → dependency-set map using <code>Interpreter.get_unknown_symbols</code>) and <code>ParameterSet.get_order()</code> (topological sort; raises <code>ParameterError</code> on unresolved/circular references, or <code>CapitalizationError</code> if the mismatch looks like a case typo).</p>
 
-<h3>How do units get parsed and attached to values?</h3>
+<h3 id="how-do-units-get-parsed-and-attached-to-values">How do units get parsed and attached to values?</h3>
 <p><code>pint.py</code>, <code>PintWrapperSingleton</code> — wraps a shared <code>pint.UnitRegistry</code>. Consumed by <code>interpreter.PintInterpreter</code> and <code>parameter_set.PintParameterSet</code>, which additionally track a parameter's <code>unit</code> field alongside <code>amount</code>.</p>
 
-<h3>How does Monte Carlo / stochastic evaluation work?</h3>
+<h3 id="how-does-monte-carlo-stochastic-evaluation-work">How does Monte Carlo / stochastic evaluation work?</h3>
 <p><code>parameter_set.py</code>, <code>ParameterSet.evaluate_monte_carlo(iterations=1000)</code> — samples each parameter's uncertainty distribution via <code>stats_arrays.uncertainty_choices</code>; every formula must return a 1-D array of shape <code>(iterations,)</code> or <code>errors.BroadcastingError</code> is raised.</p>
 
-<h3>How are parameters from different scopes (project/database/activity) combined without name collisions?</h3>
+<h3 id="how-are-parameters-from-different-scopes-project-database-activity-combined-without-name-collisions">How are parameters from different scopes (project/database/activity) combined without name collisions?</h3>
 <p><code>mangling.py</code> — <code>prefix_parameter_dict(dct, prefix)</code> renames dict keys and rewrites formula references via <code>mangle_formula</code>; <code>substitute_in_formulas</code>/<code>FormulaSubstitutor</code> apply an explicit <code>{old: new}</code> rename map. This is what <code>bw2data.parameters.ParameterManager</code> uses to merge scoped parameter sets.</p>
 
-<h3>What exceptions can this package raise?</h3>
+<h3 id="what-exceptions-can-this-package-raise">What exceptions can this package raise?</h3>
 <p><code>errors.py</code> — all inherit <code>ValidationError</code>: <code>MissingName</code> (undefined variable in a formula), <code>SelfReference</code> (parameter references itself), <code>DuplicateName</code> (name collides with a built-in), <code>CapitalizationError</code> (likely case-mismatch), <code>BroadcastingError</code> (bad Monte Carlo array shape), <code>ParameterError</code> (generic ordering/definition failure).</p>
 
 <div class="related">
-  <h2>Related modules</h2>
+  <h2 id="related-modules">Related modules</h2>
   <a href="../bw2data/index.html">bw2data</a> — the main consumer: <code>bw2data/parameters.py</code> defines <code>ProjectParameter</code>/<code>DatabaseParameter</code>/<code>ActivityParameter</code>/<code>ParameterManager</code>, which build the plain-dict parameter sets that <code>bw2parameters.ParameterSet</code> evaluates.<br>
   <a href="../bw2calc/index.html">bw2calc</a> — downstream: LCA calculations run on exchange amounts that <code>bw2data</code> may have already resolved from formulas via this package.<br>
   <a href="../stats_arrays/index.html">stats_arrays</a> — supplies the uncertainty distributions sampled by <code>ParameterSet.evaluate_monte_carlo</code>.<br>

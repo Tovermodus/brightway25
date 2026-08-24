@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bw_migrations — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
 <a class="api-link" href="../api/bw_migrations/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw_migrations</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
     <tbody>
@@ -41,18 +41,18 @@
     </tbody>
   </table>
 
-  <h2>Main functions / entry points</h2>
+  <h2 id="main-functions-entry-points">Main functions / entry points</h2>
 
-  <h3><code>get_migration(location)</code></h3>
+  <h3 id="get-migration-location"><code>get_migration(location)</code></h3>
   <p>Resolves a migration into a loaded dict. <code>location</code> may be a <code>Mapping</code> (returned as-is), a <code>Path</code>/string pointing at an existing JSON file, or a bare string name (e.g. <code>"exiobase-3-ecoinvent-3.6"</code>) matched against the bundled files in <code>bw_migrations/data/</code>. Raises <code>ValueError</code> if nothing matches.</p>
 
-  <h3><code>migrate_data(data, migration)</code></h3>
+  <h3 id="migrate-data-data-migration"><code>migrate_data(data, migration)</code></h3>
   <p>Generator. Builds a lookup keyed by <code>tuple(row[field] for field in migration["fields"])</code> and, for each row in <code>data</code>, yields it unchanged if there's no match, or yields it modified (via <code>modify_object</code>) if there is. A replacement that is a <em>list</em> of dicts fans one input row out into several output rows (deep-copied) — this is how one source flow splits into multiple target flows.</p>
 
-  <h3><code>load_and_clean_exiobase_3_ecoinvent_36_migration(ecoinvent_biosphere_name=None, explode=False)</code></h3>
+  <h3 id="load-and-clean-exiobase-3-ecoinvent-36-migration-ecoinvent-biosphere-name-none-explode-false"><code>load_and_clean_exiobase_3_ecoinvent_36_migration(ecoinvent_biosphere_name=None, explode=False)</code></h3>
   <p>Loads the bundled EXIOBASE 3 → ecoinvent 3.6 migration and reshapes it into a pandas DataFrame with columns <code>exiobase name</code>, <code>exiobase compartment</code>, <code>ecoinvent name</code>, <code>ecoinvent unit</code>, <code>ecoinvent categories</code>, <code>multiplier</code>, <code>disaggregation</code>, and a combined <code>factor</code> column. Pass <code>ecoinvent_biosphere_name</code> to left-merge against a real <code>bw2data.Database</code> and attach a <code>biosphere index</code> (<code>id</code>) column; pass <code>explode=True</code> to keep one row per replacement instead of the default form grouped by <code>(exiobase name, exiobase compartment)</code>.</p>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <pre><code>from bw_migrations import get_migration, migrate_data
 
 # 1. Apply a bundled migration to a list of biosphere flow dicts
@@ -75,21 +75,21 @@ df = load_and_clean_exiobase_3_ecoinvent_36_migration(
 )
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>I need to load a bundled or custom migration file — where?</h3>
+  <h3 id="i-need-to-load-a-bundled-or-custom-migration-file-where">I need to load a bundled or custom migration file — where?</h3>
   <p><code>strategies.get_migration()</code>. It accepts an in-memory <code>Mapping</code>, a path to any JSON file, or a bare name resolved against <code>strategies.DATA_DIR</code> (<code>bw_migrations/data/</code>).</p>
 
-  <h3>How do multiplier/disaggregation rescaling actually work?</h3>
+  <h3 id="how-do-multiplier-disaggregation-rescaling-actually-work">How do multiplier/disaggregation rescaling actually work?</h3>
   <p><code>strategies.modify_object()</code> computes <code>scale = __disaggregation__ * __multiplier__</code> from the replacement dict and, if not 1, calls <code>utils.rescale_object()</code>, which knows how to rescale <code>amount</code>/<code>loc</code>/<code>scale</code>/<code>minimum</code>/<code>maximum</code>/<code>formula</code> correctly per <code>stats_arrays</code> uncertainty type.</p>
 
-  <h3>What does the raw migration JSON look like?</h3>
+  <h3 id="what-does-the-raw-migration-json-look-like">What does the raw migration JSON look like?</h3>
   <p>Open <code>data/exiobase-3-ecoinvent-3.6.json</code> directly — top-level keys are <code>fields</code>, <code>data</code>, <code>license</code>, <code>version</code>, <code>contributors</code>, <code>missing flows</code>, <code>comment</code>. <code>data</code> is a list of <code>[key, replacement]</code> pairs where <code>replacement</code> is a dict or list of dicts.</p>
 
-  <h3>Can I register a new named migration so <code>get_migration("my-name")</code> finds it?</h3>
+  <h3 id="can-i-register-a-new-named-migration-so-get-migration-my-name-finds-it">Can I register a new named migration so <code>get_migration("my-name")</code> finds it?</h3>
   <p>Not via any API in this version — there's no writer/save function. Drop a correctly-shaped <code>.json</code> file into <code>bw_migrations/data/</code> (or just pass a file path/dict directly to <code>get_migration</code>/<code>migrate_data</code>). The commented-out <code>create_core_migrations()</code> block at the bottom of <code>__init__.py</code> references a <code>Migration</code> class that does not exist in this package — ignore it.</p>
 
-  <h3>Does this package touch a Brightway project database?</h3>
+  <h3 id="does-this-package-touch-a-brightway-project-database">Does this package touch a Brightway project database?</h3>
   <p>Only optionally, and only for reads: <code>load_and_clean_exiobase_3_ecoinvent_36_migration()</code> can left-merge against a <code>bw2data.Database</code> to look up flow <code>id</code>s. <code>get_migration</code>/<code>migrate_data</code>/<code>modify_object</code> operate purely on in-memory dicts and never write anything.</p>
 
   <div class="related">

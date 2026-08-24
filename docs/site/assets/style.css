@@ -36,6 +36,14 @@ header.top a.brand { font-weight: 700; color: var(--fg); text-decoration: none; 
 header.top a.brand span { color: var(--accent); }
 nav.crumbs { font-size: 0.85rem; color: var(--fg-dim); }
 nav.crumbs a { color: var(--fg-dim); }
+/* Clear the sticky header.top (and, on generated API pages, pdoc's own
+   fixed nav) when jumping to an in-page anchor — e.g. from the site-wide
+   search modal's sub-results (assets/search.js), which link straight to
+   the matched section's #heading-id. Pagefind anchors sub-results to the
+   nearest h1-h6 with an id above the match, so heading ids must be present
+   in the static HTML, not injected client-side after load. Without this
+   rule, the target heading lands underneath the header instead of below it. */
+h1, h2, h3, h4, h5, h6 { scroll-margin-top: 5.5rem; }
 h1 { font-size: 1.7rem; margin: 0 0 0.3rem 0; }
 h1 .pkgname { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
 h2 { font-size: 1.2rem; margin-top: 2.2rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }

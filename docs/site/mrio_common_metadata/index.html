@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>mrio_common_metadata — brightway25 code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -28,7 +28,7 @@
     spreadsheet downloads into that common format.
   </p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
     <tbody>
@@ -40,7 +40,7 @@
     </tbody>
   </table>
 
-  <h2>Main functions &amp; entry points</h2>
+  <h2 id="main-functions-entry-points">Main functions &amp; entry points</h2>
   <div class="grid">
     <div class="card">
       <a class="name">list_resources(dirpath)</a>
@@ -60,7 +60,7 @@
     </div>
   </div>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <pre><code>from mrio_common_metadata import (
     list_resources,
     get_metadata_resource,
@@ -83,9 +83,9 @@ for row_meta, col_meta, value in get_numeric_data_iterator(dirpath, "IO exchange
         print(row_meta["name"], "->", col_meta["name"], value)
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>How do I read an already-built MRIO datapackage (e.g. one bw2io uses for EXIOBASE)?</h3>
+  <h3 id="how-do-i-read-an-already-built-mrio-datapackage-e-g-one-bw2io-uses-for-exiobase">How do I read an already-built MRIO datapackage (e.g. one bw2io uses for EXIOBASE)?</h3>
   <blockquote>
     Top-level <code>__init__.py</code>: <code>list_resources()</code> to see what's
     available, <code>get_metadata_resource()</code> for lookup tables (locations,
@@ -96,7 +96,7 @@ for row_meta, col_meta, value in get_numeric_data_iterator(dirpath, "IO exchange
 <a class="api-link" href="../api/mrio_common_metadata/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>mrio_common_metadata</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h3>What does a <code>datapackage.json</code> for this format look like?</h3>
+  <h3 id="what-does-a-datapackage-json-for-this-format-look-like">What does a <code>datapackage.json</code> for this format look like?</h3>
   <blockquote>
     <code>conversion/exiobase_3_hybrid_io/datapackage.py</code> or
     <code>conversion/exiobase_3_hybrid_su/datapackage.py</code> — the static
@@ -105,7 +105,7 @@ for row_meta, col_meta, value in get_numeric_data_iterator(dirpath, "IO exchange
     functions expect.
   </blockquote>
 
-  <h3>How is a raw EXIOBASE <code>.xlsb</code> download converted into this format?</h3>
+  <h3 id="how-is-a-raw-exiobase-xlsb-download-converted-into-this-format">How is a raw EXIOBASE <code>.xlsb</code> download converted into this format?</h3>
   <blockquote>
     <code>conversion/exiobase_3_hybrid_io/__init__.py</code>'s
     <code>convert_exiobase(sourcedir, targetdir=None, version=...)</code> (or the
@@ -118,7 +118,7 @@ for row_meta, col_meta, value in get_numeric_data_iterator(dirpath, "IO exchange
     <code>utils.write_compressed_csv()</code>.
   </blockquote>
 
-  <h3>Where are per-version source file/sheet names configured?</h3>
+  <h3 id="where-are-per-version-source-file-sheet-names-configured">Where are per-version source file/sheet names configured?</h3>
   <blockquote>
     <code>conversion/exiobase_3_hybrid_io/version_config.py</code> and
     <code>conversion/exiobase_3_hybrid_su/version_config.py</code>, both a
@@ -127,7 +127,7 @@ for row_meta, col_meta, value in get_numeric_data_iterator(dirpath, "IO exchange
     worksheet names, and column-name → schema-field mappings.
   </blockquote>
 
-  <h3>How is the compressed CSV data itself read or written?</h3>
+  <h3 id="how-is-the-compressed-csv-data-itself-read-or-written">How is the compressed CSV data itself read or written?</h3>
   <blockquote>
     <code>utils.py</code> at the package root for the generic reader used by the
     runtime API (<code>load_compressed_csv</code>, <code>iterate_compressed_csv</code>,

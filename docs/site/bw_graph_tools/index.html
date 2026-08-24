@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bw_graph_tools — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -30,7 +30,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw_graph_tools/</code>, ve
 <a class="api-link" href="../api/bw_graph_tools/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw_graph_tools</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-<h2>Key files</h2>
+<h2 id="key-files">Key files</h2>
 <table>
 <tr><th>File</th><th>Role</th></tr>
 <tr><td><code>__init__.py</code></td><td>Public API — re-exports the main traversal class, dataclasses, and matrix/path utilities. See <code>__all__</code> below.</td></tr>
@@ -50,7 +50,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw_graph_tools/</code>, ve
 <tr><td><code>graph_traversal/tagged_nodes.py</code></td><td><code>NewNodeEachVisitTaggedGraphTraversal</code> / <code>SameNodeEachVisitTaggedGraphTraversal</code> — group sibling leaf nodes sharing a tag (e.g. <code>location</code>) into synthetic <code>GroupedNodes</code>.</td></tr>
 </table>
 
-<h2>Main classes / entry points</h2>
+<h2 id="main-classes-entry-points">Main classes / entry points</h2>
 <p>From top-level <code>__init__.py</code> <code>__all__</code>:</p>
 <div class="grid">
   <div class="card"><a class="name">NewNodeEachVisitGraphTraversal</a><p>The main, recommended traversal class. <code>NewNodeEachVisitGraphTraversal(lca, settings).traverse()</code>.</p></div>
@@ -64,7 +64,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw_graph_tools/</code>, ve
 </div>
 <p>Only available via <code>bw_graph_tools.graph_traversal.&lt;name&gt;</code> (not re-exported at the top level): <code>SameNodeEachVisitGraphTraversal</code>, <code>NewNodeEachVisitTaggedGraphTraversal</code>, <code>SameNodeEachVisitTaggedGraphTraversal</code>, <code>TaggedGraphTraversalSettings</code>.</p>
 
-<h2>Typical usage</h2>
+<h2 id="typical-usage">Typical usage</h2>
 <pre><code>import bw2data as bd
 from bw2calc import LCA
 from bw_graph_tools import GraphTraversalSettings, NewNodeEachVisitGraphTraversal
@@ -86,48 +86,48 @@ for flow in sorted(gt.flows, reverse=True)[:5]:
     print(flow.score, flow.flow_datapackage_id)
 </code></pre>
 
-<h2>Where to look</h2>
+<h2 id="where-to-look">Where to look</h2>
 
-<h3>How do I run a graph traversal?</h3>
+<h3 id="how-do-i-run-a-graph-traversal">How do I run a graph traversal?</h3>
 <p>Build a solved <code>bw2calc.LCA</code> (<code>.lci()</code> + <code>.lcia()</code>), then
 <code>NewNodeEachVisitGraphTraversal(lca, GraphTraversalSettings(...)).traverse()</code>
 and read the <code>nodes</code> / <code>edges</code> / <code>flows</code> properties
 (<code>graph_traversal/base.py</code>, <code>graph_traversal/new_node_each_visit.py</code>).</p>
 
-<h3>What fields does a result node/edge/flow have?</h3>
+<h3 id="what-fields-does-a-result-node-edge-flow-have">What fields does a result node/edge/flow have?</h3>
 <p><code>graph_traversal/graph_objects.py</code> — <code>Node</code> (<code>cumulative_score</code> vs.
 <code>direct_emissions_score</code>, <code>depth</code>, <code>terminal</code>), <code>Edge</code>
 (<code>consumer_*</code>/<code>producer_*</code> indices and unique ids), <code>Flow</code> (per
 characterized-biosphere-flow score).</p>
 
-<h3>How do cutoffs / depth limits / calculation budget work?</h3>
+<h3 id="how-do-cutoffs-depth-limits-calculation-budget-work">How do cutoffs / depth limits / calculation budget work?</h3>
 <p><code>graph_traversal/settings.py</code> <code>GraphTraversalSettings</code> fields
 (<code>cutoff</code>, <code>biosphere_cutoff</code>, <code>max_calc</code>, <code>max_depth</code>,
 <code>min_coverage_fraction</code>), enforced inside
 <code>new_node_each_visit.py</code>'s <code>_traverse()</code> / <code>traverse()</code>.</p>
 
-<h3>How does it identify the reference production exchange in the matrix?</h3>
+<h3 id="how-does-it-identify-the-reference-production-exchange-in-the-matrix">How does it identify the reference production exchange in the matrix?</h3>
 <p><code>matrix_tools.py</code> <code>guess_production_exchanges()</code>, a heuristic chain
 from <code>gpe_zeroth_heuristic</code> (explicit modeller flag, authoritative) through
 <code>gpe_fifth_heuristic</code>; raises <code>errors.UnclearProductionExchange</code> when
 none apply. <code>AssumedDiagonalGraphTraversal</code> skips this and assumes the
 diagonal instead.</p>
 
-<h3>How do I find just the single most important path between two activities?</h3>
+<h3 id="how-do-i-find-just-the-single-most-important-path-between-two-activities">How do I find just the single most important path between two activities?</h3>
 <p><code>graph_traversal_utils.py</code> <code>get_path_from_matrix()</code> /
 <code>path_as_brightway_objects()</code>, built on
 <code>matrix_tools.to_normalized_adjacency_matrix()</code> (log-transformed,
 sign-flipped so a shortest-path algorithm finds the path of <em>greatest</em>
 multiplicative flow) and <code>shortest_path.get_shortest_path()</code>.</p>
 
-<h3>How does traversal avoid re-solving the linear system for repeated activities?</h3>
+<h3 id="how-does-traversal-avoid-re-solving-the-linear-system-for-repeated-activities">How does traversal avoid re-solving the linear system for repeated activities?</h3>
 <p><code>graph_traversal/utils.py</code> <code>CachingSolver</code> (PARDISO fast path in
 <code>_unit_scores_pardiso</code>, iterative fallback in
 <code>_unit_scores_iterative</code>), wired in via
 <code>GraphTraversalSettings.caching_solver</code>.</p>
 
 <div class="related">
-  <h2>Related modules</h2>
+  <h2 id="related-modules">Related modules</h2>
   <a href="../bw2calc/index.html">bw2calc</a> — supplies the solved <code>LCA</code> object (technosphere matrix, characterized biosphere) that this package traverses.<br>
   <a href="../bw2data/index.html">bw2data</a> — supplies the <code>Node</code>/<code>Edge</code> activity proxies used by <code>path_as_brightway_objects</code>.<br>
   <a href="../matrix_utils/index.html">matrix_utils</a> — the <code>MappedMatrix</code> type (<code>lca.technosphere_mm</code>) that <code>guess_production_exchanges</code> operates on.<br>

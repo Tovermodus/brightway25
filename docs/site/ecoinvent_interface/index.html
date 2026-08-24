@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>ecoinvent_interface — code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -28,7 +28,7 @@
     them into <code>bw2data</code>.
   </p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <tr><th>File</th><th>Role</th></tr>
     <tr><td><code>core.py</code></td><td><code>InterfaceBase</code> — shared login/token-refresh/download plumbing used by both <code>EcoinventRelease</code> and <code>EcoinventProcess</code>; also the API URLs, the <code>SYSTEM_MODELS</code> name map, and the <code>@logged_in</code>/<code>@fresh_login</code> decorators</td></tr>
@@ -41,7 +41,7 @@
     <tr><td><code>string_distance.py</code></td><td><code>damerau_levenshtein()</code> — fuzzy filename matching, used when ecoinvent's real filename doesn't follow the predicted naming pattern</td></tr>
   </table>
 
-  <h2>Main classes / entry points</h2>
+  <h2 id="main-classes-entry-points">Main classes / entry points</h2>
   <p>Re-exported from <code>ecoinvent_interface</code> top-level (see <code>__init__.py</code> <code>__all__</code>):</p>
   <div class="grid">
     <div class="card"><a class="name" href="#">Settings</a><p>settings.py — credentials/config object passed into every client class.</p></div>
@@ -55,7 +55,7 @@
     <div class="card"><a class="name" href="#">CachedStorage</a><p>storage.py — on-disk download cache and catalogue, held as <code>self.storage</code>.</p></div>
   </div>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <p>Authenticate once via <code>Settings</code>, then use <code>EcoinventRelease</code> to
   discover and download a full release:</p>
   <pre><code>from ecoinvent_interface import EcoinventRelease, ReleaseType, Settings, permanent_setting
@@ -92,7 +92,7 @@ info = process.get_basic_info()
 process.get_file(ProcessFileType.upr, directory=".")
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
   <blockquote>
     <strong>"How does login/authentication work?"</strong><br>
     <code>core.py</code> — <code>InterfaceBase.__init__</code> reads credentials from

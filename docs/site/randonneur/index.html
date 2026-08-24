@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>randonneur — brightway25 code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
@@ -36,7 +36,7 @@
 <a class="api-link" href="../api/randonneur/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>randonneur</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
     <tbody>
@@ -57,7 +57,7 @@
     </tbody>
   </table>
 
-  <h2>Main classes / entry points</h2>
+  <h2 id="main-classes-entry-points">Main classes / entry points</h2>
 
   <div class="grid">
     <div class="card">
@@ -86,7 +86,7 @@
     </div>
   </div>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <pre><code>from randonneur import migrate_edges, migrate_nodes, MigrationConfig
 
 graph = [
@@ -115,9 +115,9 @@ migrate_nodes_with_stored_data(
 )
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>How do I apply a set of migrations to my data?</h3>
+  <h3 id="how-do-i-apply-a-set-of-migrations-to-my-data">How do I apply a set of migrations to my data?</h3>
   <p>
     <code>migrate_nodes(graph, migrations, config=None)</code> and
     <code>migrate_edges(graph, migrations, config=None)</code> in
@@ -125,7 +125,7 @@ migrate_nodes_with_stored_data(
     in place and return it.
   </p>
 
-  <h3>How do I load a pre-built migration dataset instead of writing the <code>migrations</code> dict myself?</h3>
+  <h3 id="how-do-i-load-a-pre-built-migration-dataset-instead-of-writing-the-migrations-dict-myself">How do I load a pre-built migration dataset instead of writing the <code>migrations</code> dict myself?</h3>
   <p>
     <code>migrate_edges_with_stored_data()</code> / <code>migrate_nodes_with_stored_data()</code>
     in <code>edges.py</code> / <code>nodes.py</code> — thin wrappers around
@@ -134,7 +134,7 @@ migrate_nodes_with_stored_data(
     before delegating to <code>migrate_edges</code>/<code>migrate_nodes</code>.
   </p>
 
-  <h3>Why didn't my transformation match / apply?</h3>
+  <h3 id="why-didn-t-my-transformation-match-apply">Why didn't my transformation match / apply?</h3>
   <p>
     Matching is done by <code>FlexibleLookupDict</code> in <code>utils.py</code>, indexed by
     <code>(field, value)</code> pairs from each transformation's <code>source</code>. A missed
@@ -144,7 +144,7 @@ migrate_nodes_with_stored_data(
     in <code>config.py</code>.
   </p>
 
-  <h3>What do the five transformation verbs do?</h3>
+  <h3 id="what-do-the-five-transformation-verbs-do">What do the five transformation verbs do?</h3>
   <p>
     <code>create</code> (append), <code>replace</code>/<code>update</code> (same
     implementation for edges — overwrite matched fields, rescale <code>amount</code> if a
@@ -154,7 +154,7 @@ migrate_nodes_with_stored_data(
     <code>replace</code>/<code>disaggregate</code> raise <code>NotImplementedError</code>.
   </p>
 
-  <h3>How do I build and validate a new migration-data JSON file?</h3>
+  <h3 id="how-do-i-build-and-validate-a-new-migration-data-json-file">How do I build and validate a new migration-data JSON file?</h3>
   <p>
     <code>Datapackage</code> in <code>datapackage.py</code>: construct with metadata + a
     <code>mapping_source</code>/<code>mapping_target</code> (see <code>MappingConstants</code> in
@@ -163,14 +163,14 @@ migrate_nodes_with_stored_data(
     <code>errors.UnmappedData</code> on a key mismatch), then <code>.to_json(filepath)</code>.
   </p>
 
-  <h3>Can non-developers author migration data without writing JSON?</h3>
+  <h3 id="can-non-developers-author-migration-data-without-writing-json">Can non-developers author migration data without writing JSON?</h3>
   <p>
     Yes — <code>create_excel_template()</code> / <code>read_excel_template()</code> in
     <code>templates.py</code> generate/parse an Excel workbook covering the same verb structure.
   </p>
 
   <div class="related">
-    <h2>Related modules</h2>
+    <h2 id="related-modules">Related modules</h2>
     <a href="../randonneur_data/index.html">randonneur_data</a> — supplies the pre-built migration datasets (mappings between ecoinvent/SimaPro/Brightway naming) consumed via <code>migrate_*_with_stored_data()</code>.<br>
     <a href="../bw2io/index.html">bw2io</a> — Brightway's import/export layer; uses randonneur-style migrations during database import to reconcile source-data naming with Brightway's schema.<br>
     <a href="../bw_migrations/index.html">bw_migrations</a> — Brightway-specific migration data/tooling built on the same migrate-graph pattern.
