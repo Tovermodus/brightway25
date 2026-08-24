@@ -1,6 +1,6 @@
 ---
 name: brightway-docs
-description: Guides writing and updating the brightway25 code-map documentation — modules/<package>/CLAUDE.md and its mirror docs/site/<package>/index.html, plus the site-wide docs/site/examples/index.html and docs/site/tutorials/ pages. Use this any time you've just investigated how a Brightway module (bw2data, bw2calc, bw2io, bw_processing, matrix_utils, bw2analyzer, multifunctional, etc.) actually works and need to write that up, not just answer in chat. Also use it when asked to "document this module", "update the code map", "add this to CLAUDE.md", write or refresh a docs/site page, add worked examples or a tutorial for a complex module, or when the investigation touched multiple packages and the root CLAUDE.md dependency diagram may need correcting. Covers both WHAT to write (grounded in installed source, file:line references, cross-references, verified runnable examples) and HOW to write it (concise, reference/explanation style, kept in sync across the markdown and HTML copies).
+description: Guides writing and updating the brightway25 code-map documentation — modules/<package>/CLAUDE.md and its mirror docs/site/<package>/index.html, plus the site-wide docs/site/examples/index.html and docs/site/tutorials/ pages. Use this any time you've just investigated how a Brightway module (bw2data, bw2calc, bw2io, bw_processing, matrix_utils, bw2analyzer, multifunctional, etc.) actually works and need to write that up, not just answer in chat. Also use it when asked to "document this module", "update the code map", "add this to CLAUDE.md", write or refresh a docs/site page, or add worked examples or a tutorial for a complex module. MANDATORY gate, not optional: invoke this skill before creating any pull request in this repo, and again before merging one — even for a PR that looks purely code-focused and wasn't framed as a documentation task — to check whether modules/*/CLAUDE.md, the docs/site pages, or the root dependency diagram drifted out of sync with the change and need updating. Also trigger on the investigation touching multiple packages, since the root CLAUDE.md dependency diagram may need correcting. Covers both WHAT to write (grounded in installed source, file:line references, cross-references, verified runnable examples) and HOW to write it (concise, reference/explanation style, kept in sync across the markdown and HTML copies).
 ---
 
 # Writing brightway25 code-map documentation
@@ -200,6 +200,35 @@ shorter, tighter doc is cheaper to keep correct. Concretely:
 - Don't restate the key-files table in prose in the Q&A section — point back
   to the row (`` `X.py` ``) and add only what's not already captured there
   (the specific line, the specific method, the specific gotcha).
+
+## Pre-PR and pre-merge check (mandatory, not just when asked to document)
+
+Run this check every time you're about to create a pull request in this repo,
+and again right before merging one — independently, even if the earlier check
+passed, since review comments and follow-up commits routinely add or shift
+code without a matching doc update. A PR that reads as "just a code change"
+is exactly the case this exists for: the diff not looking documentation-shaped
+is not a reason to skip it.
+
+1. Look at the actual diff (not just the PR description) and list every
+   `modules/<package>/` the change touches or newly depends on.
+2. For each one, open its `modules/<package>/CLAUDE.md`: does anything in it
+   now contradict the change (a renamed/moved function, an altered call
+   flow, a file:line reference that moved), or is something new true that
+   isn't captured? Fix what's stale; add what's missing, per the content
+   shape and grounding rules above.
+3. Update the matching `docs/site/<package>/index.html` to match, and check
+   whether the change affects any worked example on
+   `docs/site/examples/index.html` or a tutorial under `docs/site/tutorials/`
+   (a changed signature, a changed default, a workflow that no longer works
+   as shown) — a stale worked example is worse than no example, since it's
+   verified-looking but wrong.
+4. If the change touches how packages relate to each other (new dependency,
+   new call path, new hand-off), re-check the "how the pieces fit together"
+   diagram in the root `CLAUDE.md` against it.
+5. If nothing needs updating, that's a fine outcome — but reach it by
+   actually checking, and say so plainly (e.g. in the PR description or to
+   the user) rather than silently skipping the step.
 
 ## Workflow
 

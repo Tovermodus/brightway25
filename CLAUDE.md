@@ -111,3 +111,19 @@ useful for next time:
   actual installed source, ground truth) over remembered/upstream docs.
 - Still answer the user's question directly in chat — the documentation
   update is in addition to that, not instead of it.
+
+**Before creating a pull request in this repo, and again before merging one**,
+always invoke the `brightway-docs` skill to check the documentation, even if
+the PR wasn't explicitly framed as a documentation task. Any code
+investigation or change is a chance for `modules/*/CLAUDE.md` / `docs/site/*`
+to drift from what's actually true — catch that before it ships, not after.
+Concretely: check that any module the PR touches has its `CLAUDE.md` and
+`docs/site` page still accurate (fix them if not), that new cross-package
+interactions are reflected in the dependency diagram above, and — for a
+complex module — that the worked-examples/tutorial pages
+(`docs/site/examples/index.html`, `docs/site/tutorials/`) don't need a new or
+updated entry. Re-run the check at merge time even if it passed at PR-creation
+time — review comments and follow-up commits routinely add or change code
+without a matching doc update, so treat the two checks as independent, not
+one-and-done. Skipping the check is fine only when the skill itself concludes
+there's nothing to update; don't skip the check itself.
