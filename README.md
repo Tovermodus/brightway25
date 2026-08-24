@@ -41,6 +41,10 @@ Online documentation:
 
 * https://docs.brightway.dev/
 
+Code map for this repo's pinned dependency stack — handwritten module guides, a generated API reference, and searchable examples/tutorials:
+
+* https://tovermodus.github.io/brightway25/
+
 Development blog:
 
 * http://chris.mutel.org
