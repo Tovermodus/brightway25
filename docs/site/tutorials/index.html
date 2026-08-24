@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LCA Software Course — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+<script defer src="../assets/highlight.js"></script>
+<style>
+  .course-mod { display: flex; gap: 1rem; align-items: flex-start; margin: 0 0 1.4rem 0; padding: 1rem 1.2rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-alt); }
+  .course-num { flex: 0 0 auto; width: 2.2rem; height: 2.2rem; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: var(--code-bg); color: var(--accent2); font-weight: 700; font-family: ui-monospace, monospace; border: 1px solid var(--border); }
+  .course-mod h3 { margin: 0 0 0.25rem 0; }
+  .course-mod p { margin: 0.2rem 0; color: var(--fg-dim); font-size: 0.9rem; }
+  .course-mod .pkgs { margin-top: 0.5rem; }
+  .part-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-dim); margin: 2rem 0 0.6rem 0; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
+</style>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>LCA Software Course</h1>
+<p class="tagline">Seven step-by-step tutorials that take someone new to Brightway from an
+empty project to running real LCA workflows — inventory building, calculation, importing
+data, contribution analysis, uncertainty, allocation, and parameterization. Each is a
+slower-paced walkthrough than the <a href="../examples/index.html">Examples</a> page:
+numbered steps, an explanation of what each API call actually does (grounded in the
+installed source, not memory or upstream docs), and a full runnable script at the end.</p>
+
+<blockquote>
+Every tutorial's code was actually executed against the installed source
+(<code>.venv/lib/python3.11/site-packages/</code>) to produce the output shown on that page —
+see each tutorial's own verification note. This course doesn't replace formal LCA theory
+(ISO 14040/14044 goal &amp; scope, LCIA methods, interpretation) — it's the "how do I actually
+do this in the software" half. Pair it with any general LCA methodology course.
+</blockquote>
+
+<div class="part-label">Part 1 — Data model &amp; first calculation</div>
+
+<div class="course-mod">
+  <div class="course-num">1</div>
+  <div>
+    <h3><a href="create-empty-database.html">Create your own empty database</a></h3>
+    <p>Projects, registering a database, building activities and exchanges by hand,
+    what <code>.save()</code> actually persists.</p>
+    <p class="pkgs">Package: <a class="pill" href="../bw2data/index.html">bw2data</a></p>
+  </div>
+</div>
+
+<div class="course-mod">
+  <div class="course-num">2</div>
+  <div>
+    <h3><a href="first-lca-calculation.html">Run your first LCA calculation</a></h3>
+    <p>A minimal biosphere + foreground inventory, a <code>Method</code> with one
+    characterization factor, and <code>bw2calc.LCA</code>'s <code>.lci()</code>/<code>.lcia()</code>
+    walked separately — what each actually populates, down to the
+    <em>C·B·A⁻¹·f</em> matrix formulation.</p>
+    <p class="pkgs">Packages: <a class="pill" href="../bw2calc/index.html">bw2calc</a>
+    <a class="pill" href="../bw2data/index.html">bw2data</a></p>
+  </div>
+</div>
+
+<div class="part-label">Part 2 — Real data &amp; interpreting results</div>
+
+<div class="course-mod">
+  <div class="course-num">3</div>
+  <div>
+    <h3><a href="importing-external-data.html">Import external inventory data</a></h3>
+    <p><code>bw2io</code>'s extract → apply strategies → check unlinked → match → write
+    pipeline, using <code>ExcelImporter</code> against a bundled example fixture — including
+    two real linking gotchas hit while verifying it.</p>
+    <p class="pkgs">Packages: <a class="pill" href="../bw2io/index.html">bw2io</a>
+    <a class="pill" href="../bw2data/index.html">bw2data</a></p>
+  </div>
+</div>
+
+<div class="course-mod">
+  <div class="course-num">4</div>
+  <div>
+    <h3><a href="contribution-analysis.html">Find contribution hotspots</a></h3>
+    <p>A small multi-process inventory, solved with <code>bw2calc</code>, then broken down
+    with <code>bw2analyzer.ContributionAnalysis</code> — and why a low-mass, high-impact flow
+    can dominate a score that looks dominated by something else.</p>
+    <p class="pkgs">Packages: <a class="pill" href="../bw2analyzer/index.html">bw2analyzer</a>
+    <a class="pill" href="../bw2calc/index.html">bw2calc</a></p>
+  </div>
+</div>
+
+<div class="part-label">Part 3 — Uncertainty &amp; advanced modeling</div>
+
+<div class="course-mod">
+  <div class="course-num">5</div>
+  <div>
+    <h3><a href="monte-carlo-uncertainty.html">Monte Carlo uncertainty analysis</a></h3>
+    <p>Attaching a real lognormal distribution to an exchange with <code>stats_arrays</code>
+    field names, then driving <code>bw2calc.LCA</code> as an iterator with
+    <code>use_distributions=True</code> and a fixed <code>seed_override</code> for
+    reproducible results.</p>
+    <p class="pkgs">Packages: <a class="pill" href="../bw2calc/index.html">bw2calc</a>
+    <a class="pill" href="../stats_arrays/index.html">stats_arrays</a></p>
+  </div>
+</div>
+
+<div class="course-mod">
+  <div class="course-num">6</div>
+  <div>
+    <h3><a href="multifunctional-allocation.html">Allocate a multifunctional process</a></h3>
+    <p>A two-co-product process (beef + hide) allocated under mass, price, and equal
+    strategies, showing the generated read-only single-output processes and their rescaled
+    exchanges — plus a gotcha about self-referencing functional exchanges.</p>
+    <p class="pkgs">Packages: <a class="pill" href="../multifunctional/index.html">multifunctional</a>
+    <a class="pill" href="../bw2data/index.html">bw2data</a></p>
+  </div>
+</div>
+
+<div class="course-mod">
+  <div class="course-num">7</div>
+  <div>
+    <h3><a href="parameterized-exchanges.html">Use formulas in exchanges</a></h3>
+    <p>Project and activity parameters, an exchange <code>formula</code> field,
+    <code>bw2data.parameters.recalculate()</code>, and watching a changed parameter cascade
+    through the whole chain to the exchange amount.</p>
+    <p class="pkgs">Packages: <a class="pill" href="../bw2parameters/index.html">bw2parameters</a>
+    <a class="pill" href="../bw2data/index.html">bw2data</a></p>
+  </div>
+</div>
+
+<h2>Suggested pacing</h2>
+<p>Modules 1-2 assume nothing beyond Python and the <code>pip install -e ".[dev]"</code> setup
+on the <a href="../index.html">root page</a>. Modules 3-4 assume 1-2. Modules 5-7 are
+independent of each other but each assumes 1-2 — take them in any order once you're
+comfortable with a basic inventory and LCA run.</p>
+
+<h2>Where this fits</h2>
+<p>This course teaches <em>the software</em> — the same distinction the
+<a href="../examples/index.html">Examples</a> page and each module's reference page draw
+between "what is this API" and "how do the pieces get used together." It assumes you
+already know (or are separately learning) LCA methodology itself: goal &amp; scope, the ISO
+14040/14044 framework, impact assessment methods, and interpretation. For that half, see a
+general LCA methodology course; university courses that specifically teach the Brightway
+stack (rather than a different tool) include NTNU's "Advanced Programming for Environmental
+Systems Analyses with Brightway" and ILCA's Brightway 2.5 training.</p>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

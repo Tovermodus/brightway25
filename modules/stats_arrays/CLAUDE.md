@@ -67,6 +67,12 @@ Errors: `StatsArraysError`, `ImproperBoundsError`, `InvalidParamsError`,
 `UndefinedDistributionError`, `UnknownUncertaintyType`,
 `UnreasonableBoundsError`.
 
+Step-by-step, verified walkthrough (part of the site's LCA software course, see
+`docs/site/tutorials/index.html`): `docs/site/tutorials/monte-carlo-uncertainty.html` —
+attaches a real lognormal distribution to a `bw2data` exchange via `uncertainty_type`/
+`loc`/`scale`, then drives it through a `bw2calc` Monte Carlo LCA with a fixed
+`seed_override` for reproducible output.
+
 ## Where to look
 
 **Q: How do I know which integer code means which distribution?**

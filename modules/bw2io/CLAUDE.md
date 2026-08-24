@@ -60,6 +60,13 @@ Utility functions: `activity_hash`, `es2_activity_hash`, `normalize_units`,
 
 `__version__ = "0.9.17"`.
 
+Step-by-step, verified walkthrough (part of the site's LCA software course, see
+`docs/site/tutorials/index.html`): `docs/site/tutorials/importing-external-data.html` —
+`ExcelImporter` against the bundled `data/examples/example.xlsx` fixture through the full
+extract → apply strategies → check unlinked → match → write pipeline, including two real
+gotchas hit while verifying it (default `location="GLO"` breaking hash matching, and
+`activity_hash`'s default `"reference product"` field not being set on exchanges).
+
 ## Where to look for common questions
 
 - **"How does a SimaPro CSV import work end to end?"** →

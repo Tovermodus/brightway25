@@ -88,6 +88,11 @@ activity_params = {"efficiency": {"formula": "base_rate * 1.1"}}
 namespaced, substitutions = prefix_parameter_dict(activity_params, "act1__")
 # namespaced == {"act1__efficiency": {"formula": "(base_rate * 1.1)", "original": "efficiency"}}
 </code></pre>
+<p>To see formulas wired all the way through <code>bw2data</code> — project and activity
+parameters, an exchange <code>formula</code> field, and <code>recalculate()</code> cascading
+changes — with real captured output, see the
+<a href="../tutorials/parameterized-exchanges.html">"use formulas in exchanges"
+tutorial</a>, part of the site's <a href="../tutorials/index.html">LCA software course</a>.</p>
 
 <h2>Where to look</h2>
 

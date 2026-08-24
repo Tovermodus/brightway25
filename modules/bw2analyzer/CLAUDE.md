@@ -52,6 +52,13 @@ Note: `report.SerializedLCAReport` is defined but deliberately commented out
 of `__all__`/the top-level import in `__init__.py` — it is not part of the
 stable public surface.
 
+Step-by-step, verified walkthrough (part of the site's LCA software course, see
+`docs/site/tutorials/index.html`): `docs/site/tutorials/contribution-analysis.html` — a
+3-process, 2-flow inventory run through `ContributionAnalysis.annotated_top_processes`/
+`annotated_top_emissions`, explaining that returned scores are per-column/row *direct*
+contributions (not cumulative upstream totals) and demonstrating a low-mass, high-CF flow
+dominating the score.
+
 ## Where to look
 
 **"I have a solved `bw2calc.LCA`, how do I find its biggest contributors?"**

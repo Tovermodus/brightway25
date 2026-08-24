@@ -87,7 +87,9 @@ activity.new_exchange(input=activity.key, amount=1, type="production").save()
 - For bulk loading (all data already assembled as a dict), skip the per-activity dance and call
   `db.write({(db_name, code): {...}, ...})` directly — this is the path `bw2io` importers use; it
   replaces the database's entire contents in one call.
-- Full step-by-step walkthrough with a worked example: `docs/site/tutorials/create-empty-database.html`.
+- Full step-by-step walkthrough with a worked example: `docs/site/tutorials/create-empty-database.html`
+  — module 1 of the site's LCA software course (`docs/site/tutorials/index.html`), which continues
+  through `bw2calc` (module 2), `bw2io` (module 3), and parameterized exchanges (module 7).
 - `docs/site/bw2data/index.html` leads with a short **Examples** teaser (before the reference
   tables) pointing at the site-wide `docs/site/examples/index.html#bw2data` section — three
   verified, runnable scripts: create a database + activity + look it up, chimaera vs.

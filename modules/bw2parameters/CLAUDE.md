@@ -44,6 +44,11 @@ prefix_parameter_dict    # mangling.py
 substitute_in_formulas   # mangling.py
 ```
 
+Step-by-step, verified walkthrough (part of the site's LCA software course, see
+`docs/site/tutorials/index.html`): `docs/site/tutorials/parameterized-exchanges.html` —
+project and activity parameters, an exchange `formula` field, `bw2data.parameters.
+recalculate()`, and editing a parameter to show the change cascade through the chain.
+
 ## Where to look
 
 - **"How does a formula string get turned into a value?"**

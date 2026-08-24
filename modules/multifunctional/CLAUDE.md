@@ -53,6 +53,13 @@ having this package installed activates the plugin for any database created with
 Note: `multifunctional_node_dispatcher` (in `node_dispatch.py`) is used internally and
 registered into `bw2data`'s mapping, but is **not** exported in `__all__`.
 
+Step-by-step, verified walkthrough (part of the site's LCA software course, see
+`docs/site/tutorials/index.html`): `docs/site/tutorials/multifunctional-allocation.html` —
+a two-co-product process allocated under `"mass"`/`"price"`/`"equal"` strategies, with the
+resulting `ReadOnlyProcessWithReferenceProduct` nodes and rescaled exchanges; documents the
+gotcha that functional exchanges must link to real product nodes, not self-reference the
+process, or the allocated node's reference product resolves wrong.
+
 ## Where to look
 
 **Q: How does a database created with `backend="multifunctional"` actually get multifunctional behavior?**

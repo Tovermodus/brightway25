@@ -52,7 +52,7 @@
 
   var EXTRAS = [
     ["examples", "Examples", ROOT + "examples/index.html"],
-    ["tutorials", "Tutorials", ROOT + "tutorials/create-empty-database.html"]
+    ["tutorials", "Tutorials", ROOT + "tutorials/index.html"]
   ];
 
   var KNOWN_IDS = {};
@@ -222,7 +222,21 @@
   // Tutorials indexed by the module id they're about — extend this as more
   // tutorials are added (each module page picks up its own automatically).
   var TUTORIALS = {
-    bw2data: [["Create an empty database", "tutorials/create-empty-database.html"]]
+    bw2data: [
+      ["Create an empty database", "tutorials/create-empty-database.html"],
+      ["Run your first LCA calculation", "tutorials/first-lca-calculation.html"],
+      ["Import external inventory data", "tutorials/importing-external-data.html"],
+      ["Use formulas in exchanges", "tutorials/parameterized-exchanges.html"]
+    ],
+    bw2calc: [
+      ["Run your first LCA calculation", "tutorials/first-lca-calculation.html"],
+      ["Monte Carlo uncertainty analysis", "tutorials/monte-carlo-uncertainty.html"]
+    ],
+    bw2io: [["Import external inventory data", "tutorials/importing-external-data.html"]],
+    bw2analyzer: [["Find contribution hotspots", "tutorials/contribution-analysis.html"]],
+    stats_arrays: [["Monte Carlo uncertainty analysis", "tutorials/monte-carlo-uncertainty.html"]],
+    multifunctional: [["Allocate a multifunctional process", "tutorials/multifunctional-allocation.html"]],
+    bw2parameters: [["Use formulas in exchanges", "tutorials/parameterized-exchanges.html"]]
   };
 
   // Every module page gets the same cross-link strip right under its <h1>:

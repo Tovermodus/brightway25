@@ -59,6 +59,12 @@ matrices from the `bw2data`-processed datapackages using
 `matrix_utils.MappedMatrix`, then solve with scipy/pypardiso/umfpack
 depending on what's installed.
 
+Step-by-step, verified walkthroughs (part of the site's LCA software course, see
+`docs/site/tutorials/index.html`): `docs/site/tutorials/first-lca-calculation.html`
+(building an inventory from scratch through `.lci()`/`.lcia()` to `.score`, with the
+A/B/C matrix formulation) and `docs/site/tutorials/monte-carlo-uncertainty.html`
+(`use_distributions=True`, `LCA` as an iterator, `seed_override` for reproducibility).
+
 ## Where to look for common questions
 
 - "How does the technosphere get solved?" → `lca_base.py`
