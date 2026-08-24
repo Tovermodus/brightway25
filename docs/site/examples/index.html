@@ -42,9 +42,9 @@ Every example below is a complete, standalone Python script — copy it into a f
 <h2 id="bw2data">bw2data</h2>
 <p>See also: <a href="../bw2data/index.html">the bw2data module map</a> · <a href="../tutorials/create-empty-database.html">the "create an empty database" tutorial</a> (a slower-paced walkthrough of example 1 below).</p>
 
-<div class="ex">
+<div class="ex" id="ex1">
 <h3>1. Create an empty database and add activities to it</h3>
-<p class="desc">Registers a new database, creates an activity, and gives it a production exchange. Nothing is written to disk until <code>.save()</code> is called.</p>
+<p class="desc">Registers a new <a href="../bw2data/index.html#Database">database</a>, creates a <a href="../bw2data/index.html#NodeEdge">node</a>, and gives it a production exchange. Nothing is written to disk until <code>.save()</code> is called. Slower-paced version: <a href="../tutorials/create-empty-database.html">the tutorial</a>.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd
 
@@ -62,9 +62,9 @@ print(len(db))</code></pre>
 <pre class="output"><code>1</code></pre>
 </div>
 
-<div class="ex">
+<div class="ex" id="ex2">
 <h3>2. Bulk-write a database in one call (what importers do)</h3>
-<p class="desc"><code>write()</code> replaces the database's entire contents in one shot — this is the path <code>bw2io</code> importers use after parsing an external format, rather than building activities one by one.</p>
+<p class="desc"><a href="../bw2data/index.html#Database"><code>write()</code></a> replaces the database's entire contents in one shot — this is the path <a href="../bw2io/index.html">bw2io</a> importers use after parsing an external format, rather than building activities one by one. It also auto-classifies each dataset's node type — see <a href="../bw2data/index.html#node-types">process / product / chimaera node types</a>.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd
 
@@ -88,9 +88,9 @@ print(list(db))</code></pre>
 ['steel production' (kilogram, None, None)]</code></pre>
 </div>
 
-<div class="ex">
+<div class="ex" id="ex3">
 <h3>3. Look up and inspect an activity</h3>
-<p class="desc"><code>bd.get_node(**kwargs)</code> finds a single activity by any of its fields; <code>.exchanges()</code> iterates its edges.</p>
+<p class="desc"><a href="../bw2data/index.html#get_node"><code>bd.get_node(**kwargs)</code></a> finds a single activity by any of its fields; <code>.exchanges()</code> iterates its edges.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd
 
@@ -114,9 +114,9 @@ for exc in activity.exchanges():
 <pre class="output"><code>'steel production' (kilogram, None, None) 1 production</code></pre>
 </div>
 
-<div class="ex">
+<div class="ex" id="ex4">
 <h3>4. Search / filter activities in a database</h3>
-<p class="desc"><code>Database.search()</code> uses the Whoosh full-text index that's built automatically on <code>write()</code>. For small databases, plain Python filtering over <code>for act in db</code> works just as well.</p>
+<p class="desc"><code>Database.search()</code> uses the <a href="../bw2data/index.html#Searcher">Whoosh full-text index</a> that's built automatically on <code>write()</code>. For small databases, plain Python filtering over <code>for act in db</code> works just as well.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd
 
@@ -137,9 +137,9 @@ print("filtered:", [act for act in db if "iron" in act["name"]])</code></pre>
 filtered: ['iron ore mining' (kilogram, GLO, None)]</code></pre>
 </div>
 
-<div class="ex">
+<div class="ex" id="ex5">
 <h3>5. Run a full LCA: biosphere flow + method + bw2calc</h3>
-<p class="desc">Ties <code>bw2data</code> together with <code>bw2calc</code> — a minimal but complete inventory + impact calculation: a process emits CO&#8322;, a method characterizes it, <code>bw2calc.LCA</code> solves the score.</p>
+<p class="desc">Ties <a href="../bw2data/index.html">bw2data</a> together with <a href="../bw2calc/index.html">bw2calc</a> — a minimal but complete inventory + impact calculation: a process emits CO&#8322;, a <a href="../bw2data/index.html#Method">Method</a> characterizes it, <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> solves the score.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd
 import bw2calc as bc
@@ -169,6 +169,69 @@ lca.lcia()
 print(lca.score)</code></pre>
 <p class="label">Output</p>
 <pre class="output"><code>1.7999999523162842</code></pre>
+</div>
+
+<div class="ex" id="ex6">
+<h3>6. Chimaera vs. non-chimaera nodes</h3>
+<p class="desc">Same steel production inventory, built two ways, to show the difference between a
+<a href="../bw2data/index.html#node-types">chimaera node and separate process/product nodes</a>.
+<code>Database.write()</code> auto-classifies each: a self-referencing production exchange
+(<code>input</code> equal to the node's own key) becomes
+<code>"processwithreferenceproduct"</code> — a single node holding both the process and its
+reference product. A production exchange pointing at a <em>different</em> node stays a plain
+<code>"process"</code>, with the product's own data living on a separate <code>"product"</code>
+node.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("my-project")
+db = bd.Database("example_db")
+db.register()
+
+db.write({
+    # Chimaera: one node IS both the process and its reference product.
+    # A self-referencing production exchange (input == this node's own key)
+    # makes Database.write() auto-classify it as "processwithreferenceproduct".
+    ("example_db", "steel-chimaera"): {
+        "name": "steel production",
+        "unit": "kilogram",
+        "exchanges": [
+            {"input": ("example_db", "steel-chimaera"), "amount": 1, "type": "production"},
+        ],
+    },
+    # Non-chimaera: process and product are two separate nodes. The
+    # process's production exchange points *away* from itself, at the
+    # product node — so it's auto-classified as a plain "process".
+    ("example_db", "steel-process"): {
+        "name": "steel production",
+        "unit": "kilogram",
+        "type": "process",
+        "exchanges": [
+            {"input": ("example_db", "steel-product"), "amount": 1, "type": "production"},
+        ],
+    },
+    ("example_db", "steel-product"): {
+        "name": "steel",
+        "unit": "kilogram",
+        "type": "product",
+    },
+})
+
+for code in ("steel-chimaera", "steel-process", "steel-product"):
+    act = bd.get_node(database="example_db", code=code)
+    print(f"{code:16s} type={act['type']:28s} name={act['name']!r}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>steel-chimaera   type=processwithreferenceproduct  name='steel production'
+steel-process    type=process                      name='steel production'
+steel-product    type=product                      name='steel'</code></pre>
+<p class="desc">Both approaches are valid, and <code>bw2calc</code> can solve either — pick chimaera for
+simple one-node-per-flow databases (least bookkeeping, what Examples 1 and 5 above build), or
+separate process/product nodes when a process's reference product needs its own identity (its own
+name distinct from the process, multiple processes sharing one product, allocation across
+co-products via <a href="../multifunctional/index.html">multifunctional</a>, etc). <code>bw2io</code>'s
+<code>strategies.products.separate_processes_from_products()</code> converts chimaera-shaped
+imports into the separate-node form; see <a href="../bw2io/index.html#node-types">bw2io's note on
+this</a>.</p>
 </div>
 
 <footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>

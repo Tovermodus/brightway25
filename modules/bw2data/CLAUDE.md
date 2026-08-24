@@ -93,6 +93,44 @@ activity.new_exchange(input=activity.key, amount=1, type="production").save()
   and a full biosphere-flow + `Method` + `bw2calc.LCA` round trip — all verified by running them
   against the installed source.
 
+## Node types: process / product / chimaera
+
+Verified in `configuration.py` (`MatrixLabels`) and `utils.py`
+`set_correct_process_type()`. Three LCI node `type` values
+(`labels.lci_node_types`):
+
+- **`"process"`** (`labels.process_node_default`) — pure process node, no
+  product data of its own; links to a separate `"product"` node via a
+  production edge (`type="production"`).
+- **`"product"`** (`labels.product_node_default`) — pure reference-product
+  node: name/unit/categories/properties of the product, separate from the
+  process that makes it.
+- **`"processwithreferenceproduct"`** (`labels.chimaera_node_default`,
+  informally a **chimaera** node in the code/docstrings) — one node carries
+  *both* the process and its reference product together, via a
+  self-referencing production edge (`input == (database, code)` of the node
+  itself). Both process data and reference-product data (name, unit, …)
+  come back together from a single lookup or search hit on that node.
+
+`Database.write()` (`backends/base.py:675`) auto-classifies every dataset
+via `set_correct_process_type()` (`utils.py:420`): an explicit
+self-referencing exchange, or no explicit production edge at all (implicit
+self-production), sets `type` to the chimaera default (`utils.py:436`,
+`:446`). This auto-classification runs **only** through bulk `write()` —
+activities built one at a time via `new_activity()`/`.save()` keep whatever
+`type` you passed (or none) unless you set it explicitly, so the
+Examples-page activities with a self-referencing production exchange are
+chimaera-*shaped* but not auto-labeled as such unless written via `write()`.
+
+The reverse split — chimaera/process → separate process + product nodes —
+is `bw2io.strategies.products.separate_processes_from_products()`; see
+`modules/bw2io/CLAUDE.md`.
+
+`docs/site/examples/index.html#ex6` builds the same steel-production inventory both ways side by
+side (via one `write()` call) and prints the resulting `type` of each node — verified output:
+`steel-chimaera` → `processwithreferenceproduct`, `steel-process` → `process`, `steel-product` →
+`product`.
+
 ## Where to look for common questions
 
 - "How is an activity stored on disk?" → `backends/schema.py` (SQL schema) +
