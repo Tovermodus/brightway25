@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>randonneur_data — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+
+  <h1><span class="pkgname">randonneur_data</span></h1>
+  <p class="tagline">A registry/data-store of pre-built <code>randonneur</code> migration datapackages —
+    JSON files describing create/replace/update/delete/disaggregate operations between named data
+    sources (e.g. ecoinvent version-to-version, SimaPro → ecoinvent, Agribalyse → ecoinvent). It holds
+    the data; the separate <code>randonneur</code> package is the engine that applies it.</p>
+
+  <h2>Key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>__init__.py</code></td><td>Entire package logic: the <code>Registry</code> class, <code>DEFAULT_DATA_DIR</code>, <code>DATA_LABELS</code>, <code>__version__</code>.</td></tr>
+      <tr><td><code>data/registry.json</code></td><td>Index of every bundled datapackage: a JSON dict of <code>{dataset_name: metadata}</code>, 57 entries. Metadata includes <code>description</code>, <code>source_id</code>, <code>target_id</code>, <code>graph_context</code>, <code>contributors</code>, <code>licenses</code>, <code>version</code>, <code>filename</code>, <code>compression</code>, and a <code>mapping</code> schema block.</td></tr>
+      <tr><td><code>data/*.json</code></td><td>Uncompressed datapackage files (used when raw JSON is small, &lt; ~200&nbsp;KB).</td></tr>
+      <tr><td><code>data/*.gz</code></td><td>Gzip-compressed datapackage files (larger datasets) — decompressed transparently by <code>Registry.get_file()</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Sample of bundled datasets</h3>
+  <p>Dataset names registered in <code>data/registry.json</code> (not file paths) fall into a few families:</p>
+  <div class="grid">
+    <div class="card"><a class="name" href="#">ecoinvent-3.9.1-cutoff-ecoinvent-3.10-cutoff</a><p>ecoinvent version-to-version cutoff migration.</p></div>
+    <div class="card"><a class="name" href="#">ecoinvent-3.8-biosphere-ecoinvent-3.9-biosphere</a><p>ecoinvent biosphere version migration.</p></div>
+    <div class="card"><a class="name" href="#">ecoinvent-3.10.1-biosphere-ecoinvent-3.12-biosphere-transitive</a><p>Transitive chain bringing older biosphere flows forward to ecoinvent 3.12.</p></div>
+    <div class="card"><a class="name" href="#">simapro-ecoinvent-3.10-cutoff</a><p>SimaPro 9 → ecoinvent 3.10 cutoff migration.</p></div>
+    <div class="card"><a class="name" href="#">simapro-2025-ecoinvent-3-contexts</a><p>SimaPro 2025 → ecoinvent 3 context mapping.</p></div>
+    <div class="card"><a class="name" href="#">agribalyse-3.1.1-restore-simapro-ecoinvent-names</a><p>Agribalyse → ecoinvent name restoration.</p></div>
+    <div class="card"><a class="name" href="#">agrifootprint-biosphere-ecoinvent-3.10-biosphere</a><p>Agrifootprint → ecoinvent biosphere mapping.</p></div>
+    <div class="card"><a class="name" href="#">generic-brightway-unit-conversions</a><p>Generic Brightway unit conversion table.</p></div>
+    <div class="card"><a class="name" href="#">standard-units-harmonization</a><p>Standard units harmonization mapping.</p></div>
+  </div>
+  <p>Each entry's <code>graph_context</code> field says what graph objects the datapackage modifies
+    (typically <code>["edges"]</code> for biosphere/flow mappings, <code>["nodes"]</code> for
+    activity/product renames).</p>
+
+  <h2>The <code>Registry</code> class</h2>
+  <p><code>Registry</code> (defined in <code>__init__.py</code>) is a
+    <code>collections.abc.MutableMapping</code> keyed by dataset name, backed directly by
+    <code>registry.json</code> on disk — every read or write reloads/rewrites the whole file, there is
+    no in-memory cache.</p>
+
+  <table>
+    <thead><tr><th>Member</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>Registry(filepath: Optional[Path] = None)</code></td><td>Constructor. <code>filepath</code> overrides which registry JSON to use; defaults to <code>DEFAULT_DATA_DIR / "registry.json"</code>. <code>self.data_dir</code> becomes <code>filepath.parent</code>, and datapackage files are resolved relative to it.</td></tr>
+      <tr><td><code>DEFAULT_DATA_DIR</code></td><td>Module-level <code>Path</code> to the bundled <code>data/</code> directory next to <code>__init__.py</code>.</td></tr>
+      <tr><td>Dict protocol</td><td><code>registry[name]</code>, <code>registry[name] = metadata</code>, <code>del registry[name]</code>, <code>name in registry</code>, <code>len(registry)</code>, <code>iter(registry)</code>, plus inherited <code>.keys()</code>/<code>.values()</code>/<code>.items()</code> — all operate on <em>metadata</em> dicts, not full datapackage contents.</td></tr>
+      <tr><td><code>get_file(label)</code></td><td>Loads and returns the full datapackage JSON for dataset <code>label</code>, decompressing gzip/lzma transparently based on the registry metadata's <code>compression</code> field. The main way to get actual migration data.</td></tr>
+      <tr><td><code>schema(label)</code></td><td>Shortcut for <code>get_file(label)["mapping"]</code> — the source/target field-expression schema.</td></tr>
+      <tr><td><code>sample(label, number=2, verb=None)</code></td><td>Returns a random sample of <code>number</code> transformation entries per verb (<code>create</code>/<code>replace</code>/<code>update</code>/<code>delete</code>/<code>disaggregate</code>), for quick inspection.</td></tr>
+      <tr><td><code>add_file(filepath, replace=False)</code></td><td>Validates and copies an external datapackage JSON into <code>data_dir</code> (gzip-compressing if &gt; 200&nbsp;KB), then registers its metadata. Returns the new path.</td></tr>
+      <tr><td><code>validate_file(filepath)</code></td><td>Validates a datapackage's <code>contributors</code>, <code>mapping</code>, and per-verb data against <code>randonneur.validation</code> schemas. Raises <code>ImportError</code> if <code>randonneur</code> isn't installed — the only cross-dependency in this package.</td></tr>
+      <tr><td><code>__str__</code> / <code>__repr__</code></td><td>Human-readable summaries — <code>print(registry)</code> lists every registered file with description, source/target ids, authors, version, licenses.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Typical usage</h2>
+  <pre><code>from randonneur_data import Registry
+
+registry = Registry()  # uses bundled data/registry.json
+
+# list available migration datasets
+list(registry)[:5]
+# ['simapro-ecoinvent-3.10-cutoff', 'simapro-ecoinvent-3.8-cutoff', ...]
+
+# inspect one dataset's metadata (source/target ids, graph_context, licenses, ...)
+meta = registry["ecoinvent-3.9.1-cutoff-ecoinvent-3.10-cutoff"]
+print(meta["source_id"], "-&gt;", meta["target_id"])
+
+# pull the field-expression schema without loading the full datapackage
+registry.schema("ecoinvent-3.9.1-cutoff-ecoinvent-3.10-cutoff")
+
+# load the full datapackage (decompresses .gz automatically) to hand
+# to randonneur's migration engine
+data = registry.get_file("ecoinvent-3.9.1-cutoff-ecoinvent-3.10-cutoff")
+data.keys()  # e.g. dict_keys(['update', 'mapping', 'name', ...])
+</code></pre>
+
+  <h2>Where to look</h2>
+  <blockquote><strong>How do I find what migration datasets are available?</strong><br>
+    Instantiate <code>Registry()</code> and iterate it, or <code>print(registry)</code> for the
+    formatted summary — each key is a dataset name from <code>data/registry.json</code>.</blockquote>
+  <blockquote><strong>How do I get the actual migration data for a dataset?</strong><br>
+    <code>Registry().get_file(name)</code> in <code>__init__.py</code> — handles gzip/lzma
+    decompression transparently.</blockquote>
+  <blockquote><strong>How do I know what fields/expressions a datapackage's source and target use?</strong><br>
+    <code>Registry().schema(name)</code>, or read the <code>mapping</code> key directly from
+    <code>get_file(name)</code> or the registry metadata.</blockquote>
+  <blockquote><strong>How do I add a new bundled datapackage?</strong><br>
+    <code>Registry.add_file()</code> in <code>__init__.py</code> — note it requires
+    <code>randonneur</code> installed (it calls <code>validate_file()</code>, which imports
+    <code>randonneur.validation</code>).</blockquote>
+  <blockquote><strong>Where are the actual JSON/gz data files?</strong><br>
+    <code>randonneur_data/data/</code>, next to <code>__init__.py</code> —
+    <code>registry.json</code> is the index, everything else is one file per dataset.</blockquote>
+
+  <div class="related">
+    <a href="../randonneur/index.html">→ randonneur</a>
+    <a href="../bw2io/index.html">→ bw2io</a>
+  </div>
+
+</div>
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

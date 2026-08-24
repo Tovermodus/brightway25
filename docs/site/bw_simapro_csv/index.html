@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bw_simapro_csv — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1><span class="pkgname">bw_simapro_csv</span></h1>
+<p class="tagline">A low-level, standalone parser for SimaPro's proprietary CSV export format (processes, LCIA methods, or product stages). Reads the file's header, splits it into logical "blocks", and turns each block's raw lines into clean Python dicts/lists — numbers, dates, formulas, uncertainty distributions, units, and flows. It knows nothing about <code>bw2data</code>; <code>bw2io</code>'s <code>SimaProCSVImporter</code> wraps this package's output to build bw2data-compatible datasets.</p>
+
+<blockquote>
+Installed at <code>.venv/lib/python3.11/site-packages/bw_simapro_csv/</code>, version <code>0.4.3</code> (PyPI <code>bw_simapro_csv</code>). Built on <code>bw2parameters</code> (formula evaluation), <code>stats_arrays</code> (uncertainty distribution types), <code>pydantic</code> (header validation), <code>ftfy</code> (mojibake repair), and <code>loguru</code> (structured logging to a per-run log directory).
+</blockquote>
+
+<h2>Key files</h2>
+<table>
+<tr><th>File</th><th>Role</th></tr>
+<tr><td><code>__init__.py</code></td><td>Public API — registers the <code>sloppy-windows-1252</code> codec (via <code>ftfy</code>) and re-exports <code>SimaProCSV</code>, <code>SimaProCSVType</code>.</td></tr>
+<tr><td><code>main.py</code></td><td><code>SimaProCSV</code> — the orchestrator: parses the header, walks the file splitting it into blocks, dispatches each to the right parser class, then resolves cross-block parameters and unit conversions.</td></tr>
+<tr><td><code>header.py</code></td><td><code>SimaProCSVType</code> enum (<code>processes</code>/<code>methods</code>/<code>stages</code>), <code>SimaProCSVHeader</code> (pydantic model of the <code>{...}</code> preamble), <code>parse_header()</code>.</td></tr>
+<tr><td><code>csv_reader.py</code></td><td><code>BeKindRewind</code> — a one-step-rewindable CSV line iterator (needed because SimaPro sometimes omits block-terminating <code>End</code> lines); <code>clean(s)</code> strips control characters and repairs encoding.</td></tr>
+<tr><td><code>constants.py</code></td><td><code>CONTEXT_MAPPING</code> (biosphere category name → unit-process block name); <code>MAGIC</code>, the separator used when concatenating multiple comment strings.</td></tr>
+<tr><td><code>cas.py</code></td><td><code>validate_cas_string()</code>, <code>calculate_check_digit()</code> — CAS registry number checksum validation for substance flows.</td></tr>
+<tr><td><code>units.py</code></td><td><code>normalize_units(blocks)</code> — converts every exchange's amount/formula/uncertainty to its reference unit, using the file's <code>Units</code> blocks as a conversion table.</td></tr>
+<tr><td><code>uncertainty.py</code></td><td><code>distribution(...)</code> — maps SimaPro's <code>kind</code>/<code>field1..3</code> columns to a <code>stats_arrays</code>-style dict (Undefined/Lognormal/Normal/Triangle/Uniform); <code>recalculate_uncertainty_distribution()</code> rescales after unit conversion.</td></tr>
+<tr><td><code>parameters.py</code></td><td>Formula/parameter plumbing: <code>prepare_formulas()</code> (fixes SimaPro quirks like <code>Iff(...)</code> and leading zeros), <code>FormulaSubstitutor</code>/<code>build_substitutes()</code> (cross-scope name rewriting).</td></tr>
+<tr><td><code>utils.py</code></td><td>Low-level helpers: <code>asnumber()</code>/<code>asdate()</code>/<code>asboolean()</code> value coercion, <code>add_amount_or_formula()</code>, <code>get_key_multiline_values()</code>, <code>skip_empty()</code>, <code>jump_to_nonempty()</code>.</td></tr>
+<tr><td><code>errors.py</code></td><td><code>WasteModelMismatch</code>, <code>IndeterminateBlockEnd</code>, <code>FormulaReservedWord</code>.</td></tr>
+<tr><td><code>brightway.py</code></td><td><code>lci_to_brightway()</code> — converts a parsed process export into a bw2io-style JSON-serializable dataset dict; called by <code>SimaProCSV.to_brightway()</code>.</td></tr>
+<tr><td><code>blocks/base.py</code></td><td><code>SimaProCSVBlock</code> — base class every block parser subclasses (holds <code>self.parsed</code>); <code>EmptyBlock</code> sentinel.</td></tr>
+<tr><td><code>blocks/process.py</code></td><td><code>Process</code> — parses a whole <code>Process</code> control block: metadata pairs plus named sub-blocks (Products, Materials/fuels, Emissions to air, Waste scenario, Calculated parameters, …).</td></tr>
+<tr><td><code>blocks/products.py</code>, <code>blocks/technosphere_edges.py</code>, <code>blocks/wastes.py</code></td><td><code>Products</code>; <code>TechnosphereEdges</code> (Materials/fuels, Electricity/heat, Avoided products, Waste to treatment); <code>WasteTreatment</code>/<code>WasteScenario</code>/<code>SeparatedWaste</code>/<code>RemainingWaste</code> — parse a process's reference flows, technosphere edges, and waste sub-blocks.</td></tr>
+<tr><td><code>blocks/generic_biosphere.py</code></td><td><code>GenericBiosphere</code> (end-of-file substance flow lists: Airborne emissions, Raw materials, …) and <code>GenericUncertainBiosphere</code> (the same categories used inside a <code>Process</code> block, with amount + uncertainty).</td></tr>
+<tr><td><code>blocks/method.py</code>, <code>blocks/impact_category.py</code>, <code>blocks/damage_category.py</code>, <code>blocks/normalization_weighting_set.py</code></td><td><code>Method</code>, <code>ImpactCategory</code>, <code>DamageCategory</code>, <code>NormalizationWeightingSet</code> — parse LCIA method definitions and their characterization/damage/weighting factors.</td></tr>
+<tr><td><code>blocks/units.py</code>, <code>blocks/quantities.py</code></td><td><code>Units</code> (unit → reference unit + conversion factor table); <code>Quantities</code> (physical quantity/dimension definitions).</td></tr>
+<tr><td><code>blocks/parameters.py</code>, <code>blocks/calculated_parameters.py</code></td><td><code>DatabaseInputParameters</code>/<code>ProjectInputParameters</code>/<code>DatasetInputParameters</code>; <code>DatabaseCalculatedParameters</code>/<code>ProjectCalculatedParameters</code>/<code>DatasetCalculatedParameters</code> — parse named parameters at each scope.</td></tr>
+<tr><td><code>blocks/system_description.py</code>, <code>blocks/literature_reference.py</code></td><td><code>SystemDescription</code> (methodology/boundary text); <code>LiteratureReference</code>.</td></tr>
+</table>
+
+<h2>Main classes &amp; entry points</h2>
+
+<div class="grid">
+<div class="card"><a class="name">SimaProCSV</a><p><code>main.py</code> — constructor <code>SimaProCSV(path_or_stream, encoding="sloppy-windows-1252", database_name=None, ...)</code>. Reads the header, splits the file into blocks (<code>get_next_block()</code>), resolves parameters/uncertainty (<code>resolve_parameters()</code>), and normalizes units. Iterable over its parsed <code>.blocks</code>; exposes <code>.header</code> and <code>.to_brightway()</code>.</p></div>
+<div class="card"><a class="name">SimaProCSVType</a><p><code>header.py</code> — <code>str</code> enum: <code>processes</code>, <code>methods</code>, <code>stages</code>. Read from <code>SimaProCSV.header["kind"]</code>; controls which post-processing steps run.</p></div>
+<div class="card"><a class="name">SimaProCSVBlock</a><p><code>blocks/base.py</code> — base class for every block parser. Subclasses set <code>self.parsed</code> (usually a <code>list[dict]</code>) in <code>__init__</code>; <code>EmptyBlock</code> is the sentinel for a block with no content.</p></div>
+<div class="card"><a class="name">Process</a><p><code>blocks/process.py</code> — the central block class: one LCI process, with metadata plus sub-blocks for products, technosphere edges, elementary flows, waste, and local parameters. Methods <code>resolve_local_parameters()</code>, <code>supplement_biosphere_edges()</code>, <code>check_waste_production_model_consistency()</code>.</p></div>
+<div class="card"><a class="name">GenericBiosphere / GenericUncertainBiosphere</a><p><code>blocks/generic_biosphere.py</code> — substance/elementary-flow definitions (end-of-file lists) and their uncertain, amount-bearing use inside a process, respectively.</p></div>
+<div class="card"><a class="name">Method / ImpactCategory</a><p><code>blocks/method.py</code>, <code>blocks/impact_category.py</code> — LCIA method metadata and per-substance characterization factors.</p></div>
+</div>
+
+<h2>Typical usage</h2>
+
+<pre><code>from pathlib import Path
+from bw_simapro_csv import SimaProCSV, SimaProCSVType
+
+# Parse a SimaPro CSV process export
+simapro_csv = SimaProCSV(Path("my_export.csv"), database_name="my project")
+
+print(simapro_csv.header["kind"])   # SimaProCSVType.processes
+print(len(simapro_csv.blocks))      # number of parsed top-level blocks
+
+# Iterate over parsed blocks (Process, Units, DatabaseInputParameters, ...)
+from bw_simapro_csv.blocks import Process
+
+for block in simapro_csv:
+    if isinstance(block, Process):
+        print(block.parsed["metadata"]["Category type"])
+        print(list(block.blocks))          # e.g. ["Products", "Materials/fuels", ...]
+        print(block.blocks["Products"].parsed)
+
+# Or go straight to a bw2io-flavoured dataset dict (process exports only)
+if simapro_csv.header["kind"] == SimaProCSVType.processes:
+    data = simapro_csv.to_brightway(separate_products=True, shorten_names=True)
+</code></pre>
+
+<h2>Where to look</h2>
+
+<h3>How is the file split into blocks, and what happens when <code>End</code> markers are missing?</h3>
+<p><code>main.py</code> <code>SimaProCSV.get_next_block()</code>, dispatch tables <code>CONTROL_BLOCK_MAPPING</code>/<code>INDETERMINATE_SECTION_HEADERS</code>; <code>csv_reader.py</code> <code>BeKindRewind.rewind()</code> implements the one-line look-ahead needed because some files never use the <code>End</code> convention (raises <code>errors.IndeterminateBlockEnd</code> if that makes a section ambiguous).</p>
+
+<h3>How is a SimaPro "block" (Process, Method, Units, …) actually parsed?</h3>
+<p><code>blocks/base.py</code> <code>SimaProCSVBlock</code> defines the contract (populate <code>self.parsed</code>). The richest example is <code>blocks/process.py</code> <code>Process.__init__</code>, which uses <code>utils.get_key_multiline_values()</code> to separate metadata key/value pairs from named sub-blocks, dispatched via its own <code>BLOCK_MAPPING</code>.</p>
+
+<h3>How are units and unit conversions handled?</h3>
+<p><code>blocks/units.py</code> <code>Units</code> parses the file's unit → reference-unit + conversion-factor table; <code>units.py</code> <code>normalize_units()</code> applies it afterwards to every exchange's <code>amount</code>/<code>formula</code>/uncertainty distribution across all <code>Process</code> blocks.</p>
+
+<h3>How are uncertainty distributions mapped to <code>stats_arrays</code>?</h3>
+<p><code>uncertainty.py</code> <code>distribution(amount, kind, field1, field2, field3, ...)</code> converts SimaPro's Undefined/Lognormal/Normal/Triangle/Uniform columns into a <code>stats_arrays</code>-compatible dict, with parameter sanity checks that fall back to <code>undefined_distribution()</code>. Called from <code>blocks/process.py</code> <code>Process.resolve_local_parameters()</code> once each exchange's numeric <code>amount</code> is known.</p>
+
+<h3>How are formulas (including SimaPro-specific syntax) parsed and evaluated?</h3>
+<p><code>parameters.py</code> <code>prepare_formulas()</code>/<code>fix_iff_formula()</code>/<code>fix_leading_zero_formula()</code> clean up raw formula strings; <code>FormulaSubstitutor</code> renames variables across parameter scopes; actual evaluation uses <code>bw2parameters.Interpreter</code>/<code>ParameterSet</code>, driven from <code>main.py</code> <code>SimaProCSV.resolve_parameters()</code> (project/database scope) and <code>blocks/process.py</code> <code>Process.resolve_local_parameters()</code> (per-process scope).</p>
+
+<h3>How does this become a bw2data-ready dataset?</h3>
+<p><code>main.py</code> <code>SimaProCSV.to_brightway()</code> calls <code>brightway.py</code> <code>lci_to_brightway()</code> — but in practice <code>bw2io.importers.simapro_csv.SimaProCSVImporter</code> is the usual entry point, wrapping a <code>SimaProCSV</code> instance to build full bw2data-compatible activities and exchanges.</p>
+
+<div class="related">
+  <h2>Related modules</h2>
+  <a href="../bw2io/index.html">bw2io</a> — <code>bw2io.importers.simapro_csv.SimaProCSVImporter</code> wraps this package's parser to build bw2data-compatible datasets, handling the strategies/migrations layer this package deliberately stays out of.
+</div>
+
+</div>
+
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

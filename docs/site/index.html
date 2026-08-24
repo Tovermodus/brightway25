@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>brightway25 — code map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs">local, static, offline documentation of the installed Brightway 2.5 stack</nav>
+  </div>
+</header>
+<div class="wrap">
+  <h1>Brightway 2.5 — code map</h1>
+  <p class="tagline">
+    This repository (<code>brightway25</code>) is only a meta-package that pins the
+    Brightway 2.5 dependency stack — see <code>pyproject.toml</code>. The real code for
+    every package below lives on PyPI / GitHub and is installed locally into
+    <code>.venv/lib/python3.11/site-packages/</code> via
+    <code>pip install -e ".[dev]"</code>. These pages map that installed source so you
+    can navigate it without relying on (often stale) upstream docs.
+  </p>
+
+  <blockquote>
+    Recreate the source locally with:
+    <pre><code>python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"</code></pre>
+    then open <code>docs/site/index.html</code> in a browser (no server needed — plain
+    <code>file://</code> links).
+  </blockquote>
+
+  <h2>Architecture — how the pieces fit together</h2>
+  <div class="arch"><pre><code>stats_arrays   bw2parameters            (leaf utility libs: uncertainty, formulas)
+        \           /
+     bw_processing ── matrix_utils ── bw_graph_tools
+              \            |              /
+               \           |             /
+                bw2data (projects, activities, exchanges)
+                     |
+              multifunctional (allocation, sits on top of bw2data)
+                     |
+                  bw2calc (LCA solving; matrices via matrix_utils)
+                     |
+                  bw2analyzer (post-processing of bw2calc results)
+
+Import / export side (independent of the calc stack, writes into bw2data):
+  bw_simapro_csv, ecoinvent_interface, bw_migrations,
+  randonneur, randonneur_data, mrio_common_metadata  ──►  bw2io  ──►  bw2data
+</code></pre></div>
+
+  <div class="layer-label">Core data model</div>
+  <div class="grid">
+    <div class="card"><a class="name" href="bw2data/index.html">bw2data</a><p>Projects, SQLite-backed activities/exchanges, methods, metadata — the central data store everything else reads/writes.</p></div>
+  </div>
+
+  <div class="layer-label">Processed data &amp; matrices</div>
+  <div class="grid">
+    <div class="card"><a class="name" href="bw_processing/index.html">bw_processing</a><p>On-disk "datapackage" format for matrix-ready arrays.</p></div>
+    <div class="card"><a class="name" href="matrix_utils/index.html">matrix_utils</a><p>Builds bw_processing datapackages into live scipy sparse matrices.</p></div>
+    <div class="card"><a class="name" href="bw_graph_tools/index.html">bw_graph_tools</a><p>Graph traversal of the technosphere / supply-chain graphs.</p></div>
+  </div>
+
+  <div class="layer-label">Calculation &amp; analysis</div>
+  <div class="grid">
+    <div class="card"><a class="name" href="bw2calc/index.html">bw2calc</a><p>LCA calculation engine: builds &amp; solves the matrices.</p></div>
+    <div class="card"><a class="name" href="bw2analyzer/index.html">bw2analyzer</a><p>Post-calculation analysis: contribution, comparisons, graphs.</p></div>
+    <div class="card"><a class="name" href="multifunctional/index.html">multifunctional</a><p>Allocation of multi-output ("multifunctional") processes.</p></div>
+  </div>
+
+  <div class="layer-label">Parameters &amp; uncertainty</div>
+  <div class="grid">
+    <div class="card"><a class="name" href="bw2parameters/index.html">bw2parameters</a><p>Formula/parameter interpreter for parameterized exchanges.</p></div>
+    <div class="card"><a class="name" href="stats_arrays/index.html">stats_arrays</a><p>Uncertainty distributions + Monte Carlo RNG.</p></div>
+  </div>
+
+  <div class="layer-label">Import / export &amp; interop</div>
+  <div class="grid">
+    <div class="card"><a class="name" href="bw2io/index.html">bw2io</a><p>Import/export: ecoinvent, SimaPro, ecospold, Excel, exiobase, etc.</p></div>
+    <div class="card"><a class="name" href="bw_simapro_csv/index.html">bw_simapro_csv</a><p>Low-level SimaPro CSV parser used by bw2io.</p></div>
+    <div class="card"><a class="name" href="ecoinvent_interface/index.html">ecoinvent_interface</a><p>Authenticated client for downloading ecoinvent releases.</p></div>
+    <div class="card"><a class="name" href="bw_migrations/index.html">bw_migrations</a><p>Curated data migrations (e.g. exiobase↔ecoinvent) used during import.</p></div>
+    <div class="card"><a class="name" href="randonneur/index.html">randonneur</a><p>Generic "migrate/patch a dataset" engine.</p></div>
+    <div class="card"><a class="name" href="randonneur_data/index.html">randonneur_data</a><p>Registry of pre-built randonneur migration datasets.</p></div>
+    <div class="card"><a class="name" href="mrio_common_metadata/index.html">mrio_common_metadata</a><p>Shared metadata helpers for MRIO (exiobase-style) datapackages.</p></div>
+  </div>
+
+  <footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</body>
+</html>

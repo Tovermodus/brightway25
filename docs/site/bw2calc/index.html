@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bw2calc — code map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+  <h1><span class="pkgname">bw2calc</span></h1>
+  <p class="tagline">
+    The LCA calculation engine of Brightway 2.5 — turns <code>bw_processing</code>
+    datapackages (built from <code>bw2data</code>) into scipy sparse matrices via
+    <code>matrix_utils</code>, then solves them: demand → supply vector → inventory →
+    characterized impact score. This is where the actual "life cycle assessment" math
+    happens; everything upstream just prepares data for it, and <code>bw2analyzer</code>
+    post-processes what it produces.
+  </p>
+
+  <h2>Key files</h2>
+  <table>
+    <tr><th>File</th><th>Role</th></tr>
+    <tr><td><code>__init__.py</code></td><td>Public API (<code>__all__</code>); at import time picks a technosphere solver backend (<code>pypardiso</code> → <code>scikit-umfpack</code> → plain <code>scipy.sparse.linalg</code>) and optionally wires in <code>presamples</code></td></tr>
+    <tr><td><code>lca_base.py</code></td><td><code>LCABase(Iterator)</code> — abstract base: matrix-building plumbing (<code>load_lci_data</code>, <code>decompose_technosphere</code>, <code>solve_linear_system</code>, <code>lci()</code>, <code>lcia()</code>, <code>normalize()</code>, <code>weight()</code>), shared by every LCA variant</td></tr>
+    <tr><td><code>lca.py</code></td><td><code>LCA(LCABase)</code> — the standard sparse-matrix LCA: builds technosphere/biosphere/characterization/normalization/weighting matrices; also <code>to_dataframe()</code>, <code>switch_method()</code>, <code>switch_normalization()</code>, <code>switch_weighting()</code></td></tr>
+    <tr><td><code>dense_lca.py</code></td><td><code>DenseLCA(LCA)</code> — same as <code>LCA</code> but with dense numpy matrices; handy for small systems or debugging</td></tr>
+    <tr><td><code>caching_lca.py</code></td><td><code>CachingLCA(LCA)</code> — reuses a factorized technosphere solver across repeated <code>lci()</code> calls</td></tr>
+    <tr><td><code>iterative_lca.py</code></td><td><code>IterativeLCA(LCA)</code> — iterative (non-direct-solve) technosphere solving</td></tr>
+    <tr><td><code>jacobi_gmres_lca.py</code></td><td><code>JacobiGMRESLCA(LCA)</code> — Jacobi-preconditioned GMRES iterative solver variant</td></tr>
+    <tr><td><code>least_squares.py</code></td><td><code>LeastSquaresLCA(LCA)</code> — least-squares solve for overdetermined / non-square technosphere systems</td></tr>
+    <tr><td><code>partitioned_lca.py</code></td><td><code>PartitionedMonteCarloLCA(Iterator)</code> — Monte Carlo LCA that pre-solves a static background system once and samples only a stochastic foreground partition per iteration; uses <code>bw_graph_tools</code> heuristics to locate production exchanges</td></tr>
+    <tr><td><code>multi_lca.py</code></td><td><code>MultiLCA(LCABase)</code> — many functional units × many methods solved together over one shared factorized technosphere; <code>DemandsValidator</code> (pydantic) validates input demand dicts</td></tr>
+    <tr><td><code>fast_scores.py</code></td><td><code>FastScoresOnlyMultiLCA(MultiLCA, FastSupplyArraysMixin)</code> — skips storing full inventory/characterized matrices, accumulates only final scores</td></tr>
+    <tr><td><code>method_config.py</code></td><td><code>MethodConfig(BaseModel)</code> — pydantic config linking impact categories, normalizations and weightings; feeds <code>MultiLCA</code></td></tr>
+    <tr><td><code>dictionary_manager.py</code></td><td><code>DictionaryManager</code> / <code>ReversibleRemappableDictionary</code> — maps database row ids to matrix row/column indices, exposed as <code>lca.dicts.*</code></td></tr>
+    <tr><td><code>result_cache.py</code></td><td><code>ResultCache(Mapping)</code> — caches repeated per-activity results (e.g. across Monte Carlo iterations)</td></tr>
+    <tr><td><code>restricted_sparse_matrix_dict.py</code>, <code>single_value_diagonal_matrix.py</code>, <code>fast_supply_arrays.py</code>, <code>grid.py</code></td><td>Lower-level numerical/matrix helper structures backing the solvers above</td></tr>
+    <tr><td><code>utils.py</code></td><td>Helpers: <code>get_seed()</code>, <code>consistent_global_index()</code>, <code>wrap_functional_unit()</code>, <code>get_datapackage()</code>, <code>utc_now()</code></td></tr>
+    <tr><td><code>errors.py</code></td><td><code>bw2calc</code>-specific exceptions, all subclassing <code>BW2CalcError</code></td></tr>
+    <tr><td><code>log_utils.py</code></td><td>Logging configuration helpers (<code>log_config</code> passed to <code>LCA.__init__</code>)</td></tr>
+  </table>
+
+  <h2>Main classes / entry points</h2>
+  <p>Everything below is re-exported from <code>bw2calc</code> top-level (see <code>__init__.py</code> <code>__all__</code>):</p>
+  <div class="grid">
+    <div class="card"><a class="name" href="#">LCA</a><p>lca.py — standard sparse LCA. The default, most-used entry point.</p></div>
+    <div class="card"><a class="name" href="#">DenseLCA</a><p>dense_lca.py — dense-matrix variant for small/debug cases.</p></div>
+    <div class="card"><a class="name" href="#">CachingLCA</a><p>caching_lca.py — reuses factorized solver across calls.</p></div>
+    <div class="card"><a class="name" href="#">IterativeLCA</a><p>iterative_lca.py — iterative technosphere solver.</p></div>
+    <div class="card"><a class="name" href="#">JacobiGMRESLCA</a><p>jacobi_gmres_lca.py — Jacobi-preconditioned GMRES solver.</p></div>
+    <div class="card"><a class="name" href="#">LeastSquaresLCA</a><p>least_squares.py — least-squares solve, non-square systems.</p></div>
+    <div class="card"><a class="name" href="#">MultiLCA</a><p>multi_lca.py — many functional units × methods at once.</p></div>
+    <div class="card"><a class="name" href="#">FastScoresOnlyMultiLCA</a><p>fast_scores.py — scores-only fast path for large batches.</p></div>
+    <div class="card"><a class="name" href="#">PartitionedMonteCarloLCA</a><p>partitioned_lca.py — Monte Carlo with a pre-solved static background.</p></div>
+    <div class="card"><a class="name" href="#">MethodConfig</a><p>method_config.py — pydantic config for methods/normalization/weighting.</p></div>
+  </div>
+
+  <h2>Typical usage</h2>
+  <pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("my project")
+activity = bd.get_node(name="some activity")
+
+lca = bc.LCA({activity: 1}, method=("some", "method"))
+lca.lci()          # solve technosphere -&gt; supply array -&gt; biosphere flows (lca.inventory)
+lca.lcia()         # apply characterization matrix -&gt; lca.score
+
+print(lca.score)
+
+# Re-run with a different demand or method without rebuilding everything:
+lca.redo_lcia({activity: 2})
+print(lca.score)
+
+# Tidy results
+df = lca.to_dataframe()
+</code></pre>
+
+  <h2>Where to look</h2>
+
+  <h3>How does the technosphere actually get solved?</h3>
+  <p><code>lca_base.py</code> <code>LCABase.solve_linear_system()</code> and <code>LCABase.lci()</code>
+  drive the process; <code>lca.py</code> <code>LCA</code> builds the concrete
+  technosphere/biosphere matrices via <code>matrix_utils.MappedMatrix</code> and calls the
+  chosen solver (<code>pypardiso</code>, <code>umfpack</code>, or
+  <code>scipy.sparse.linalg.spsolve</code>/<code>factorized</code>, selected in
+  <code>__init__.py</code>).</p>
+
+  <h3>How does Monte Carlo uncertainty work?</h3>
+  <p><code>partitioned_lca.py</code> <code>PartitionedMonteCarloLCA</code> (splits a static
+  background solved once from a stochastic foreground sampled per iteration); the
+  distributions themselves come from <code>stats_arrays</code>, and how uncertain
+  parameters are stored on disk comes from <code>bw_processing</code>.</p>
+
+  <h3>How do multiple methods / functional units run together efficiently?</h3>
+  <p><code>multi_lca.py</code> <code>MultiLCA</code> (shared factorized technosphere across
+  many demands and methods) and <code>method_config.py</code> <code>MethodConfig</code>;
+  for score-only batches see <code>fast_scores.py</code> <code>FastScoresOnlyMultiLCA</code>.</p>
+
+  <h3>Where do the LCA-specific exceptions come from?</h3>
+  <p><code>errors.py</code> — all subclass <code>BW2CalcError</code>, e.g.
+  <code>OutsideTechnosphere</code>, <code>NonsquareTechnosphere</code>,
+  <code>MalformedFunctionalUnit</code>, <code>EmptyBiosphere</code>,
+  <code>CyclicDependencyGraph</code>.</p>
+
+  <h3>How do matrix row/column indices map back to database ids?</h3>
+  <p><code>dictionary_manager.py</code> <code>DictionaryManager</code> /
+  <code>ReversibleRemappableDictionary</code>, exposed on an LCA instance as
+  <code>lca.dicts.activity</code>, <code>lca.dicts.product</code>,
+  <code>lca.dicts.biosphere</code>.</p>
+
+  <h3>How do I get results out as a table?</h3>
+  <p><code>lca.py</code> <code>LCA.to_dataframe()</code> returns a tidy <code>pandas.DataFrame</code>
+  of the (optionally characterized) inventory.</p>
+
+  <div class="related">
+    <h2>Related modules</h2>
+    <a href="../bw2data/index.html">bw2data</a> — supplies the activities/exchanges and processed datapackages that bw2calc consumes.<br>
+    <a href="../bw_processing/index.html">bw_processing</a> — the on-disk datapackage format bw2calc reads (technosphere, biosphere, characterization arrays).<br>
+    <a href="../matrix_utils/index.html">matrix_utils</a> — builds those datapackages into the live scipy matrices that <code>lca_base.py</code> solves.<br>
+    <a href="../stats_arrays/index.html">stats_arrays</a> — uncertainty distributions sampled for <code>use_distributions=True</code> and <code>PartitionedMonteCarloLCA</code>.<br>
+    <a href="../bw2analyzer/index.html">bw2analyzer</a> — consumes finished <code>LCA</code> objects for contribution analysis and comparisons.
+  </div>
+</div>
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bw2data — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1><span class="pkgname">bw2data</span></h1>
+<p class="tagline">The core persistent data model for Brightway: projects, databases, activities/exchanges, LCIA methods and parameters — the SQLite-backed layer every other Brightway package reads or writes through.</p>
+
+<blockquote>
+Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <code>4.7</code> (PyPI <code>bw2data&gt;=4.4.2</code>). Backed by SQLite via <code>peewee</code>. Upstream repo: <code>brightway-lca/bw2data</code>.
+</blockquote>
+
+<h2>Key files</h2>
+<table>
+<tr><th>File</th><th>Role</th></tr>
+<tr><td><code>__init__.py</code></td><td>Package entry point — builds the public API (<code>Database</code>, <code>projects</code>, <code>databases</code>, <code>methods</code>, <code>get_node</code>, …), registers metadata singletons, and tries to import <code>multifunctional</code> so it can register its backend.</td></tr>
+<tr><td><code>project.py</code></td><td><code>ProjectManager</code> (the global <code>projects</code> singleton) and <code>ProjectDataset</code> — each Brightway "project" is an isolated SQLite DB + data directory. <code>writable_project</code> decorator gates mutating operations.</td></tr>
+<tr><td><code>configuration.py</code></td><td><code>config</code>, <code>labels</code> — global config object and string-label constants (node/edge types, etc.).</td></tr>
+<tr><td><code>data_store.py</code></td><td><code>DataStore</code> / <code>ProcessedDataStore</code> — base classes for anything that (de)serializes to disk and can be "processed" into a <code>bw_processing</code> datapackage.</td></tr>
+<tr><td><code>database.py</code></td><td><code>DatabaseChooser(name, backend="sqlite")</code> — factory returning the right backend class; this is what users call as <code>bd.Database(...)</code>.</td></tr>
+<tr><td><code>backends/__init__.py</code></td><td>Re-exports <code>convert_backend</code>, <code>get_id</code>, and the aliases <code>Node = Activity</code>, <code>Edge = Exchange</code>.</td></tr>
+<tr><td><code>backends/base.py</code></td><td><code>SQLiteBackend(ProcessedDataStore)</code> — the default database backend; <code>.process()</code> builds the <code>bw_processing</code> datapackage that <code>bw2calc</code> consumes.</td></tr>
+<tr><td><code>backends/proxies.py</code></td><td><code>Activity</code> / <code>Exchange</code> (and <code>Exchanges</code> iterable) — the row-level proxy objects users interact with (<code>act['name']</code>, <code>act.exchanges()</code>, <code>act.new_exchange(...)</code>).</td></tr>
+<tr><td><code>backends/schema.py</code></td><td>Peewee <code>Model</code> definitions — <code>ActivityDataset</code>, <code>ExchangeDataset</code> — the actual SQL table schema. Also <code>get_id(key)</code>.</td></tr>
+<tr><td><code>backends/typos.py</code></td><td>Known-typo / field-name validation helpers for activity/exchange dicts.</td></tr>
+<tr><td><code>backends/utils.py</code></td><td>Shared backend helper functions (key/id normalization, bulk-write helpers).</td></tr>
+<tr><td><code>backends/wurst_extraction.py</code></td><td><code>extract_brightway_databases</code> — dumps a database to plain Python dicts (the "wurst" format used by other tooling).</td></tr>
+<tr><td><code>backends/iotable/</code></td><td>Alternate backend for large I/O-style (matrix-native) databases, e.g. EXIOBASE — bypasses per-row <code>Activity</code> objects for bulk arrays (<code>backend.py</code>, <code>proxies.py</code>).</td></tr>
+<tr><td><code>meta.py</code></td><td>Metadata singletons: <code>databases</code>, <code>methods</code>, <code>geomapping</code>, <code>normalizations</code>, <code>weightings</code>, <code>calculation_setups</code>, <code>dynamic_calculation_setups</code>, <code>preferences</code> — small <code>DataStore</code>-like registries persisted as JSON/pickle, listed in <code>config.metadata</code>.</td></tr>
+<tr><td><code>method.py</code></td><td><code>Method(ImpactAssessmentDataStore)</code> — an LCIA method (characterization factors).</td></tr>
+<tr><td><code>weighting_normalization.py</code></td><td><code>Weighting</code>, <code>Normalization</code> classes, same storage pattern as <code>Method</code>.</td></tr>
+<tr><td><code>parameters.py</code></td><td>Parameterized exchanges/activities — <code>ProjectParameter</code>, <code>DatabaseParameter</code>, <code>ActivityParameter</code>, <code>ParameterizedExchange</code>, <code>ParameterManager</code>; formulas evaluated via <code>bw2parameters</code>.</td></tr>
+<tr><td><code>query.py</code></td><td><code>Query</code> / <code>Filter</code> / <code>Result</code> — a small filter DSL for searching in-memory activity dicts.</td></tr>
+<tr><td><code>search/</code></td><td>Whoosh-based full text search (<code>search.py</code> <code>Searcher</code>, <code>indices.py</code> <code>IndexManager</code>, <code>schema.py</code>) over activity names/products.</td></tr>
+<tr><td><code>compat.py</code></td><td>Backwards-compat shims: <code>prepare_lca_inputs</code>, <code>Mapping</code>, <code>get_multilca_data_objs</code> — bridges old bw2-style code to <code>bw2calc</code>'s newer datapackage-based API.</td></tr>
+<tr><td><code>utils.py</code></td><td><code>get_activity</code>, <code>get_node</code>, <code>set_data_dir</code>, <code>combine_databases</code>, <code>merge_databases</code>, <code>download_file</code>, and misc helpers.</td></tr>
+<tr><td><code>signals.py</code></td><td><code>blinker</code> signal wiring — e.g. database-write triggers reprocessing.</td></tr>
+<tr><td><code>revisions.py</code></td><td>Change-tracking / revision log for syncing project state (cloud-collaboration feature).</td></tr>
+<tr><td><code>snowflake_ids.py</code></td><td>Snowflake-style ID generation scheme for nodes/edges/parameters (<code>SnowflakeIDBaseClass</code>).</td></tr>
+<tr><td><code>sqlite.py</code></td><td>SQLite database connection/setup (pragmas, WAL mode, etc.) shared across projects.</td></tr>
+<tr><td><code>serialization.py</code></td><td><code>JsonWrapper</code> and dict/JSON serialization mixins used by the metadata stores in <code>meta.py</code>.</td></tr>
+<tr><td><code>errors.py</code></td><td>Custom exception classes (e.g. unknown object, validity errors) raised across the package.</td></tr>
+<tr><td><code>validate.py</code></td><td><code>voluptuous</code>-style schema validation for database/method/exchange dicts.</td></tr>
+<tr><td><code>updates.py</code></td><td><code>Updates</code> — runs one-time data migrations when a project was created by an older bw2data version.</td></tr>
+<tr><td><code>logs.py</code>, <code>fatomic.py</code>, <code>filesystem.py</code></td><td>Logging setup, atomic file writes, and filesystem helpers used by the data stores.</td></tr>
+</table>
+
+<h2>Main classes / entry points</h2>
+<p>From <code>__init__.py</code> <code>__all__</code> (imports flattened to <code>bw2data</code>/<code>bd</code> top level):</p>
+<div class="grid">
+  <div class="card"><a class="name">Database</a><p>= <code>DatabaseChooser</code>. Factory: <code>bd.Database("name")</code> returns a <code>SQLiteBackend</code> instance.</p></div>
+  <div class="card"><a class="name">Node / Edge</a><p>Aliases for <code>backends.proxies.Activity</code> / <code>Exchange</code>.</p></div>
+  <div class="card"><a class="name">Method</a><p><code>ImpactAssessmentDataStore</code> subclass — an LCIA method.</p></div>
+  <div class="card"><a class="name">Weighting / Normalization</a><p>Same storage pattern as <code>Method</code>, for LCIA weighting/normalization data.</p></div>
+  <div class="card"><a class="name">projects</a><p><code>ProjectManager</code> singleton — create/switch/delete projects.</p></div>
+  <div class="card"><a class="name">databases / methods / geomapping / normalizations / weightings / preferences / calculation_setups</a><p><code>meta.py</code> metadata registry singletons.</p></div>
+  <div class="card"><a class="name">parameters</a><p><code>ParameterManager</code> singleton for formula-driven exchanges.</p></div>
+  <div class="card"><a class="name">Searcher / IndexManager</a><p>Whoosh full-text search over activities.</p></div>
+  <div class="card"><a class="name">get_node / get_activity</a><p>Look up a single <code>Activity</code> by key/id/kwargs.</p></div>
+  <div class="card"><a class="name">get_id</a><p>Resolve an activity key to its integer database id.</p></div>
+  <div class="card"><a class="name">config / labels</a><p>Global configuration object and label constants.</p></div>
+  <div class="card"><a class="name">prepare_lca_inputs / get_multilca_data_objs</a><p>Build the datapackage objects <code>bw2calc.LCA</code> expects.</p></div>
+</div>
+
+<h2>Typical usage</h2>
+<pre><code>import bw2data as bd
+
+# select / create a project (isolated SQLite DB + data dir)
+bd.projects.set_current("my-project")
+
+# create or open a database of activities
+db = bd.Database("my-db")
+db.register()
+
+db.write({
+    ("my-db", "act-1"): {
+        "name": "steel production",
+        "unit": "kilogram",
+        "exchanges": [
+            {"input": ("my-db", "act-1"), "amount": 1, "type": "production"},
+        ],
+    },
+})
+
+# look up and inspect an activity
+activity = bd.get_node(database="my-db", name="steel production")
+for exc in activity.exchanges():
+    print(exc.input, exc.amount, exc["type"])
+
+# hand off to bw2calc: writing/saving a Database automatically
+# triggers .process(), which writes a bw_processing datapackage
+# that bw2calc.LCA can load directly.
+</code></pre>
+
+<h2>Where to look</h2>
+
+<h3>How is an activity stored on disk?</h3>
+<p><code>backends/schema.py</code> (<code>ActivityDataset</code>, <code>ExchangeDataset</code> peewee models — the SQL table schema) together with <code>backends/proxies.py</code> (<code>Activity.__getitem__</code> / <code>.save()</code> for the in-memory proxy view).</p>
+
+<h3>How does bw2data hand off to bw2calc?</h3>
+<p><code>data_store.py</code> <code>ProcessedDataStore.process()</code> and its override <code>backends/base.py</code> <code>SQLiteBackend.process()</code> (line ~1022) — both write a <code>bw_processing</code> datapackage on disk that <code>bw2calc.LCA</code> loads directly.</p>
+
+<h3>How do projects isolate data?</h3>
+<p><code>project.py</code> — <code>ProjectManager</code> (the <code>projects</code> singleton, switches the active SQLite DB + data dir) and <code>ProjectDataset</code>; mutating methods are wrapped with the <code>writable_project</code> decorator.</p>
+
+<h3>How are LCIA methods represented?</h3>
+<p><code>method.py</code> <code>Method(ImpactAssessmentDataStore)</code>, registered in <code>meta.py</code>'s <code>methods</code> singleton.</p>
+
+<h3>How do parameterized / formula-driven exchanges work?</h3>
+<p><code>parameters.py</code> — <code>ProjectParameter</code>, <code>DatabaseParameter</code>, <code>ActivityParameter</code>, <code>ParameterizedExchange</code>, orchestrated by <code>ParameterManager</code>; formulas are evaluated via the separate <code>bw2parameters</code> package.</p>
+
+<h3>How do I look up a single activity, or resolve its numeric id?</h3>
+<p><code>utils.py</code> <code>get_node(**kwargs)</code> / <code>get_activity(key=None, **kwargs)</code>; <code>backends/schema.py</code> <code>get_id(key)</code> for the integer id used internally and by <code>bw_processing</code> datapackages.</p>
+
+<div class="related">
+  <h2>Related modules</h2>
+  <a href="../bw2calc/index.html">bw2calc</a> — runs LCA calculations against the <code>bw_processing</code> datapackages that <code>bw2data</code>'s <code>.process()</code> writes.<br>
+  <a href="../bw_processing/index.html">bw_processing</a> — the datapackage format bw2data serializes processed matrices into, and bw2calc reads.<br>
+  <a href="../bw2io/index.html">bw2io</a> — importers/exporters that write activities and methods into bw2data databases.<br>
+  <a href="../multifunctional/index.html">multifunctional</a> — extends bw2data's database backend to handle multifunctional processes/allocation; auto-registers itself on <code>import bw2data</code>.<br>
+  <a href="../bw2analyzer/index.html">bw2analyzer</a> — analysis/reporting tools built on top of bw2data activities and bw2calc results.<br>
+  <a href="../bw2parameters/index.html">bw2parameters</a> — the formula-interpolation engine used by <code>bw2data.parameters</code>.
+</div>
+
+</div>
+
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>
