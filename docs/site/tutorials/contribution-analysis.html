@@ -97,9 +97,10 @@ print(lca.score)</code></pre>
 <code>bw2analyzer.ContributionAnalysis</code> operates on
 <code>lca.characterized_inventory</code> — the matrix bw2calc builds by multiplying every
 biosphere flow's amount by its characterization factor, one row per biosphere flow and one column
-per technosphere activity (see <code>bw2calc</code>'s <code>lca.py</code>
-<code>LCA.lcia()</code>, which sets <code>characterized_inventory = characterization_matrix @
-inventory</code>). Summing that matrix along one axis or the other is what
+per technosphere activity (see <code>bw2calc</code>'s <code>lca_base.py</code>
+<code>LCABase.lcia()</code> (~line 193), which calls into <code>lca.py</code>
+<code>LCA.lcia_calculation()</code> (~line 311), setting <code>characterized_inventory =
+characterization_matrix @ inventory</code>). Summing that matrix along one axis or the other is what
 <code>top_processes</code>/<code>top_emissions</code> do
 (<code>contribution.py</code> lines 119-125):
 </p>
