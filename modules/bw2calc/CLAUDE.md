@@ -59,17 +59,57 @@ matrices from the `bw2data`-processed datapackages using
 `matrix_utils.MappedMatrix`, then solve with scipy/pypardiso/umfpack
 depending on what's installed.
 
+## Worked examples
+
+`docs/site/examples/index.html#bw2calc` has two full runnable scripts beyond
+the single-method/single-FU case in bw2data's example 3: running
+`MultiLCA` over multiple impact categories and functional units at once
+(`docs/site/examples/index.html#ex4`), and a stochastic `use_distributions=True`
+Monte Carlo LCA seeded with `seed_override` for reproducible output
+(`docs/site/examples/index.html#ex5`). Key points verified there:
+
+- `MultiLCA.__init__` (`multi_lca.py` ~line 79) takes `demands: dict[str,
+  dict[int, float]]` (functional unit *names* → `{node_id: amount}`, integer
+  ids only — no `(database, code)` keys or `Node` objects, unlike `LCA`) and
+  `method_config: MethodConfig | dict` with an `impact_categories` list.
+  `bw2data.compat.get_multilca_data_objs(functional_units, method_config)`
+  (`bw2data/compat.py` ~line 152) builds the matching `data_objs` list —
+  it's the `MultiLCA` analogue of `prepare_lca_inputs()`.
+- After `mlca.lci(); mlca.lcia()`, `MultiLCA.scores` (`multi_lca.py` ~line
+  415) is a `dict` keyed `(impact_category_tuple, functional_unit_name)` →
+  score (verified by running example 4, not assumed from the docstring).
+- `LCA(demand, method, use_distributions=True, seed_override=42)` makes the
+  `LCA` object (it's an `Iterator`, see `lca_base.py` `LCABase(Iterator)`)
+  re-sample every uncertain matrix entry on each `next(lca)` call and
+  recompute `lca.score`; `seed_override` makes that sampling reproducible
+  run-to-run (verified: same seed → identical mean/std/min/max over 1000
+  iterations in example 5). Uncertainty is set per-exchange in `bw2data`
+  before `.save()`, e.g. `exc["uncertainty type"] = 3; exc["loc"] = 1.8;
+  exc["scale"] = 0.2` — field name has a literal space, and the integer id
+  matches `stats_arrays.UncertaintyType` (normal == 3); see
+  `bw2data/proxies.py` `ExchangeDataset.uncertainty`/`uncertainty_type`
+  (~line 246).
+- `use_arrays=True` is the sibling flag for **scenario** (array-based, not
+  random) iteration — same `next(lca)` mechanism, different data source.
+
 ## Where to look for common questions
 
 - "How does the technosphere get solved?" → `lca_base.py`
   `LCABase.solve_linear_system()` / `LCABase.lci()`; the actual `A x = f`
   call for the default solver is in `lca.py`
-- "How does Monte Carlo uncertainty work?" → `partitioned_lca.py`
-  `PartitionedMonteCarloLCA`, and `stats_arrays` (the distributions being
-  sampled) + `bw_processing` (how uncertain params are stored on disk)
+- "How does Monte Carlo uncertainty work?" → the simplest path is plain
+  `LCA(demand, method, use_distributions=True, seed_override=...)` +
+  repeated `next(lca)` (see Worked examples below, example 5); for a large
+  system where only a foreground subset is stochastic, `partitioned_lca.py`
+  `PartitionedMonteCarloLCA` pre-solves the static background once and
+  samples only the stochastic partition per iteration. Both ultimately
+  sample via `stats_arrays` (the distributions) + `bw_processing`/
+  `matrix_utils` (how uncertain params are stored on disk and turned into
+  a `next()`-able matrix).
 - "How do multiple methods/functional units run together efficiently?" →
   `multi_lca.py` `MultiLCA`, `method_config.py` `MethodConfig`,
-  `fast_scores.py` `FastScoresOnlyMultiLCA` for the score-only fast path
+  `fast_scores.py` `FastScoresOnlyMultiLCA` for the score-only fast path;
+  worked example: Worked examples below, example 4
 - "Where do errors like 'activity not in technosphere' come from?" →
   `errors.py` (e.g. `OutsideTechnosphere`, `NonsquareTechnosphere`,
   `MalformedFunctionalUnit`)
