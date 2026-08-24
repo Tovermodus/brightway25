@@ -79,6 +79,21 @@ from, and complements, the handwritten "how it fits together" pages above:
   You can also pass explicit package names as CLI args for a one-off package
   that doesn't have a map page yet.
 
+### Search across the site
+
+`docs/site/` has a "🔍 Search docs" box on every page (`docs/site/assets/search.js`),
+searching the handwritten map pages, the generated API reference, and the
+examples/tutorials pages together. It's backed by a static index built with
+[Pagefind](https://pagefind.app) via `docs/build_search_index.sh`, run after
+`docs/generate_api_docs.py` (so the API pages exist to index) — same pattern as
+the API reference: output goes to `docs/site/pagefind/`, **not committed**
+(`.gitignore`), and is rebuilt on every GitHub Pages deploy
+(`.github/workflows/pages.yml`). Needs Node/`npx` locally (no separate
+install — `npx pagefind` fetches the CLI on first run). Unlike the rest of the
+site, the search box needs the site served over http(s) — browsers block the
+index fetch over plain `file://` — e.g. `python3 -m http.server -d docs/site`;
+it works with no server once deployed to GitHub Pages.
+
 | Package | Role | Map |
 |---|---|---|
 | `bw2data` | Core data model: projects, SQLite-backed activities/exchanges (nodes/edges), metadata stores, search | [modules/bw2data/CLAUDE.md](modules/bw2data/CLAUDE.md) |

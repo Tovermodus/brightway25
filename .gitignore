@@ -108,6 +108,7 @@ celerybeat.pid
 # Generated API reference (docs/generate_api_docs.py) - rebuilt on every
 # GitHub Pages deploy from whatever is installed in .venv, not committed.
 docs/site/api/
+docs/site/pagefind/
 env/
 venv/
 ENV/
