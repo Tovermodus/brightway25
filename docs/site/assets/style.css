@@ -83,6 +83,14 @@ ul.filelist li { margin-bottom: 0.3rem; }
 .card .api-link { font-size: 0.72rem; padding: 0.1rem 0.5rem; margin: 0.5rem 0 0 0; }
 .arch { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; }
 
+/* Syntax highlighting tokens, applied by assets/highlight.js to pre.hl code blocks. */
+.tok-k  { color: var(--accent); font-weight: 600; }   /* keywords: def, import, for, ... */
+.tok-bi { color: #b18cff; }                            /* builtins: print, len, str, ... */
+.tok-s  { color: #9fd88a; }                             /* strings */
+.tok-c  { color: var(--fg-dim); font-style: italic; }   /* # comments */
+.tok-n  { color: var(--accent2); }                      /* numbers */
+.tok-dec { color: var(--accent2); font-weight: 600; }   /* @decorators */
+
 /* ---- Page layout: left module sidebar + content column ---- */
 .layout { display: flex; align-items: flex-start; }
 .content { flex: 1 1 auto; min-width: 0; }
