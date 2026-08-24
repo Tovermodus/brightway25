@@ -23,6 +23,84 @@
 Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <code>4.7</code> (PyPI <code>bw2data&gt;=4.4.2</code>). Backed by SQLite via <code>peewee</code>. Upstream repo: <code>brightway-lca/bw2data</code>.
 </blockquote>
 
+<h2>Examples</h2>
+<p>Runnable, verified against the installed source. Each builds on the one before it, but stands on its own too.</p>
+
+<h3>1. Create an empty database and add activities to it</h3>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("my-project")   # isolated project: SQLite DB + data dir
+
+db = bd.Database("example_db")
+db.register()                            # required before writing; database now exists, empty
+
+steel = db.new_activity(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()                              # nothing persists until .save() is called
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+
+print(len(db))                            # 1
+</code></pre>
+<p>Full walkthrough with more detail and gotchas:
+<a href="../tutorials/create-empty-database.html">the "create an empty database" tutorial</a>.</p>
+
+<h3>2. Bulk-write a database in one call (what importers do)</h3>
+<pre><code>db.write({
+    ("example_db", "act-1"): {
+        "name": "steel production",
+        "unit": "kilogram",
+        "exchanges": [
+            {"input": ("example_db", "act-1"), "amount": 1, "type": "production"},
+        ],
+    },
+})
+# write() replaces the database's *entire* contents in one shot — this is
+# what bw2io importers do after parsing an external format.
+</code></pre>
+
+<h3>3. Look up and inspect an activity</h3>
+<pre><code>activity = bd.get_node(database="example_db", name="steel production")
+for exc in activity.exchanges():
+    print(exc.input, exc.amount, exc["type"])
+</code></pre>
+
+<h3>4. Search / filter activities in a database</h3>
+<pre><code># full-text search (Whoosh index, built automatically on write())
+results = list(db.search("steel"))
+
+# or just filter in Python — fine for small databases
+[act for act in db if "iron" in act["name"]]
+</code></pre>
+
+<h3>5. Run a full LCA: biosphere flow + method + bw2calc</h3>
+<p>Ties <code>bw2data</code> together with <code>bw2calc</code> — a minimal but complete inventory + impact calculation:</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()   # 1.8 kg CO2 per kg steel
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])            # characterization factor: 1 kg CO2 = 1 kg CO2-eq
+
+lca = bc.LCA({steel.key: 1}, method_key)  # score for producing 1 kg of steel
+lca.lci()
+lca.lcia()
+print(lca.score)                          # 1.8
+</code></pre>
+
 <h2>Key files</h2>
 <table>
 <tr><th>File</th><th>Role</th></tr>
@@ -74,39 +152,6 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <
   <div class="card"><a class="name">config / labels</a><p>Global configuration object and label constants.</p></div>
   <div class="card"><a class="name">prepare_lca_inputs / get_multilca_data_objs</a><p>Build the datapackage objects <code>bw2calc.LCA</code> expects.</p></div>
 </div>
-
-<h2>Typical usage</h2>
-<pre><code>import bw2data as bd
-
-# select / create a project (isolated SQLite DB + data dir)
-bd.projects.set_current("my-project")
-
-# create or open a database of activities
-db = bd.Database("my-db")
-db.register()
-
-db.write({
-    ("my-db", "act-1"): {
-        "name": "steel production",
-        "unit": "kilogram",
-        "exchanges": [
-            {"input": ("my-db", "act-1"), "amount": 1, "type": "production"},
-        ],
-    },
-})
-
-# look up and inspect an activity
-activity = bd.get_node(database="my-db", name="steel production")
-for exc in activity.exchanges():
-    print(exc.input, exc.amount, exc["type"])
-
-# hand off to bw2calc: writing/saving a Database automatically
-# triggers .process(), which writes a bw_processing datapackage
-# that bw2calc.LCA can load directly.
-</code></pre>
-<p>For a step-by-step walkthrough of creating a brand-new, empty database and filling it
-activity-by-activity (rather than bulk <code>write()</code>), see
-<a href="../tutorials/create-empty-database.html">the "create an empty database" tutorial</a>.</p>
 
 <h2>Where to look</h2>
 

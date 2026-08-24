@@ -88,6 +88,10 @@ activity.new_exchange(input=activity.key, amount=1, type="production").save()
   `db.write({(db_name, code): {...}, ...})` directly — this is the path `bw2io` importers use; it
   replaces the database's entire contents in one call.
 - Full step-by-step walkthrough with a worked example: `docs/site/tutorials/create-empty-database.html`.
+- `docs/site/bw2data/index.html` now leads with an **Examples** section (before the reference
+  tables) covering: creating an empty database, bulk `write()`, activity lookup, search/filter,
+  and a full biosphere-flow + `Method` + `bw2calc.LCA` round trip — all verified by running them
+  against the installed source.
 
 ## Where to look for common questions
 
