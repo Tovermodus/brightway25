@@ -1,5 +1,17 @@
 # brightway25 — root map
 
+## ALWAYS READ THE CODE
+
+For any question about how a Brightway module actually behaves, **read the
+installed source** under `.venv/lib/python3.11/site-packages/<package>/`
+(see "Module map" below) — do not answer from memory, general LCA knowledge,
+or internet/upstream documentation. Upstream docs, blog posts, and Stack
+Overflow answers for this ecosystem are frequently outdated and describe
+behavior that has since changed; the only exception is using the internet to
+look up a *bug* (e.g. a known issue/traceback in an installed package's
+GitHub issue tracker), never to learn how an API is supposed to work. If the
+`.venv` isn't set up yet, create it first (see below) rather than guessing.
+
 ## What this repo actually is
 
 `brightway25` (this repo) is **only a meta-package**. `brightway25/__init__.py`
@@ -127,3 +139,25 @@ time — review comments and follow-up commits routinely add or change code
 without a matching doc update, so treat the two checks as independent, not
 one-and-done. Skipping the check is fine only when the skill itself concludes
 there's nothing to update; don't skip the check itself.
+
+## Examples: stay concise
+
+`docs/site/examples/index.html` is **one central page** for every worked
+example across every module — do not create a separate examples page per
+module or per example. Within it:
+
+- Keep each module's section short: a handful of examples (2-4), not a
+  sprawling catalog. If a new example would mostly restate an existing one
+  with a minor variant (a different keyword arg, a different filter), don't
+  add it as its own example — fold the variant into the existing example's
+  description as a one-line note instead, or skip it.
+- Prefer merging closely related steps into one script over splitting them
+  into separate examples (e.g. "create a database and look it up" is one
+  example, not two).
+- Every example must still be a complete, runnable script with real
+  captured output (see the blockquote at the top of that page) — concise
+  means *fewer* examples, not shorter/fake ones.
+- When adding, removing, or renumbering examples, grep the whole
+  `docs/site/` tree and the `modules/*/CLAUDE.md` files for
+  `examples/index.html#ex` links and fix every cross-reference — stale
+  anchors are worse than no anchor.

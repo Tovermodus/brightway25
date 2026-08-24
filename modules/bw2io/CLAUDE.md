@@ -90,6 +90,23 @@ Utility functions: `activity_hash`, `es2_activity_hash`, `normalize_units`,
   `bw2setup()` first when using this path — it sets up its own biosphere
   linked to the correct ecoinvent version.
 
+- **"How do I go from a single process/chimaera node to separate process +
+  product nodes?"** → `strategies/products.py`
+  `separate_processes_from_products(data, field_exclusions, code_suffix)`:
+  given datasets typed `"process"` or `"processwithreferenceproduct"`
+  (chimaera — see `modules/bw2data/CLAUDE.md` "Node types" for what that
+  means), it copies each process into a new `"product"` node (using the
+  `"reference product"` field for the product's name if present), points the
+  process's self-referencing production edge at the new product node, and
+  flips the process's own `type` to plain `"process"`. The inverse direction
+  — `bw2data.utils.set_correct_process_type()`, run automatically by
+  `Database.write()` — collapses a process with a self-referencing
+  production edge (or no explicit production edge at all) back into a
+  chimaera node. The same file also has
+  `create_products_as_new_nodes(data)`, which creates new unlinked product
+  nodes from named-but-unlinked functional edges (used earlier in an import
+  pipeline, before internal links are all resolved).
+
 - **"What is a 'strategy' and how is it applied?"** → A strategy is just a
   plain function `data -> data` (occasionally with extra bound args via
   `functools.partial`, e.g. `functools.partial(migrate_datasets,
