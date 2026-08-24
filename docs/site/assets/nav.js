@@ -258,10 +258,23 @@
     h1.parentNode.insertBefore(bar, h1.nextSibling);
   }
 
+  // Site-wide search box (assets/search.js, backed by the Pagefind index
+  // from docs/build_search_index.sh). Loaded dynamically here rather than
+  // hand-added to every page's <script> tags, same reasoning as everything
+  // else in this file — one place to edit for all pages.
+  function loadSearch() {
+    if (document.querySelector('script[src$="assets/search.js"]')) return;
+    var s = document.createElement("script");
+    s.src = ROOT + "assets/search.js";
+    s.setAttribute("data-root", ROOT);
+    document.body.appendChild(s);
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     buildSidebar();
     buildToggle();
     buildResourceToolbar();
     buildPageToc();
+    loadSearch();
   });
 })();

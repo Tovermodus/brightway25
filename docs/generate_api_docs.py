@@ -49,10 +49,17 @@ API_DIR = SITE_DIR / "api"
 # knows nothing about docs/site/, so this is injected as plain inline-styled
 # HTML rather than relying on assets/style.css classes. Kept intentionally
 # tiny — it must not fight pdoc's own layout.
+#
+# data-pagefind-ignore keeps this banner (nav links, not content) out of the
+# search index built by docs/build_search_index.sh. The trailing <script>
+# loads assets/search.js, which adds the same site-wide search box these
+# pages would get from assets/nav.js on the handwritten pages — pdoc pages
+# don't include nav.js (pdoc has its own header/layout), so it's wired in
+# here instead.
 _BACKLINK_TEMPLATE = (
-    '<div style="background:#171a21;color:#9aa4b2;font:0.82rem -apple-system,'
-    "Helvetica,Arial,sans-serif;padding:0.5rem 1rem;border-bottom:1px solid "
-    '#2a2f3a">'
+    '<div data-pagefind-ignore style="background:#171a21;color:#9aa4b2;'
+    'font:0.82rem -apple-system,Helvetica,Arial,sans-serif;padding:0.5rem 1rem;'
+    'border-bottom:1px solid #2a2f3a">'
     '<a href="{home}" style="color:#7ec3ff;text-decoration:none">'
     "← brightway25 code map</a>"
     ' &middot; <a href="{module}" style="color:#7ec3ff;text-decoration:none">'
@@ -60,6 +67,7 @@ _BACKLINK_TEMPLATE = (
     ' &middot; <a href="{examples}" style="color:#7ec3ff;text-decoration:none">'
     "Examples</a>"
     "</div>"
+    '<script src="{site_rel}assets/search.js" data-root="{site_rel}"></script>'
 )
 
 
@@ -85,6 +93,7 @@ def inject_backlinks(out_dir: Path, package: str) -> None:
                 module=f"{site_rel}{package}/index.html",
                 examples=f"{site_rel}examples/index.html",
                 package=package,
+                site_rel=site_rel,
             )
             new_text = text.replace("<body>", "<body>" + banner, 1)
             if new_text == text:

@@ -152,3 +152,8 @@ ul.filelist li { margin-bottom: 0.3rem; }
   border-radius: 999px; background: var(--bg-alt); color: var(--fg-dim);
 }
 .pagetoc a:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+
+/* Site-wide search (assets/search.js + Pagefind) is styled by a <style>
+   tag search.js injects itself, not here — it needs to work on the
+   generated pdoc API pages too, which never load this stylesheet. Keeping
+   both would drift; see search.js's SEARCH_CSS constant. */

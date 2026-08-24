@@ -6,6 +6,7 @@ on:
     paths:
       - "docs/site/**"
       - "docs/generate_api_docs.py"
+      - "docs/build_search_index.sh"
       - "pyproject.toml"
       - ".github/workflows/pages.yml"
   workflow_dispatch: {}
@@ -36,6 +37,12 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Generate API reference (docs/generate_api_docs.py)
         run: python docs/generate_api_docs.py
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build search index (docs/build_search_index.sh)
+        run: docs/build_search_index.sh
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:
