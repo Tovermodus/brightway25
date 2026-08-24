@@ -191,7 +191,7 @@ strategy don't linger. After the <code>"equal"</code> run above, the database ho
 process per co-product, each with the functional edge kept at its original amount and every
 non-functional edge rescaled by that co-product's factor:
 </p>
-<pre><code>for act in db:
+<pre><code>for act in sorted(db, key=lambda a: a.get("reference product") or ""):
     if act.get("type") == "readonly_process":
         print(act.get("reference product"), "production amount=", act.get("production amount"))
         for e in act.technosphere():
@@ -201,7 +201,9 @@ non-functional edge rescaled by that co-product's factor:
 hide production amount= 30
    technosphere: cattle feed 100.0</code></pre>
 <p>
-With <code>"equal"</code> allocation both processes take half of the 200&nbsp;kg feed input
+(The database iterates nodes in whatever order SQLite returns them, so the example sorts by
+reference product for a stable, repeatable order — don't rely on unsorted iteration order
+yourself.) With <code>"equal"</code> allocation both processes take half of the 200&nbsp;kg feed input
 (100&nbsp;kg each) regardless of how much beef or hide they actually produce — a visible
 illustration of why the allocation strategy matters. Each of these
 <code>ReadOnlyProcessWithReferenceProduct</code> nodes (<code>node_classes.py</code>) is a normal,
@@ -266,7 +268,7 @@ for exc in cow.functional_edges():
     print("price:", exc["name"], exc["mf_allocation_factor"])
 
 cow.allocate(strategy_label="equal")
-for act in db:
+for act in sorted(db, key=lambda a: a.get("reference product") or ""):
     if act.get("type") == "readonly_process":
         print(act.get("reference product"), "production amount=", act.get("production amount"))
         for e in act.technosphere():
