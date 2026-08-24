@@ -58,3 +58,10 @@ package `__init__.py` — they must be imported explicitly, e.g.
 - **"How is a raw EXIOBASE `.xlsb` download turned into this datapackage format?"** → `conversion/exiobase_3_hybrid_io/__init__.py`'s `convert_exiobase()` (or the SU equivalent in `conversion/exiobase_3_hybrid_su/__init__.py`) is the entry point; it calls `extract_metadata()`, `extract_extension_exchanges()`, `extract_production_exchanges()`/`extract_su_exchanges()`, `extract_io_exchanges()`, then `package_exiobase()` to assemble everything using `utils.write_compressed_csv()`.
 - **"Where are per-version source file/sheet names configured?"** → `conversion/exiobase_3_hybrid_io/version_config.py` and `conversion/exiobase_3_hybrid_su/version_config.py`, both a `VERSIONS` dict keyed by version string (e.g. `"3.3.17 hybrid"`), listing source `.xlsx`/`.xlsb` filenames, worksheet names, and column-name → schema-field mappings for the nomenclature (extensions/locations/activities/products) and numeric sheets.
 - **"How is the compressed CSV data itself read/written?"** → `utils.py` (top-level) for the generic reader (`load_compressed_csv`, `iterate_compressed_csv`, `load_compressed_csv_as_dataframe`) used by the runtime API; `conversion/exiobase_3_hybrid_{io,su}/utils.py` for the conversion-time writer `write_compressed_csv()` and `.xlsb` extraction helpers (`read_xlsb`, `convert_xlsb`, `extract_with_pandas`).
+
+No worked example is provided for this package on
+[docs/site/examples/index.html](../../docs/site/examples/index.html) —
+reading or converting real MRIO/EXIOBASE data needs a large, licensed
+EXIOBASE download, not a small bundled fixture. `bw2io`'s own EXIOBASE
+importers (`Exiobase3MonetaryImporter`/`Exiobase3HybridImporter`) are the
+consumers of the datapackage format this package reads/writes.

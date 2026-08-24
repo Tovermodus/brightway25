@@ -62,6 +62,38 @@ Utility functions: `activity_hash`, `es2_activity_hash`, `normalize_units`,
 
 ## Where to look for common questions
 
+- **Worked examples** — [docs/site/examples/index.html#bw2io](../../docs/site/examples/index.html#bw2io)
+  has 3 full, verified, runnable scripts using bw2io's own bundled test
+  fixtures (no ecoinvent/SimaPro credentials or network needed): importing an
+  Excel/CSV LCI sheet with `ExcelImporter` (`#ex4`), round-tripping a
+  database through a `BW2Package` archive (`#ex5`), and applying a
+  `Migration` — including the `"multiplier"` unit-rescale trick — during
+  import (`#ex6`). This is the same **extract → apply strategies → write**
+  shape as the docs.brightway.dev "Importing Data" cheat sheet.
+
+- **"How do I import a plain Excel/CSV LCI sheet, without ecoinvent or
+  SimaPro?"** → `importers/excel.py` `ExcelImporter(filepath,
+  sheet_name=None)` reads a workbook laid out per its class docstring (a
+  `Database`/`Activity`/`Exchanges` section format; a worksheet whose cell A1
+  is literally `"skip"` is ignored). It builds a fixed 14-strategy list in
+  `__init__` (`csv_restore_tuples`, `csv_numerize`, `normalize_units`,
+  `set_code_by_activity_hash`, biosphere linking via
+  `link_iterable_by_fields(other=Database(config.biosphere),
+  edge_kinds=["biosphere"])`, `link_technosphere_by_activity_hash`, ...) and
+  calls `extractors/excel.py` `ExcelExtractor.extract()` **immediately in
+  `__init__`** (not lazily), via `openpyxl`. `CSVImporter` (same file) is the
+  flattened single-worksheet CSV equivalent, via `extractors/csv.py`
+  `CSVExtractor`. `data/__init__.py` `get_xlsx_example_filepath()` /
+  `get_csv_example_filepath()` point at bundled fixtures
+  (`data/examples/example.xlsx`, `example.csv`, and a parameterized variant
+  `sample_parameterized_database.xlsx`) used by bw2io's own tests and by
+  example 4 above. Gotcha verified while writing that example: biosphere
+  linking matches on **all** fields present unless `fields=` is narrowed, and
+  neither `ExcelImporter` nor `link_technosphere_by_activity_hash`
+  auto-creates a self-referencing production exchange for an activity whose
+  sheet section has no `Exchanges` block — always check `.statistics()`
+  before `.write_database()`.
+
 - **"How does a SimaPro CSV import work end to end?"** →
   `importers/simapro_csv.py` `SimaProCSVImporter.__init__` calls
   `extractors/simapro_csv.py` `SimaProCSVExtractor.extract()` to parse the raw
@@ -143,8 +175,39 @@ Utility functions: `activity_hash`, `es2_activity_hash`, `normalize_units`,
   strategies `strategies/migrations.py` `migrate_datasets` /
   `migrate_exchanges`, which most format importers include in their
   strategy list via `functools.partial(migrate_datasets,
-  migration="...")`. Think of a migration as reusable renaming data, and a
-  strategy as the code that applies (or generates) it.
+  migration="...")`. Stored migration data has a `"fields"` list (which
+  keys to match on) and a `"data"` list of `(old_values, new_values)` pairs;
+  a special `"multiplier"` key in `new_values` is handled by
+  `migrate_exchanges` via `utils.py` `rescale_exchange(exc, factor)`
+  (scales amount + uncertainty/formula fields) instead of overwriting a
+  field outright — that's how a migration converts units, not just renames
+  (verified in example 6 above). Think of a migration as reusable
+  renaming/rescaling data, and a strategy as the code that applies (or
+  generates) it. `bw_migrations` and `randonneur`/`randonneur_data` are
+  separate, newer packages sourcing additional pre-built migration-shaped
+  data (mostly exiobase↔ecoinvent hybridization).
+
+- **"How do `randonneur`/`randonneur_data` plug into an import, as opposed to
+  bw2io's own `Migration`/strategies?"** → `importers/base_lci.py`
+  `LCIImporter.randonneur(label=None, data_registry_path=None,
+  datapackage=None, fields=None, mapping=None, node_filter=None,
+  edge_filter=None, verbs=rn.utils.SAFE_VERBS, migrate_edges=True,
+  migrate_nodes=False, ...)` (line ~675) is a **third**, separate mechanism
+  alongside `Migration`+strategies and `bw_migrations`: it calls
+  `randonneur.migrate_edges_with_stored_data`/`migrate_nodes_with_stored_data`
+  (or plain `migrate_edges`/`migrate_nodes` if you pass an in-memory
+  `datapackage=` instead of `label=`) directly against `self.data`, applying
+  a `randonneur` transformation registry entry (by default resolved through
+  `randonneur_data.Registry`) in place — no `Migration` object or
+  project-level registration involved. It's the mechanism intended for
+  consuming maintained `randonneur_data` datasets (exiobase↔ecoinvent
+  hybridization etc.) rather than bw2io's own bundled biosphere-2-3/SimaPro
+  migrations. See `modules/randonneur/CLAUDE.md` and
+  `modules/randonneur_data/CLAUDE.md` for the engine and data-registry side.
+  Related: `create_randonneur_excel_template_for_unlinked()` (same file,
+  line ~871) writes an Excel template in `randonneur`'s format pre-filled
+  from `self.unlinked`, meant to be hand-completed and loaded back as a
+  `randonneur.Datapackage` to resolve those specific unlinked exchanges.
 
 - **"How is EXIOBASE / MRIO data handled?"** →
   `extractors/exiobase.py` (`Exiobase3MonetaryDataExtractor`),
@@ -160,8 +223,13 @@ Utility functions: `activity_hash`, `es2_activity_hash`, `normalize_units`,
   `lci_matrices_to_excel`, `export/matlab.py` `lci_matrices_to_matlab`,
   `export/gexf.py` `DatabaseToGEXF` (network-graph export for Gephi). For a
   full round-trippable archive of any `bw2data` `DataStore` object
-  (database, method, ...), use `package.py` `BW2Package.export_obj(...)` /
-  `BW2Package.import_file(...)` instead.
+  (database, method, ...), use `package.py`
+  `BW2Package.export_obj(obj, filename=None, folder="export", ...)` /
+  `BW2Package.import_file(filepath, whitelist=True)` instead — a
+  bzip2-compressed JSON file, filename defaulting to a hash of `obj.filename`;
+  `import_file` always returns a **list** of restored objects (even for one)
+  and re-registers/writes/processes each into whichever project is current
+  (verified in example 5 above, which imports into a second project).
 
 - **"Where do the default biosphere3 flows and LCIA methods come from?"** →
   `__init__.py` `create_default_biosphere3()` runs

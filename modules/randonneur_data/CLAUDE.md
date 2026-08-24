@@ -118,3 +118,11 @@ keys a datapackage's top-level JSON may contain; used by `sample()` to know whic
 - **"What applies these migrations to real data?"** → not this package — see the separate
   `randonneur` package (`modules/randonneur/CLAUDE.md`), which is the engine that consumes
   datapackages like these.
+- **"Who calls `Registry.get_file()` during an actual bw2io import?"** →
+  `bw2io`'s `importers/base_lci.py` `LCIImporter.randonneur(label=..., ...)`
+  (line ~675, no `datapackage=` given) — internally
+  `randonneur.migrate_edges_with_stored_data`/`migrate_nodes_with_stored_data`
+  build a `randonneur_data.Registry(data_registry_path)` and call
+  `.get_file(label)` to fetch the datapackage by name, e.g. one of the
+  ecoinvent-version or SimaPro-to-ecoinvent entries listed above. See
+  `modules/bw2io/CLAUDE.md`.

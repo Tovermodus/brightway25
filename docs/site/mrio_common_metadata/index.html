@@ -138,6 +138,8 @@ for row_meta, col_meta, value in get_numeric_data_iterator(dirpath, "IO exchange
     <code>convert_xlsb</code>, <code>extract_with_pandas</code>).
   </blockquote>
 
+  <p>No worked example is provided for this package on <a href="../examples/index.html">the Examples page</a> — reading or converting real MRIO/EXIOBASE data needs a large, licensed EXIOBASE download, not a small bundled fixture. <a href="../bw2io/index.html">bw2io</a>'s own EXIOBASE importers (<code>Exiobase3MonetaryImporter</code>/<code>Exiobase3HybridImporter</code>) are the consumers of the datapackage format this package reads/writes.</p>
+
   <div class="related">
     <strong>Related modules:</strong><br>
     <a href="../bw2io/index.html">bw2io</a> — imports EXIOBASE/MRIO data into Brightway, consuming datapackages produced/read via this package.<br>
