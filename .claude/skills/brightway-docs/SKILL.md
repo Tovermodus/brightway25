@@ -1,6 +1,6 @@
 ---
 name: brightway-docs
-description: Guides writing and updating the brightway25 code-map documentation — modules/<package>/CLAUDE.md and its mirror docs/site/<package>/index.html. Use this any time you've just investigated how a Brightway module (bw2data, bw2calc, bw2io, bw_processing, matrix_utils, bw2analyzer, multifunctional, etc.) actually works and need to write that up, not just answer in chat. Also use it when asked to "document this module", "update the code map", "add this to CLAUDE.md", write or refresh a docs/site page, or when the investigation touched multiple packages and the root CLAUDE.md dependency diagram may need correcting. Covers both WHAT to write (grounded in installed source, file:line references, cross-references) and HOW to write it (concise, reference/explanation style, kept in sync across the markdown and HTML copies).
+description: Guides writing and updating the brightway25 code-map documentation — modules/<package>/CLAUDE.md and its mirror docs/site/<package>/index.html, plus the site-wide docs/site/examples/index.html and docs/site/tutorials/ pages. Use this any time you've just investigated how a Brightway module (bw2data, bw2calc, bw2io, bw_processing, matrix_utils, bw2analyzer, multifunctional, etc.) actually works and need to write that up, not just answer in chat. Also use it when asked to "document this module", "update the code map", "add this to CLAUDE.md", write or refresh a docs/site page, add worked examples or a tutorial for a complex module, or when the investigation touched multiple packages and the root CLAUDE.md dependency diagram may need correcting. Covers both WHAT to write (grounded in installed source, file:line references, cross-references, verified runnable examples) and HOW to write it (concise, reference/explanation style, kept in sync across the markdown and HTML copies).
 ---
 
 # Writing brightway25 code-map documentation
@@ -59,6 +59,54 @@ If what you learned is genuinely a "how do I accomplish X" recipe rather than
 all — say so, and default to still capturing it (better documented than lost)
 but keep it short and clearly separated.
 
+## Worked examples for complex modules
+
+The reference format above is deliberately compressed — a key-files table and
+a Q&A section don't help someone who needs to see a *whole* workflow strung
+together. For a module complex enough that a single snippet can't carry that
+(several distinct workflows, non-obvious sequencing, easy-to-miss gotchas —
+`bw2data` is the reference case, see PR #2), add proper worked examples rather
+than growing the inline "Typical usage" snippet indefinitely:
+
+- **One site-wide Examples page**, `docs/site/examples/index.html`, holds
+  every module's examples, each module in its own `<h2 id="<package>">`
+  section (so other pages can deep-link with `../examples/index.html#bw2data`).
+  Don't create a separate examples page per module — the whole point is one
+  place a reader browses across the ecosystem, and one place to keep
+  consistent.
+- Each example is a **complete, standalone, runnable script** — not a
+  fragment — with a one-line description of what it demonstrates and why
+  that workflow matters (e.g. "the path importers use").
+- **Actually run every example against the installed source** and paste the
+  real captured output into an Output block. Don't hand-write output you
+  expect it to produce — that's exactly the kind of unverified claim this
+  skill exists to prevent. Stripping incidental log noise (progress bars,
+  structlog lines) for readability is fine; editing the printed results is
+  not.
+- If a workflow deserves a slower, step-by-step walkthrough (explaining each
+  API call as you go, not just showing the finished script), add a page under
+  `docs/site/tutorials/<topic>.html` — one topic per file, cross-linked from
+  both the Examples page and the module's reference page. Keep the tutorial
+  focused on *one* workflow; a "Notes & gotchas" closing section is a good
+  place for the pitfalls you hit while verifying it.
+- Wire the links in both directions: the module's reference page links out to
+  its Examples section (and any tutorial) instead of embedding the snippet;
+  the Examples page links back to the module's reference page; a tutorial
+  links to both. Also add the Examples page (and any new tutorial) to
+  `docs/site/index.html`'s navigation/landing grid so it's discoverable from
+  the top.
+- `modules/<package>/CLAUDE.md` gets the markdown-side equivalent: capture
+  what the examples/tutorial established (the verified code path, file:line
+  references, gotchas) as prose/code blocks, with a pointer to the HTML pages
+  for the full runnable version — don't just say "see the website," restate
+  the substance so the markdown copy stays self-contained per the grounding
+  rule above.
+
+This is additional to, not a replacement for, the reference content — a
+complex module still needs its key-files table and Q&A section; the examples
+page is where the "how do these pieces actually get used together" material
+lives instead of bloating the reference page.
+
 ## Content shape per module page
 
 Match the structure already established (see `modules/bw2data/CLAUDE.md` /
@@ -75,8 +123,12 @@ a new layout:
 4. **Main classes / entry points** — the public API surface (typically
    `__init__.py`'s `__all__`), one card/bullet per exported name with what it
    is and how it's normally reached (e.g. `bd.Database(...)`).
-5. **Typical usage** (optional, short) — a minimal realistic code snippet,
-   not a tutorial.
+5. **Typical usage / Examples pointer** — for a simple module, a short
+   realistic code snippet inline is fine. For a **complex module** (a large
+   surface area, multiple non-obvious workflows, or a module you're adding
+   worked examples for), don't inline it — replace the snippet with a short
+   paragraph linking to that module's section on the site-wide Examples page
+   (and a tutorial page, if one exists). See **Worked examples** below.
 6. **"Where to look" / Q&A section** — the actual payload of most
    investigations: a specific question phrased the way someone would ask it,
    answered with file(s) + function/class + line pointers. Add a new entry
@@ -169,5 +221,10 @@ shorter, tighter doc is cheaper to keep correct. Concretely:
 5. Check cross-references both ways (this page's "Related modules" and the
    related pages' own lists) and fix the root `CLAUDE.md` architecture
    diagram if the investigation showed it's incomplete or wrong.
-6. Re-read what you wrote once against the source: does every specific claim
+6. If the module is complex enough to warrant it (see **Worked examples for
+   complex modules**), add or extend its section on `docs/site/examples/index.html`
+   with real, executed-and-verified scripts, and a tutorial page if a
+   workflow deserves a step-by-step walkthrough — wired into the navigation
+   and cross-linked both ways.
+7. Re-read what you wrote once against the source: does every specific claim
    have a file (and, where it matters, a line) a reader could go check?
