@@ -14,6 +14,17 @@ loads them into `bw2data`.
 Source: `.venv/lib/python3.11/site-packages/ecoinvent_interface/` (version
 `3.1`, see `__init__.py`).
 
+No worked example is provided for this package on
+[docs/site/examples/index.html](../../docs/site/examples/index.html): every
+public entry point requires an authenticated, paid ecoinvent account and live
+network access, which this repo's docs deliberately avoid exercising (see
+root `CLAUDE.md`). `bw2io`'s `ecoinvent.py`
+`import_ecoinvent_release(version, system_model, username, password, ...)`
+is the only consumer in this repo and is documented, unexecuted, in
+`modules/bw2io/CLAUDE.md`; `docs/site/examples/index.html#bw2io` instead
+demonstrates the same extract→strategies→write shape against bw2io's own
+credential-free bundled fixtures.
+
 ## Key files
 
 | File | Role |

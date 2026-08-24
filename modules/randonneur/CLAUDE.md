@@ -21,6 +21,16 @@ new name) lives in the separate `randonneur_data` package and is applied
 data, only the `MappingConstants` reference expression-language constants and
 the transformation engine.
 
+Concretely, `bw2io`'s `importers/base_lci.py` `LCIImporter.randonneur(label=None,
+datapackage=None, ..., migrate_edges=True, migrate_nodes=False)` (line ~675)
+is a method every LCI importer inherits — it calls this package's
+`migrate_edges_with_stored_data`/`migrate_nodes_with_stored_data` (or plain
+`migrate_edges`/`migrate_nodes` given an in-memory `datapackage=`) directly
+against the importer's `self.data`. This is a third, separate migration
+mechanism in bw2io alongside its own `Migration`+strategies system and
+`bw_migrations` — see `modules/bw2io/CLAUDE.md` "How do randonneur/
+randonneur_data plug into an import".
+
 It also provides:
 - `Datapackage` — a builder/validator/serializer for migration data files
   (the JSON files `randonneur_data` and others distribute).

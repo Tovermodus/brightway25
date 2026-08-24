@@ -111,6 +111,8 @@ if simapro_csv.header["kind"] == SimaProCSVType.processes:
 <h3>How does this become a bw2data-ready dataset?</h3>
 <p><code>main.py</code> <code>SimaProCSV.to_brightway()</code> calls <code>brightway.py</code> <code>lci_to_brightway()</code> — but in practice <code>bw2io.importers.simapro_csv.SimaProCSVImporter</code> is the usual entry point, wrapping a <code>SimaProCSV</code> instance to build full bw2data-compatible activities and exchanges.</p>
 
+<p>No worked example is provided for this package on <a href="../examples/index.html">the Examples page</a> — bw2io ships no bundled SimaPro CSV fixture to run against without a real SimaPro export. <a href="../examples/index.html#ex4">Example 4 (ExcelImporter)</a> demonstrates the same extract → strategies → statistics shape against a format bw2io does bundle a fixture for.</p>
+
 <div class="related">
   <h2>Related modules</h2>
   <a href="../bw2io/index.html">bw2io</a> — <code>bw2io.importers.simapro_csv.SimaProCSVImporter</code> wraps this package's parser to build bw2data-compatible datasets, handling the strategies/migrations layer this package deliberately stays out of.

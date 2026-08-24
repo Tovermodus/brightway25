@@ -115,3 +115,11 @@ produces a bw2io-flavoured JSON dict directly for process exports.
 - "Where are CAS numbers validated/cleaned?" → `cas.py`
   `validate_cas_string()` / `calculate_check_digit()`, used when parsing
   `GenericBiosphere` flow entries
+
+No worked example is provided for this package on
+[docs/site/examples/index.html](../../docs/site/examples/index.html) — bw2io
+ships no bundled SimaPro CSV fixture to run against without a real SimaPro
+export.
+[Example 4 (ExcelImporter)](../../docs/site/examples/index.html#ex4)
+demonstrates the same extract → strategies → statistics shape against a
+format bw2io does bundle a fixture for.

@@ -96,6 +96,18 @@ single dict or a list of dicts — each dict may carry `__multiplier__` /
 `missing flows` (a plain list of source-side names/labels with no mapping
 found), `comment` (free-text caveats from the data curator).
 
+**"How does this relate to `bw2io`'s own `Migration` class?"** Different
+mechanisms with overlapping names. `bw2io.migrations.Migration` (see
+`modules/bw2io/CLAUDE.md`) is a per-project, on-disk-registered `DataStore`
+applied automatically by most importers' strategy lists
+(`migrate_datasets`/`migrate_exchanges`), with a plain `"multiplier"` rescale
+key. This package's `get_migration`/`migrate_data` are standalone functions
+with no project/registration step — load a JSON file or dict directly and
+call `migrate_data(data, migration)` yourself — using dunder-style
+`__multiplier__`/`__disaggregation__` rescale keys instead. See
+[docs/site/examples/index.html#ex6](../../docs/site/examples/index.html#ex6)
+for `bw2io`'s own `Migration` mechanism in action (verified/runnable).
+
 **"Is there a way to register/write new named migrations to disk?"**
 Not in this version. `get_migration` only *reads* migrations (bundled JSON,
 an arbitrary file path, or an in-memory `Mapping`); there is no writer/save
