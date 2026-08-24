@@ -56,6 +56,29 @@ back to the index and to related module pages. When you update a module's
 `CLAUDE.md`, update its `docs/site/<package>/index.html` counterpart to
 match (same content, styled with `docs/site/assets/style.css`).
 
+### Generated API reference (on top of the handwritten map)
+
+Each `docs/site/<package>/index.html` page also links to a **generated API
+reference** at `docs/site/api/<package>/index.html` — the full docstring-level
+API (every public class/function/module), built by
+[`pdoc`](https://pdoc.dev) via `docs/generate_api_docs.py`. This is separate
+from, and complements, the handwritten "how it fits together" pages above:
+
+- Run it locally with `pip install pdoc && python docs/generate_api_docs.py`
+  (after the `.venv` setup above). Output goes to `docs/site/api/` and is
+  **not committed** (`.gitignore`) — it always reflects whatever version of
+  each package is currently installed, and is rebuilt automatically on every
+  GitHub Pages deploy (`.github/workflows/pages.yml`).
+- It's extensible to more than the current 16 packages with **no script
+  changes**: `docs/generate_api_docs.py` auto-discovers packages by scanning
+  `docs/site/*/index.html` (any directory with a map page), then generates
+  API docs for each one that's importable. To document a new package, add
+  its `modules/<pkg>/CLAUDE.md` + `docs/site/<pkg>/index.html` (copy an
+  existing module page as a template, per the convention above) and add it
+  to `pyproject.toml` dependencies — the next generate/deploy picks it up.
+  You can also pass explicit package names as CLI args for a one-off package
+  that doesn't have a map page yet.
+
 | Package | Role | Map |
 |---|---|---|
 | `bw2data` | Core data model: projects, SQLite-backed activities/exchanges (nodes/edges), metadata stores, search | [modules/bw2data/CLAUDE.md](modules/bw2data/CLAUDE.md) |

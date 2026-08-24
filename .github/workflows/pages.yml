@@ -5,6 +5,8 @@ on:
     branches: ["main"]
     paths:
       - "docs/site/**"
+      - "docs/generate_api_docs.py"
+      - "pyproject.toml"
       - ".github/workflows/pages.yml"
   workflow_dispatch: {}
 
@@ -26,6 +28,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install brightway25 + all documented packages
+        run: pip install -e ".[dev]"
+      - name: Generate API reference (docs/generate_api_docs.py)
+        run: python docs/generate_api_docs.py
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
         with:

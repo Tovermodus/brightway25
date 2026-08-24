@@ -33,6 +33,35 @@ pip install -e ".[dev]"</code></pre>
     <code>file://</code> links).
   </blockquote>
 
+  <h2>Three kinds of docs on this site</h2>
+  <p class="tagline">
+    Each package below has a <strong>handwritten map page</strong> (this site) explaining
+    <em>how</em> it fits into the Brightway stack — key files, main classes, call flow —
+    written and updated as questions about the codebase get answered (see this repo's
+    <code>CLAUDE.md</code>). Every card also links to a <strong>generated API reference</strong>
+    (the "API reference →" links, built with <a href="https://pdoc.dev">pdoc</a> from each
+    package's actual docstrings): every public class, function, and module, always in sync
+    with whatever version is installed. Generate it locally with
+    <code>python docs/generate_api_docs.py</code> after <code>pip install pdoc</code>
+    (it isn't committed to git — see <code>docs/site/api/</code> in <code>.gitignore</code> —
+    and is rebuilt automatically on every GitHub Pages deploy, see
+    <code>.github/workflows/pages.yml</code>). It's not just for these 16 packages: the
+    generator auto-discovers any package that has a <code>docs/site/&lt;name&gt;/index.html</code>
+    page and is importable, so adding API docs for another package is just adding its map
+    page (copy an existing one) — no script changes needed. On top of both, the
+    <a href="examples/index.html"><strong>Examples</strong> page</a> and
+    <a href="tutorials/create-empty-database.html">tutorials</a> give runnable, verified
+    walkthroughs with real captured output — module pages link into specific examples
+    (and back) via anchored class/function names, so you can go from "what is <code>Database</code>"
+    to "here it is being used" to "here's every method it has" in one click each way.
+  </p>
+
+  <div class="layer-label">Examples &amp; tutorials</div>
+  <div class="grid">
+    <div class="card"><a class="name" href="examples/index.html">Examples</a><p>Every worked example across all modules, in one place: full runnable scripts with real captured output. Module pages link back here.</p></div>
+    <div class="card"><a class="name" href="tutorials/create-empty-database.html">Create an empty database</a><p>Step-by-step: register a new, empty bw2data database in a project, then fill it with your own activities and exchanges.</p></div>
+  </div>
+
   <h2>Architecture — how the pieces fit together</h2>
   <div class="arch"><pre><code>stats_arrays   bw2parameters            (leaf utility libs: uncertainty, formulas)
         \           /
@@ -54,44 +83,38 @@ Import / export side (independent of the calc stack, writes into bw2data):
 
   <div class="layer-label">Core data model</div>
   <div class="grid">
-    <div class="card"><a class="name" href="bw2data/index.html">bw2data</a><p>Projects, SQLite-backed activities/exchanges, methods, metadata — the central data store everything else reads/writes.</p></div>
-  </div>
-
-  <div class="layer-label">Examples &amp; tutorials</div>
-  <div class="grid">
-    <div class="card"><a class="name" href="examples/index.html">Examples</a><p>Every worked example across all modules, in one place: full runnable scripts with real captured output. Module pages link back here.</p></div>
-    <div class="card"><a class="name" href="tutorials/create-empty-database.html">Create an empty database</a><p>Step-by-step: register a new, empty bw2data database in a project, then fill it with your own activities and exchanges.</p></div>
+    <div class="card"><a class="name" href="bw2data/index.html">bw2data</a><p>Projects, SQLite-backed activities/exchanges, methods, metadata — the central data store everything else reads/writes.</p><a class="api-link" href="api/bw2data/index.html">API reference →</a></div>
   </div>
 
   <div class="layer-label">Processed data &amp; matrices</div>
   <div class="grid">
-    <div class="card"><a class="name" href="bw_processing/index.html">bw_processing</a><p>On-disk "datapackage" format for matrix-ready arrays.</p></div>
-    <div class="card"><a class="name" href="matrix_utils/index.html">matrix_utils</a><p>Builds bw_processing datapackages into live scipy sparse matrices.</p></div>
-    <div class="card"><a class="name" href="bw_graph_tools/index.html">bw_graph_tools</a><p>Graph traversal of the technosphere / supply-chain graphs.</p></div>
+    <div class="card"><a class="name" href="bw_processing/index.html">bw_processing</a><p>On-disk "datapackage" format for matrix-ready arrays.</p><a class="api-link" href="api/bw_processing/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="matrix_utils/index.html">matrix_utils</a><p>Builds bw_processing datapackages into live scipy sparse matrices.</p><a class="api-link" href="api/matrix_utils/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="bw_graph_tools/index.html">bw_graph_tools</a><p>Graph traversal of the technosphere / supply-chain graphs.</p><a class="api-link" href="api/bw_graph_tools/index.html">API reference →</a></div>
   </div>
 
   <div class="layer-label">Calculation &amp; analysis</div>
   <div class="grid">
-    <div class="card"><a class="name" href="bw2calc/index.html">bw2calc</a><p>LCA calculation engine: builds &amp; solves the matrices.</p></div>
-    <div class="card"><a class="name" href="bw2analyzer/index.html">bw2analyzer</a><p>Post-calculation analysis: contribution, comparisons, graphs.</p></div>
-    <div class="card"><a class="name" href="multifunctional/index.html">multifunctional</a><p>Allocation of multi-output ("multifunctional") processes.</p></div>
+    <div class="card"><a class="name" href="bw2calc/index.html">bw2calc</a><p>LCA calculation engine: builds &amp; solves the matrices.</p><a class="api-link" href="api/bw2calc/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="bw2analyzer/index.html">bw2analyzer</a><p>Post-calculation analysis: contribution, comparisons, graphs.</p><a class="api-link" href="api/bw2analyzer/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="multifunctional/index.html">multifunctional</a><p>Allocation of multi-output ("multifunctional") processes.</p><a class="api-link" href="api/multifunctional/index.html">API reference →</a></div>
   </div>
 
   <div class="layer-label">Parameters &amp; uncertainty</div>
   <div class="grid">
-    <div class="card"><a class="name" href="bw2parameters/index.html">bw2parameters</a><p>Formula/parameter interpreter for parameterized exchanges.</p></div>
-    <div class="card"><a class="name" href="stats_arrays/index.html">stats_arrays</a><p>Uncertainty distributions + Monte Carlo RNG.</p></div>
+    <div class="card"><a class="name" href="bw2parameters/index.html">bw2parameters</a><p>Formula/parameter interpreter for parameterized exchanges.</p><a class="api-link" href="api/bw2parameters/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="stats_arrays/index.html">stats_arrays</a><p>Uncertainty distributions + Monte Carlo RNG.</p><a class="api-link" href="api/stats_arrays/index.html">API reference →</a></div>
   </div>
 
   <div class="layer-label">Import / export &amp; interop</div>
   <div class="grid">
-    <div class="card"><a class="name" href="bw2io/index.html">bw2io</a><p>Import/export: ecoinvent, SimaPro, ecospold, Excel, exiobase, etc.</p></div>
-    <div class="card"><a class="name" href="bw_simapro_csv/index.html">bw_simapro_csv</a><p>Low-level SimaPro CSV parser used by bw2io.</p></div>
-    <div class="card"><a class="name" href="ecoinvent_interface/index.html">ecoinvent_interface</a><p>Authenticated client for downloading ecoinvent releases.</p></div>
-    <div class="card"><a class="name" href="bw_migrations/index.html">bw_migrations</a><p>Curated data migrations (e.g. exiobase↔ecoinvent) used during import.</p></div>
-    <div class="card"><a class="name" href="randonneur/index.html">randonneur</a><p>Generic "migrate/patch a dataset" engine.</p></div>
-    <div class="card"><a class="name" href="randonneur_data/index.html">randonneur_data</a><p>Registry of pre-built randonneur migration datasets.</p></div>
-    <div class="card"><a class="name" href="mrio_common_metadata/index.html">mrio_common_metadata</a><p>Shared metadata helpers for MRIO (exiobase-style) datapackages.</p></div>
+    <div class="card"><a class="name" href="bw2io/index.html">bw2io</a><p>Import/export: ecoinvent, SimaPro, ecospold, Excel, exiobase, etc.</p><a class="api-link" href="api/bw2io/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="bw_simapro_csv/index.html">bw_simapro_csv</a><p>Low-level SimaPro CSV parser used by bw2io.</p><a class="api-link" href="api/bw_simapro_csv/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="ecoinvent_interface/index.html">ecoinvent_interface</a><p>Authenticated client for downloading ecoinvent releases.</p><a class="api-link" href="api/ecoinvent_interface/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="bw_migrations/index.html">bw_migrations</a><p>Curated data migrations (e.g. exiobase↔ecoinvent) used during import.</p><a class="api-link" href="api/bw_migrations/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="randonneur/index.html">randonneur</a><p>Generic "migrate/patch a dataset" engine.</p><a class="api-link" href="api/randonneur/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="randonneur_data/index.html">randonneur_data</a><p>Registry of pre-built randonneur migration datasets.</p><a class="api-link" href="api/randonneur_data/index.html">API reference →</a></div>
+    <div class="card"><a class="name" href="mrio_common_metadata/index.html">mrio_common_metadata</a><p>Shared metadata helpers for MRIO (exiobase-style) datapackages.</p><a class="api-link" href="api/mrio_common_metadata/index.html">API reference →</a></div>
   </div>
 
   <footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>

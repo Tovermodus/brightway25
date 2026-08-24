@@ -67,4 +67,11 @@ blockquote {
   background: var(--bg-alt); color: var(--fg-dim); border-radius: 0 var(--radius) var(--radius) 0;
 }
 ul.filelist li { margin-bottom: 0.3rem; }
+.api-link {
+  display: inline-block; font-size: 0.85rem; font-family: ui-monospace, monospace;
+  padding: 0.35rem 0.8rem; border: 1px solid var(--accent); border-radius: var(--radius);
+  color: var(--accent); margin: 0.2rem 0 1.2rem 0;
+}
+.api-link:hover { background: var(--accent); color: var(--bg); text-decoration: none; }
+.card .api-link { font-size: 0.72rem; padding: 0.1rem 0.5rem; margin: 0.5rem 0 0 0; }
 .arch { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; }

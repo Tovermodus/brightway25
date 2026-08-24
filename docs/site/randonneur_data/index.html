@@ -96,6 +96,9 @@ data.keys()  # e.g. dict_keys(['update', 'mapping', 'name', ...])
   <blockquote><strong>How do I find what migration datasets are available?</strong><br>
     Instantiate <code>Registry()</code> and iterate it, or <code>print(registry)</code> for the
     formatted summary — each key is a dataset name from <code>data/registry.json</code>.</blockquote>
+
+<a class="api-link" href="../api/randonneur_data/index.html">Full generated API reference →</a>
+<p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>randonneur_data</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
   <blockquote><strong>How do I get the actual migration data for a dataset?</strong><br>
     <code>Registry().get_file(name)</code> in <code>__init__.py</code> — handles gzip/lzma
     decompression transparently.</blockquote>
