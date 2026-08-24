@@ -31,14 +31,19 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw2data</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
 <h2>Examples</h2>
-<p>Three short, runnable scripts, with real captured output, live on the site-wide
+<p>Five short, runnable scripts, with real captured output, live on the site-wide
 <a href="../examples/index.html#bw2data"><b>Examples</b> page</a> — creating an empty
 <a href="#Database">database</a>, adding an activity and looking it up
 (<a href="../examples/index.html#ex1">1</a>);
 <a href="#node-types">chimaera vs. non-chimaera node types</a>
-(<a href="../examples/index.html#ex2">2</a>); and a full biosphere-flow + <a href="#Method">Method</a>
+(<a href="../examples/index.html#ex2">2</a>); a full biosphere-flow + <a href="#Method">Method</a>
 + <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> round trip
-(<a href="../examples/index.html#ex3">3</a>). A slower-paced walkthrough of the first one is also
+(<a href="../examples/index.html#ex3">3</a>); and, in the site-wide
+<a href="../examples/index.html#bw2data-projects"><b>bw2data-projects</b> section</a>,
+<a href="#project-lifecycle">listing/creating/switching/deleting projects and seeing where data
+lives on disk</a> (<a href="../examples/index.html#ex4">4</a>) and
+<a href="#project-lifecycle">multiple databases in one project plus a cross-database exchange</a>
+(<a href="../examples/index.html#ex5">5</a>). A slower-paced walkthrough of the first one is also
 available as <a href="../tutorials/create-empty-database.html">its own tutorial</a>.</p>
 
 <h2>Key files</h2>
@@ -157,6 +162,102 @@ map</a>.
 
 <h3>How do I look up a single activity, or resolve its numeric id?</h3>
 <p><code>utils.py</code> <code>get_node(**kwargs)</code> / <code>get_activity(key=None, **kwargs)</code>; <code>backends/schema.py</code> <code>get_id(key)</code> for the integer id used internally and by <code>bw_processing</code> datapackages.</p>
+
+<h3 id="project-lifecycle">Projects &amp; databases on disk: how the lifecycle actually works</h3>
+<p>
+Verified in <code>project.py</code> (<code>ProjectManager</code>, the <code>projects</code>
+singleton created once at import time, and <code>ProjectDataset</code>, the peewee row backing
+each project). Worked examples: <a href="../examples/index.html#ex4">listing/creating/switching/
+deleting projects</a> and <a href="../examples/index.html#ex5">multiple databases in one
+project plus a cross-database exchange</a>.
+</p>
+<ul>
+<li><b>Where data lives.</b> All project data lives under one base directory,
+<code>projects._base_data_dir</code>, resolved once when the <code>projects</code> singleton is
+constructed (<code>ProjectManager.__init__</code> → <code>_get_base_directories()</code>,
+<code>project.py:356</code>): if the <code>BRIGHTWAY2_DIR</code> env var is set and points at an
+existing directory, that's used; otherwise it falls back to an OS-specific per-user data dir via
+<code>platformdirs.PlatformDirs("Brightway3", "pylca")</code>. Because it's resolved at import
+time, <code>BRIGHTWAY2_DIR</code> must be set <i>before</i> <code>import bw2data</code> to have any
+effect (see <a href="../examples/index.html#ex4">Example 4</a>).</li>
+<li><b>Each project's own directory</b> is
+<code>projects.dir</code> = <code>base_data_dir / safe_filename(project_name, full=full_hash)</code>
+(<code>_project_dir</code>, <code>project.py:408</code>), where <code>safe_filename</code> (from
+<code>bw_processing.filesystem</code>) slugifies the name and appends an md5 hash of it — an
+8-character hash by default (<code>full_hash=False</code> for newly created projects), or the full
+32-character hash if <code>full_hash=True</code>. It creates five subdirectories inside on first
+use: <code>backups</code>, <code>intermediate</code>, <code>lci</code>, <code>processed</code>,
+<code>revisions</code> (<code>ProjectManager._basic_directories</code>). Logs for a project live
+separately, under <code>projects.logs_dir</code> (same base-dir-resolution logic, but for logs, and
+not affected by <code>BRIGHTWAY2_DIR</code> — see <code>_get_base_directories</code>).</li>
+<li><b>Output directory</b> for files a script writes (e.g. exports) is
+<code>projects.output_dir</code> (<code>project.py:463</code>): the <code>BRIGHTWAY2_OUTPUT_DIR</code>
+env var if set and valid, else <code>preferences["output_dir"]</code> if set and valid, else an
+<code>output</code> subdirectory auto-created under the current project's own directory.</li>
+<li><b>Listing/creating/switching.</b> There's no separate "create project" call — a project is
+created implicitly the first time <code>projects.set_current(name)</code> sees a name it doesn't
+already know (<code>set_current</code> → <code>create_project</code>, <code>project.py:420</code>
+and <code>:483</code>); <code>projects</code> itself is iterable and yields every registered
+<code>ProjectDataset</code>, so <code>sorted(p.name for p in projects)</code> lists them all. The
+first time <em>any</em> project is used at all, a <code>"default"</code> project is auto-created
+(<code>ProjectManager.__init__</code> calls <code>self.set_current("default", update=False)</code>,
+<code>project.py:323</code>).</li>
+<li><b>Deleting.</b> <code>projects.delete_project(name=None, delete_dir=False)</code>
+(<code>project.py:537</code>) always unregisters the project row; only unlinks the on-disk
+directory too if <code>delete_dir=True</code> (otherwise switching back to that name later resumes
+with the same data — the code logs exactly this via <code>stdout_feedback_logger.warning</code>).
+It refuses to delete the last remaining project, and switches away first if you delete the
+currently-active one (to <code>"default"</code> if it still exists, else an arbitrary remaining
+project).</li>
+<li><b>Copying/renaming.</b> <code>projects.copy_project(new_name, switch=True)</code>
+(<code>project.py:498</code>) does a plain <code>shutil.copytree</code> of the whole project
+directory under a new hashed name, then registers a new <code>ProjectDataset</code> row with the
+same <code>data</code>/<code>full_hash</code>. <code>rename_project(new_name)</code>
+(<code>:623</code>) is implemented as copy-then-delete-the-old-one, and its own docstring/warning
+calls this "relatively expensive."</li>
+<li><b>Housekeeping.</b> <code>projects.purge_deleted_directories()</code>
+(<code>project.py:581</code>) removes any on-disk project directory that no longer has a matching
+registered project name (e.g. left behind by a <code>delete_project(..., delete_dir=False)</code>
+followed by manual cleanup elsewhere) — returns the number of directories removed.
+<code>projects.report()</code> (<code>:597</code>) walks every project, switching into each in turn,
+and returns <code>(name, number of databases, total size in GB)</code> tuples.</li>
+</ul>
+
+<h4>FAQ / troubleshooting</h4>
+<ul>
+<li><b>I deleted a project but the disk space didn't free up.</b> By design:
+<code>delete_project(name)</code> defaults to <code>delete_dir=False</code>, so it only removes the
+project from the registered list — the directory (and its data) is left on disk untouched. Pass
+<code>delete_dir=True</code> explicitly to also <code>shutil.rmtree</code> it (see
+<a href="../examples/index.html#ex4">Example 4</a>), or clean up multiple orphaned directories at
+once with <code>projects.purge_deleted_directories()</code>.</li>
+<li><b><code>delete_project(..., delete_dir=True)</code> raised an <code>AssertionError</code> on a
+project that definitely exists.</b> A real gotcha found directly in the source
+(<code>project.py:557</code>): the directory path to delete is recomputed as
+<code>base_data_dir / safe_filename(victim)</code>, which uses <code>safe_filename</code>'s
+<i>default</i> (short, 8-char hash) form — it does not look up that specific project's actual
+<code>full_hash</code> flag the way <code>projects.dir</code> or <code>copy_project</code> do. For a
+project stored under the full 32-character hash (created with <code>full_hash=True</code>, or an
+old project whose row predates the <code>full_hash</code> column and was backfilled to
+<code>full_hash=1</code> by the <code>add_full_hash_column</code> migration in this same file), the
+recomputed path won't match the real directory, and the following
+<code>assert dir_path.is_dir()</code> fails. Workaround: delete the directory yourself (it's
+<code>projects.dir</code> while that project is current) instead of relying on
+<code>delete_dir=True</code>, or convert the project to the short-hash form first with
+<code>projects.use_short_hash()</code> (<code>project.py:639</code>).</li>
+<li><b>My project's directory name has garbled/missing characters for a non-ASCII project name.</b>
+Verified by calling <code>bw_processing.safe_filename</code> directly: it runs the name through
+Unicode NFKD normalization and then strips anything that isn't a "word" character before appending
+the hash. For an accented name like <code>"café project"</code> this cleanly folds to
+<code>"cafe-project.&lt;hash&gt;"</code>. But for scripts that use combining diacritics/marks —
+e.g. Japanese dakuten-marked katakana — NFKD decomposition splits the base character from its
+mark, and the mark then gets silently stripped as "not a word character," changing the visible
+characters (a voiced <code>プ</code> "pu" can come out as its unvoiced base <code>フ</code> "fu" in
+the directory name). This is a purely cosmetic/readability issue, not a data-loss or collision one
+— the appended md5 hash suffix is computed from the original, un-mangled name, so two differently
+named projects that fold to the same slug still get distinct, non-colliding directories; only the
+human-readable prefix of the directory name is affected.</li>
+</ul>
 
 <div class="related">
   <h2>Related modules</h2>

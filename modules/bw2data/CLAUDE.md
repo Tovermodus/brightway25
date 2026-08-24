@@ -91,9 +91,76 @@ activity.new_exchange(input=activity.key, amount=1, type="production").save()
 - `docs/site/bw2data/index.html` leads with a short **Examples** teaser (before the reference
   tables) pointing at the site-wide `docs/site/examples/index.html#bw2data` section — three
   verified, runnable scripts: create a database + activity + look it up, chimaera vs.
-  non-chimaera node types, and a full biosphere-flow + `Method` + `bw2calc.LCA` round trip. Keep
-  this page short: one central Examples page for the whole site, a handful of examples per
-  module section, not a page per example.
+  non-chimaera node types, and a full biosphere-flow + `Method` + `bw2calc.LCA` round trip. There's
+  also a second, `#bw2data-projects` section further down the same examples page (`#ex4`, `#ex5`)
+  covering the project lifecycle — see below. Keep this page short: one central Examples page for
+  the whole site, a handful of examples per module section, not a page per example.
+
+## Projects & databases on disk (the project lifecycle)
+
+Verified in `project.py` (`ProjectManager`, the `projects` singleton created once at import time,
+and `ProjectDataset`, the peewee row backing each project). Worked examples:
+`docs/site/examples/index.html#ex4` (list/create/switch/delete projects, see where data lives) and
+`#ex5` (multiple databases in one project + a cross-database exchange).
+
+- **Where data lives.** All project data lives under one base directory,
+  `projects._base_data_dir`, resolved **once**, when the `projects` singleton is constructed
+  (`ProjectManager.__init__` → `_get_base_directories()`, `project.py:356`): if `BRIGHTWAY2_DIR` is
+  set and points at an existing directory, that's used; otherwise it falls back to an OS-specific
+  per-user data dir via `platformdirs.PlatformDirs("Brightway3", "pylca")`. Because it's resolved
+  at import time, `BRIGHTWAY2_DIR` must be set **before** `import bw2data`.
+- **Each project's own directory** is `projects.dir` = `base_data_dir /
+  safe_filename(project_name, full=full_hash)` (`_project_dir`, `project.py:408`), where
+  `safe_filename` (from `bw_processing.filesystem`) slugifies the name and appends an md5 hash — 8
+  hex chars by default (`full_hash=False` for newly created projects) or the full 32-char hash if
+  `full_hash=True`. Five subdirectories are created inside on first use: `backups`,
+  `intermediate`, `lci`, `processed`, `revisions` (`ProjectManager._basic_directories`). Logs live
+  separately under `projects.logs_dir` (same base-dir resolution, unaffected by `BRIGHTWAY2_DIR`).
+- **Output directory**: `projects.output_dir` (`project.py:463`) — `BRIGHTWAY2_OUTPUT_DIR` env var
+  if valid, else `preferences["output_dir"]` if valid, else an auto-created `output` subdir of the
+  current project's own directory.
+- **Listing/creating/switching**: no separate "create" call — `projects.set_current(name)` creates
+  the project implicitly the first time it sees an unknown name (`set_current` → `create_project`,
+  `:420`/`:483`). `projects` is iterable, yielding every registered `ProjectDataset` — `sorted(p.name
+  for p in projects)` lists them all. A `"default"` project is auto-created the first time the
+  `projects` singleton is built at all (`ProjectManager.__init__` calls `set_current("default",
+  update=False)`, `:323`).
+- **Deleting**: `projects.delete_project(name=None, delete_dir=False)` (`:537`) always unregisters
+  the row; only removes the on-disk directory too if `delete_dir=True` (otherwise switching back to
+  that name later resumes with the same data). Refuses to delete the last remaining project;
+  switches away first if deleting the current one (to `"default"` if present, else an arbitrary
+  remaining project).
+- **Copying/renaming**: `copy_project(new_name, switch=True)` (`:498`) does a plain
+  `shutil.copytree` of the whole project dir under a new hashed name, then registers a new
+  `ProjectDataset` row with the same `data`/`full_hash`. `rename_project(new_name)` (`:623`) is
+  copy-then-delete-the-old-one — its own docstring/warning calls this "relatively expensive."
+- **Housekeeping**: `projects.purge_deleted_directories()` (`:581`) removes any on-disk project
+  directory with no matching registered name, returning the count removed.
+  `projects.report()` (`:597`) switches into every project in turn and returns `(name, number of
+  databases, total size in GB)` tuples.
+
+### FAQ / troubleshooting (grounded in source, not upstream docs)
+
+- **Deleted a project but disk space didn't free up** — expected: `delete_project` defaults to
+  `delete_dir=False`. Pass `delete_dir=True`, or batch-clean with `purge_deleted_directories()`.
+- **`delete_project(..., delete_dir=True)` raises `AssertionError` on a project that clearly
+  exists** — a real gotcha in `project.py:557`: the directory to delete is recomputed as
+  `base_data_dir / safe_filename(victim)`, which uses `safe_filename`'s *default* short-hash form
+  and does **not** consult that project's actual `full_hash` flag (unlike `projects.dir` /
+  `copy_project`, which do). For a project stored under the full 32-char hash — created with
+  `full_hash=True`, or an old project backfilled to `full_hash=1` by the `add_full_hash_column`
+  migration in this same file — the recomputed path is wrong and `assert dir_path.is_dir()` fails.
+  Workaround: delete `projects.dir` yourself while that project is current, or first call
+  `projects.use_short_hash()` (`:639`) to convert it.
+- **Non-ASCII project name produces a garbled/missing-character directory name** — verified by
+  calling `bw_processing.safe_filename` directly: it NFKD-normalizes the name then strips anything
+  that isn't a "word" character before appending the hash. `"café project"` cleanly folds to
+  `"cafe-project.<hash>"`. But for combining diacritics/marks — e.g. Japanese dakuten-marked
+  katakana — NFKD decomposition splits the base character from its mark, and the mark is then
+  silently stripped as "not a word character" (a voiced プ "pu" can come out as unvoiced フ "fu").
+  This is cosmetic only, not a collision/data-loss risk: the hash suffix is computed from the
+  original un-mangled name, so distinct names that fold to the same slug still get distinct
+  directories.
 
 ## Node types: process / product / chimaera
 
@@ -141,7 +208,9 @@ side (via one `write()` call) and prints the resulting `type` of each node — v
   `ProcessedDataStore.process()` (writes a `bw_processing` datapackage) and
   `backends/base.py` `SQLiteBackend.process()`
 - "How do projects isolate data?" → `project.py` `ProjectManager`,
-  `ProjectDataset`
+  `ProjectDataset` — full lifecycle writeup above ("Projects & databases on
+  disk"), including where `BRIGHTWAY2_DIR` fits in and delete/copy/rename
+  gotchas
 - "How are LCIA methods represented?" → `method.py`, `meta.py` `methods`
 - "How do parameterized/formula-driven exchanges work?" → `parameters.py`
   `ParameterManager` (project/database/activity-level parameter classes,

@@ -39,6 +39,7 @@ Every example below is a complete, standalone Python script — copy it into a f
 
 <div class="modnav">
   <a href="#bw2data">bw2data</a>
+  <a href="#bw2data-projects">bw2data-projects</a>
 </div>
 
 <p style="color:var(--fg-dim); font-size:0.85rem;">Only <code>bw2data</code> has examples here so far. As other modules get worked examples, they land in their own short section on this same page — not a new page.</p>
@@ -164,6 +165,110 @@ lca.lcia()
 print(lca.score)</code></pre>
 <p class="label">Output</p>
 <pre class="output"><code>1.7999999523162842</code></pre>
+</div>
+
+<h2 id="bw2data-projects">bw2data-projects</h2>
+<p>See also: <a href="../bw2data/index.html#project-lifecycle">the "Projects &amp; databases on disk" section of the bw2data module map</a>.</p>
+
+<div class="ex" id="ex4">
+<h3>4. List/create/switch/delete projects, and see where data lives on disk</h3>
+<p class="desc">Every Brightway <a href="../bw2data/index.html#projects">project</a> is an isolated SQLite
+database plus a data directory under <code>bw2data.projects.dir</code>. The base directory for
+<em>all</em> projects defaults to an OS-specific per-user data dir (via <code>platformdirs</code>),
+but the <code>BRIGHTWAY2_DIR</code> environment variable overrides it — set it before importing
+<code>bw2data</code>, since the base directory is resolved once, at import time, by the
+<code>projects</code> singleton. A project is created the first time
+<code>projects.set_current(name)</code> sees a name it doesn't recognize; there's no separate
+"create" call. Each project's on-disk directory name is <code>&lt;name&gt;.&lt;8-char md5 hash of
+name&gt;</code> (the hash avoids filesystem-unsafe-name and collision problems) — see
+<code>ProjectManager._project_dir</code> in <code>project.py</code>.</p>
+<p class="label">Code</p>
+<pre><code>import os
+import tempfile
+from pathlib import Path
+
+tmp = tempfile.mkdtemp(prefix="bw25-example-")
+os.environ["BRIGHTWAY2_DIR"] = tmp          # override where all project data lives on disk
+
+import bw2data as bd
+
+print(sorted(p.name for p in bd.projects))    # 'default' always exists
+
+bd.projects.set_current("demo-project")       # created automatically on first use
+bd.Database("demo_db").register()
+
+print(sorted(p.name for p in bd.projects))
+print(bd.projects.current)
+print(bd.projects.dir.parent == Path(tmp))    # each project is a subdir of BRIGHTWAY2_DIR
+print(bd.projects.dir.name)                   # "&lt;name&gt;.&lt;8-char hash&gt;" -- avoids filename collisions
+
+bd.projects.set_current("default")            # can't delete the *current* project
+print(bd.projects.delete_project("demo-project", delete_dir=True))  # also removes the directory
+print(sorted(p.name for p in bd.projects))</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>['default']
+['default', 'demo-project']
+demo-project
+True
+demo-project.5ec5629b
+default
+['default']</code></pre>
+<p class="desc">By default <code>delete_project(name)</code> only unregisters the project name — the data
+directory is left on disk, so switching back to that name later resumes with the same data.
+Pass <code>delete_dir=True</code> (as above) to also <code>shutil.rmtree</code> the directory. Note
+one real gotcha found in <code>project.py</code>: <code>delete_project</code> recomputes the
+directory to delete as <code>safe_filename(name)</code> with the default (short, 8-char) hash,
+regardless of the project's actual <code>full_hash</code> setting — for a project created with
+<code>full_hash=True</code> (or migrated from an old Brightway version, where existing rows were
+backfilled with <code>full_hash=1</code> by <code>add_full_hash_column</code>), that computed path
+won't match the real directory and the delete's internal <code>assert dir_path.is_dir()</code>
+raises. If you hit that, delete the project's directory yourself (it's
+<code>projects.dir</code> while that project is current) rather than relying on
+<code>delete_dir=True</code>.</p>
+</div>
+
+<div class="ex" id="ex5">
+<h3>5. Multiple databases in one project, and a cross-database exchange</h3>
+<p class="desc">A project can hold any number of <a href="../bw2data/index.html#Database">databases</a>;
+each is just a named partition of rows in the same project SQLite file (<code>bd.databases</code>
+lists every registered name). Nothing stops an exchange's <code>input</code> from pointing at a
+node in a <em>different</em> database within the same project -- that's how real supply chains
+span, e.g., a "biosphere" flows database and several technosphere databases.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+steel_db = bd.Database("steel_supply_chain")
+steel_db.register()
+ore = steel_db.new_node(code="ore", name="iron ore mining", unit="kilogram", location="GLO")
+ore.save()
+ore.new_exchange(input=ore.key, amount=1, type="production").save()
+ore.new_exchange(input=co2.key, amount=0.05, type="biosphere").save()
+
+parts_db = bd.Database("parts_supply_chain")
+parts_db.register()
+part = parts_db.new_node(code="part", name="steel part", unit="unit", location="GLO")
+part.save()
+part.new_exchange(input=part.key, amount=1, type="production").save()
+# cross-database technosphere exchange: parts_supply_chain consumes from steel_supply_chain
+part.new_exchange(input=ore.key, amount=2, type="technosphere").save()
+
+print(sorted(bd.databases))                     # every registered database in this project
+print(len(steel_db), len(parts_db))              # each Database is scoped to its own rows
+
+for exc in part.exchanges():
+    print(exc["type"], exc.input, "in", exc.input["database"])</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>['biosphere', 'parts_supply_chain', 'steel_supply_chain']
+1 1
+production 'steel part' (unit, GLO, None) in parts_supply_chain
+technosphere 'iron ore mining' (kilogram, GLO, None) in steel_supply_chain</code></pre>
 </div>
 
 <footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
