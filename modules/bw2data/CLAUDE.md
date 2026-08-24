@@ -56,6 +56,39 @@ Typical usage seen across the ecosystem: `import bw2data as bd`, then
 `bd.projects.set_current("name")`, `bd.Database("name")`,
 `activity = bd.get_node(...)`, `activity.exchanges()`.
 
+## Creating an empty database and filling it yourself
+
+Verified against the installed source (`backends/base.py`, `backends/proxies.py`):
+
+```python
+import bw2data as bd
+
+bd.projects.set_current("my_project")   # projects are created on first use
+
+db = bd.Database("example_db")
+db.register()                            # required before writing; also auto-writes {} (write_empty=True)
+
+activity = db.new_activity(code="steel_production", name="steel production", unit="kilogram", location="GLO")
+activity.save()                           # new_activity()/new_node() return an in-memory proxy — nothing
+                                           # persists until .save() is called
+activity.new_exchange(input=activity.key, amount=1, type="production").save()
+```
+
+- `Database(name)` (`database.py` `DatabaseChooser`) just returns a `SQLiteBackend` handle — it
+  writes nothing.
+- `SQLiteBackend.register()` (`backends/base.py:381`) registers the name in the `databases` meta
+  store and, by default (`write_empty=True`), calls `self.write({}, searchable=False,
+  signal=False)` — so a freshly registered database is already empty-but-processed (has a valid,
+  loadable `bw_processing` datapackage).
+- `SQLiteBackend.new_activity`/`new_node` (`backends/base.py:774`) build an `Activity` proxy
+  (`backends/proxies.py:205`) that must be `.save()`d to persist.
+- `Activity.new_exchange`/`new_edge` (`backends/proxies.py:529`) build an `Exchange` proxy with
+  `output` pre-set to the activity's key; also needs `.save()`.
+- For bulk loading (all data already assembled as a dict), skip the per-activity dance and call
+  `db.write({(db_name, code): {...}, ...})` directly — this is the path `bw2io` importers use; it
+  replaces the database's entire contents in one call.
+- Full step-by-step walkthrough with a worked example: `docs/site/tutorials/create-empty-database.html`.
+
 ## Where to look for common questions
 
 - "How is an activity stored on disk?" → `backends/schema.py` (SQL schema) +

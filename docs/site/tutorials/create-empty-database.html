@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: create an empty database — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2data/index.html">bw2data</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: create your own empty database</h1>
+<p class="tagline">How to create a fresh, empty <code>bw2data</code> database in a project, ready for you to fill with activities and exchanges yourself.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2data</code> API (<code>.venv/lib/python3.11/site-packages/bw2data/</code>), verified by running it. See <a href="../bw2data/index.html">the bw2data module map</a> for the full picture of how this layer fits into Brightway.
+</blockquote>
+
+<h2>1. Pick or create a project</h2>
+<p>
+Brightway isolates data into <b>projects</b> — each is its own SQLite database + data directory
+(<code>bw2data/project.py</code> <code>ProjectManager</code>). A database always lives inside the
+currently active project, so set that first:
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("my_project")  # created automatically if it doesn't exist yet
+print(list(bd.projects))               # sanity check: see all projects on this machine</code></pre>
+
+<h2>2. Create the database object and register it</h2>
+<p>
+<code>bd.Database(name)</code> (an alias for <code>DatabaseChooser</code>, see
+<code>bw2data/database.py</code>) returns a <code>SQLiteBackend</code> instance for that name — it
+does not write anything yet. Call <code>.register()</code> to actually create it in the project's
+metadata store; this is required before you can write any data
+(<code>bw2data/backends/base.py</code> <code>SQLiteBackend.register()</code>):
+</p>
+<pre><code>db = bd.Database("example_db")
+db.register()
+
+print("example_db" in bd.databases)  # True — registered in bd.databases (meta.py)
+print(len(db))                       # 0 — empty, ready to fill</code></pre>
+<p>
+<code>register()</code> calls <code>self.write({}, searchable=False, signal=False)</code>
+internally by default (<code>write_empty=True</code>), so after this call you already have a
+valid, empty, <em>processed</em> database — it has a datapackage on disk that <code>bw2calc</code>
+could load, it's just empty. You can now add content to it at your own pace.
+</p>
+
+<h2>3. Add activities (nodes)</h2>
+<p>
+Create new activities with <code>db.new_activity(code, **kwargs)</code> (an alias for
+<code>new_node</code>, <code>bw2data/backends/base.py</code>). This builds an in-memory
+<code>Activity</code> proxy (<code>bw2data/backends/proxies.py</code>) — nothing is written to
+the database until you call <code>.save()</code> on it:
+</p>
+<pre><code>activity = db.new_activity(
+    code="steel_production",       # unique key within this database; omit for a random UUID
+    name="steel production",
+    unit="kilogram",
+    location="GLO",
+    type="process",                 # default node type; see bw2data.labels for other node types
+)
+activity.save()</code></pre>
+
+<h2>4. Give it a production exchange</h2>
+<p>
+An activity with no exchanges has nothing to relate its amount to. Most process activities need
+at least a <b>production exchange</b> pointing to themselves, so that
+<code>bw2calc</code> knows "1 unit of this activity produces 1 kilogram of steel":
+</p>
+<pre><code>activity.new_exchange(input=activity.key, amount=1, type="production").save()</code></pre>
+<p>
+<code>Activity.new_exchange(**kwargs)</code> (<code>new_edge</code> in
+<code>backends/proxies.py</code>) creates an <code>Exchange</code> proxy with
+<code>output</code> pre-set to this activity's key; again, call <code>.save()</code> to persist
+it.
+</p>
+
+<h2>5. Add more activities and link them together</h2>
+<p>
+Repeat the pattern for inputs, then wire them up with technosphere/biosphere exchanges:
+</p>
+<pre><code>iron_ore = db.new_node(code="raw_ore", name="iron ore", unit="kilogram", location="GLO", type="product")
+iron_ore.save()
+
+activity.new_exchange(input=iron_ore.key, amount=2, type="technosphere").save()</code></pre>
+<p>
+An activity's <code>.key</code> is the <code>(database name, code)</code> tuple used everywhere
+as a stable reference — exchanges link activities by their key, not by object identity.
+</p>
+
+<h2>6. Look at what you built</h2>
+<pre><code>print(len(db))          # number of activities now in the database
+for act in db:
+    print(act, act["unit"], list(act.exchanges()))</code></pre>
+
+<h2>Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("my_project")
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_activity(code="steel_production", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+
+iron_ore = db.new_node(code="raw_ore", name="iron ore", unit="kilogram", location="GLO", type="product")
+iron_ore.save()
+steel.new_exchange(input=iron_ore.key, amount=2, type="technosphere").save()
+
+print(len(db))  # 2</code></pre>
+
+<h2>Notes &amp; gotchas</h2>
+<ul>
+<li><b>Register before writing.</b> <code>db.new_activity(...)</code> works fine before
+<code>register()</code>, but the database won't show up in <code>bd.databases</code> until it's
+registered (writing also auto-registers it with <code>write_empty=False</code> if you skip this
+step, via <code>SQLiteBackend.write()</code>).</li>
+<li><b>Nothing is saved without <code>.save()</code>.</b> Both new activities and new exchanges
+are plain in-memory proxy objects until saved — this is intentional, it lets you build up an
+activity (set several fields, add several exchanges) before committing it.</li>
+<li><b>Bulk-loading instead?</b> If you already have all the data as a Python dict of
+<code>{(db_name, code): {...dataset...}}</code>, call <code>db.write(data)</code> directly
+instead of looping <code>new_activity</code>/<code>save</code> calls — it replaces the entire
+contents of the database in one shot (<code>SQLiteBackend.write()</code>,
+<code>backends/base.py:675</code>). This is what importers in <code>bw2io</code> do.</li>
+<li><b>Delete a database</b> you don't want anymore with <code>del bd.databases["example_db"]</code>
+or <code>bd.Database("example_db").delete()</code>.</li>
+<li><b>Processing happens automatically.</b> <code>write()</code> (called by both
+<code>register()</code> and every activity write path through the ORM signal wiring) rebuilds the
+<code>bw_processing</code> datapackage backing this database, so an empty database is always
+immediately consumable by <code>bw2calc.LCA</code> — it will just have no flows.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</body>
+</html>
