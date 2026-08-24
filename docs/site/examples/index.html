@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Examples — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 <style>
   .ex { margin-bottom: 2.4rem; }
@@ -20,9 +20,9 @@
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
   </div>
@@ -51,7 +51,7 @@ Every example below is a complete, standalone Python script — copy it into a f
 <p>See also: <a href="../bw2data/index.html">the bw2data module map</a> · <a href="../tutorials/create-empty-database.html">the "create an empty database" tutorial</a> (a slower-paced walkthrough of example 1 below).</p>
 
 <div class="ex" id="ex1">
-<h3>1. Create a database, add an activity, look it up</h3>
+<h3 id="1-create-a-database-add-an-activity-look-it-up">1. Create a database, add an activity, look it up</h3>
 <p class="desc">Registers a new <a href="../bw2data/index.html#Database">database</a>, creates a <a href="../bw2data/index.html#NodeEdge">node</a> with a production exchange (nothing persists until <code>.save()</code>), then looks it up again with <a href="../bw2data/index.html#get_node">get_node</a>. For loading many activities at once instead of one-by-one, see <code>Database.write()</code> in the <a href="../bw2data/index.html">bw2data module map</a>.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd
@@ -75,7 +75,7 @@ for exc in activity.exchanges():
 </div>
 
 <div class="ex" id="ex2">
-<h3>2. Chimaera vs. non-chimaera nodes</h3>
+<h3 id="2-chimaera-vs-non-chimaera-nodes">2. Chimaera vs. non-chimaera nodes</h3>
 <p class="desc">Same steel production inventory, built two ways, to show the difference between a
 <a href="../bw2data/index.html#node-types">chimaera node and separate process/product nodes</a>.
 <code>Database.write()</code> auto-classifies each: a self-referencing production exchange
@@ -137,7 +137,7 @@ this</a>.</p>
 </div>
 
 <div class="ex" id="ex3">
-<h3>3. Run a full LCA: biosphere flow + method + bw2calc</h3>
+<h3 id="3-run-a-full-lca-biosphere-flow-method-bw2calc">3. Run a full LCA: biosphere flow + method + bw2calc</h3>
 <p class="desc">Ties <a href="../bw2data/index.html">bw2data</a> together with <a href="../bw2calc/index.html">bw2calc</a> — a minimal but complete inventory + impact calculation: a process emits CO&#8322;, a <a href="../bw2data/index.html#Method">Method</a> characterizes it, <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> solves the score.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd

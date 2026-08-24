@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <title>brightway25 — code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="assets/style.css?v=2">
+<link rel="stylesheet" href="assets/style.css?v=3">
 <script defer src="assets/highlight.js"></script>
 </head>
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="index.html">bright<span>way25</span> code map</a>
     <nav class="crumbs"><a href="examples/index.html">Examples →</a> · local, static, offline documentation of the installed Brightway 2.5 stack</nav>
@@ -35,10 +35,15 @@
 source .venv/bin/activate
 pip install -e ".[dev]"</code></pre>
     then open <code>docs/site/index.html</code> in a browser (no server needed — plain
-    <code>file://</code> links).
+    <code>file://</code> links). The "🔍 Search docs" box is the one exception: build its
+    index with <code>docs/build_search_index.sh</code> (after generating the API reference
+    below) and serve the folder over http(s) to use it locally, e.g.
+    <code>python3 -m http.server -d docs/site 8000</code> — browsers block the index
+    fetch over plain <code>file://</code>. It works with no server once deployed to
+    GitHub Pages.
   </blockquote>
 
-  <h2>Three kinds of docs on this site</h2>
+  <h2 id="three-kinds-of-docs-on-this-site">Three kinds of docs on this site</h2>
   <p class="tagline">
     Each package below has a <strong>handwritten map page</strong> (this site) explaining
     <em>how</em> it fits into the Brightway stack — key files, main classes, call flow —
@@ -67,7 +72,7 @@ pip install -e ".[dev]"</code></pre>
     <div class="card"><a class="name" href="tutorials/create-empty-database.html">Create an empty database</a><p>Step-by-step: register a new, empty bw2data database in a project, then fill it with your own activities and exchanges.</p></div>
   </div>
 
-  <h2>Architecture — how the pieces fit together</h2>
+  <h2 id="architecture-how-the-pieces-fit-together">Architecture — how the pieces fit together</h2>
   <div class="arch"><pre><code>stats_arrays   bw2parameters            (leaf utility libs: uncertainty, formulas)
         \           /
      bw_processing ── matrix_utils ── bw_graph_tools

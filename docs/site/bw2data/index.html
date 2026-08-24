@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bw2data — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
   </div>
@@ -30,7 +30,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <
 <a class="api-link" href="../api/bw2data/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw2data</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-<h2>Examples</h2>
+<h2 id="examples">Examples</h2>
 <p>Five short, runnable scripts, with real captured output, live on the site-wide
 <a href="../examples/index.html#bw2data"><b>Examples</b> page</a> — creating an empty
 <a href="#Database">database</a>, adding an activity and looking it up
@@ -46,7 +46,7 @@ lives on disk</a> (<a href="../examples/index.html#ex4">4</a>) and
 (<a href="../examples/index.html#ex5">5</a>). A slower-paced walkthrough of the first one is also
 available as <a href="../tutorials/create-empty-database.html">its own tutorial</a>.</p>
 
-<h2>Key files</h2>
+<h2 id="key-files">Key files</h2>
 <table>
 <tr><th>File</th><th>Role</th></tr>
 <tr><td><code>__init__.py</code></td><td>Package entry point — builds the public API (<code>Database</code>, <code>projects</code>, <code>databases</code>, <code>methods</code>, <code>get_node</code>, …), registers metadata singletons, and tries to import <code>multifunctional</code> so it can register its backend.</td></tr>
@@ -81,7 +81,7 @@ available as <a href="../tutorials/create-empty-database.html">its own tutorial<
 <tr><td><code>logs.py</code>, <code>fatomic.py</code>, <code>filesystem.py</code></td><td>Logging setup, atomic file writes, and filesystem helpers used by the data stores.</td></tr>
 </table>
 
-<h2>Main classes / entry points</h2>
+<h2 id="main-classes-entry-points">Main classes / entry points</h2>
 <p>From <code>__init__.py</code> <code>__all__</code> (imports flattened to <code>bw2data</code>/<code>bd</code> top level):</p>
 <div class="grid">
   <div class="card"><a class="name" id="Database" href="#Database">Database</a><p>= <code>DatabaseChooser</code>. Factory: <code>bd.Database("name")</code> returns a <code>SQLiteBackend</code> instance. Used in every <a href="../examples/index.html#bw2data">example</a>.</p></div>
@@ -98,7 +98,7 @@ available as <a href="../tutorials/create-empty-database.html">its own tutorial<
   <div class="card"><a class="name" id="prepare_lca_inputs" href="#prepare_lca_inputs">prepare_lca_inputs / get_multilca_data_objs</a><p>Build the datapackage objects <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> expects.</p></div>
 </div>
 
-<h2>Where to look</h2>
+<h2 id="where-to-look">Where to look</h2>
 
 <h3 id="node-types">What's the difference between a "process", a "product", and a "chimaera" node?</h3>
 <p>
@@ -145,22 +145,22 @@ relinks the production edge between them. See <a href="../bw2io/index.html">the 
 map</a>.
 </p>
 
-<h3>How is an activity stored on disk?</h3>
+<h3 id="how-is-an-activity-stored-on-disk">How is an activity stored on disk?</h3>
 <p><code>backends/schema.py</code> (<code>ActivityDataset</code>, <code>ExchangeDataset</code> peewee models — the SQL table schema) together with <code>backends/proxies.py</code> (<code>Activity.__getitem__</code> / <code>.save()</code> for the in-memory proxy view).</p>
 
-<h3>How does bw2data hand off to bw2calc?</h3>
+<h3 id="how-does-bw2data-hand-off-to-bw2calc">How does bw2data hand off to bw2calc?</h3>
 <p><code>data_store.py</code> <code>ProcessedDataStore.process()</code> and its override <code>backends/base.py</code> <code>SQLiteBackend.process()</code> (line ~1022) — both write a <code>bw_processing</code> datapackage on disk that <code>bw2calc.LCA</code> loads directly.</p>
 
-<h3>How do projects isolate data?</h3>
+<h3 id="how-do-projects-isolate-data">How do projects isolate data?</h3>
 <p><code>project.py</code> — <code>ProjectManager</code> (the <code>projects</code> singleton, switches the active SQLite DB + data dir) and <code>ProjectDataset</code>; mutating methods are wrapped with the <code>writable_project</code> decorator.</p>
 
-<h3>How are LCIA methods represented?</h3>
+<h3 id="how-are-lcia-methods-represented">How are LCIA methods represented?</h3>
 <p><code>method.py</code> <code>Method(ImpactAssessmentDataStore)</code>, registered in <code>meta.py</code>'s <code>methods</code> singleton.</p>
 
-<h3>How do parameterized / formula-driven exchanges work?</h3>
+<h3 id="how-do-parameterized-formula-driven-exchanges-work">How do parameterized / formula-driven exchanges work?</h3>
 <p><code>parameters.py</code> — <code>ProjectParameter</code>, <code>DatabaseParameter</code>, <code>ActivityParameter</code>, <code>ParameterizedExchange</code>, orchestrated by <code>ParameterManager</code>; formulas are evaluated via the separate <code>bw2parameters</code> package.</p>
 
-<h3>How do I look up a single activity, or resolve its numeric id?</h3>
+<h3 id="how-do-i-look-up-a-single-activity-or-resolve-its-numeric-id">How do I look up a single activity, or resolve its numeric id?</h3>
 <p><code>utils.py</code> <code>get_node(**kwargs)</code> / <code>get_activity(key=None, **kwargs)</code>; <code>backends/schema.py</code> <code>get_id(key)</code> for the integer id used internally and by <code>bw_processing</code> datapackages.</p>
 
 <h3 id="project-lifecycle">Projects &amp; databases on disk: how the lifecycle actually works</h3>
@@ -260,7 +260,7 @@ human-readable prefix of the directory name is affected.</li>
 </ul>
 
 <div class="related">
-  <h2>Related modules</h2>
+  <h2 id="related-modules">Related modules</h2>
   <a href="../bw2calc/index.html">bw2calc</a> — runs LCA calculations against the <code>bw_processing</code> datapackages that <code>bw2data</code>'s <code>.process()</code> writes.<br>
   <a href="../bw_processing/index.html">bw_processing</a> — the datapackage format bw2data serializes processed matrices into, and bw2calc reads.<br>
   <a href="../bw2io/index.html">bw2io</a> — importers/exporters that write activities and methods into bw2data databases.<br>

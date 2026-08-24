@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <title>stats_arrays — brightway25 code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
   </div>
@@ -30,7 +30,7 @@
 <a class="api-link" href="../api/stats_arrays/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>stats_arrays</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
     <tbody>
@@ -55,7 +55,7 @@
     </tbody>
   </table>
 
-  <h2>Main classes and entry points</h2>
+  <h2 id="main-classes-and-entry-points">Main classes and entry points</h2>
   <p>
     From <code>__init__.py</code>'s <code>__all__</code>, the package exports:
   </p>
@@ -90,7 +90,7 @@
     </div>
   </div>
 
-  <h3>Numeric type codes and <code>UncertaintyBase</code></h3>
+  <h3 id="numeric-type-codes-and-uncertaintybase">Numeric type codes and <code>UncertaintyBase</code></h3>
   <p>
     Every distribution class carries a class attribute <code>id</code> — a
     small integer &lt; 256 — that identifies it, plus a <code>description</code>
@@ -114,7 +114,7 @@
     <code>stats_arrays</code>' RNG classes without conversion.
   </p>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <pre><code>from stats_arrays import (
     UncertaintyBase,
     TriangularUncertainty,
@@ -139,9 +139,9 @@ mcrng = MCRandomNumberGenerator(params, seed=42)
 next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distribution
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>How do I know which integer code means which distribution?</h3>
+  <h3 id="how-do-i-know-which-integer-code-means-which-distribution">How do I know which integer code means which distribution?</h3>
   <p>
     <code>uncertainty_types.py</code> — <code>UncertaintyType(IntEnum)</code>,
     e.g. <code>normal = 3</code>, <code>lognormal = 2</code>,
@@ -151,7 +151,7 @@ next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distributi
     (<code>uncertainty_choices.py</code>) resolves an integer to its class.
   </p>
 
-  <h3>What's the shape/dtype of a "params array"?</h3>
+  <h3 id="what-s-the-shape-dtype-of-a-params-array">What's the shape/dtype of a "params array"?</h3>
   <p>
     <code>utils.py</code> — <code>BASE_DTYPE_FIELDS</code> /
     <code>BASE_DTYPE</code> define the numpy structured dtype
@@ -164,7 +164,7 @@ next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distributi
     (<code>distributions/base.py</code>) build one from plain Python data.
   </p>
 
-  <h3>How do I sample from an array containing several different distribution types?</h3>
+  <h3 id="how-do-i-sample-from-an-array-containing-several-different-distribution-types">How do I sample from an array containing several different distribution types?</h3>
   <p>
     <code>random.py</code>'s <code>MCRandomNumberGenerator</code> sorts rows
     by <code>uncertainty_type</code>, groups them via
@@ -175,7 +175,7 @@ next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distributi
     distribution type.
   </p>
 
-  <h3>How do I add a new distribution?</h3>
+  <h3 id="how-do-i-add-a-new-distribution">How do I add a new distribution?</h3>
   <p>
     Add a <code>distributions/&lt;name&gt;.py</code> module with a class
     subclassing <code>UncertaintyBase</code> (or
@@ -187,7 +187,7 @@ next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distributi
     <code>uncertainty_choices</code> and <code>MCRandomNumberGenerator</code>.
   </p>
 
-  <h3>What exceptions can this package raise, and when?</h3>
+  <h3 id="what-exceptions-can-this-package-raise-and-when">What exceptions can this package raise, and when?</h3>
   <p>
     <code>errors.py</code> — e.g. <code>InvalidParamsError</code> (bad params
     array on construction), <code>ImproperBoundsError</code> /
@@ -200,7 +200,7 @@ next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distributi
     <code>one_row_params_array</code> decorator in <code>utils.py</code>).
   </p>
 
-  <h3>How do PDF/CDF/percentile calculations work?</h3>
+  <h3 id="how-do-pdf-cdf-percentile-calculations-work">How do PDF/CDF/percentile calculations work?</h3>
   <p>
     <code>distributions/base.py</code>'s <code>UncertaintyBase.pdf()</code>,
     <code>.cdf()</code>, <code>.ppf()</code>, <code>.statistics()</code> are

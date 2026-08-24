@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <title>bw_processing — brightway25 code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
   </div>
@@ -28,7 +28,7 @@
     scipy matrices.
   </p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
     <tbody>
@@ -50,7 +50,7 @@
     </tbody>
   </table>
 
-  <h2>Main classes &amp; entry points</h2>
+  <h2 id="main-classes-entry-points">Main classes &amp; entry points</h2>
   <div class="grid">
     <div class="card">
       <a class="name">Datapackage</a>
@@ -78,7 +78,7 @@
     </div>
   </div>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <pre><code>from bw_processing import (
     create_datapackage_from_entries,
     load_datapackage,
@@ -109,9 +109,9 @@ dp2 = load_datapackage(generic_directory_filesystem(dirpath="./my-datapackage"))
 data_array, indices_array, flip_array = dp2.get_resource("my-first-datapackage-data.data")
 </code></pre>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>What does a datapackage actually contain on disk?</h3>
+  <h3 id="what-does-a-datapackage-actually-contain-on-disk">What does a datapackage actually contain on disk?</h3>
   <blockquote>
     <code>constants.py</code> for the fixed dtypes (<code>INDICES_DTYPE</code>,
     <code>UNCERTAINTY_DTYPE</code>), and <code>Datapackage.add_persistent_vector</code> /
@@ -124,7 +124,7 @@ data_array, indices_array, flip_array = dp2.get_resource("my-first-datapackage-d
 <a class="api-link" href="../api/bw_processing/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw_processing</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h3>How is uncertainty encoded?</h3>
+  <h3 id="how-is-uncertainty-encoded">How is uncertainty encoded?</h3>
   <blockquote>
     <code>UNCERTAINTY_DTYPE</code> in <code>constants.py</code> (fields
     <code>uncertainty_type</code>, <code>loc</code>, <code>scale</code>,
@@ -135,7 +135,7 @@ data_array, indices_array, flip_array = dp2.get_resource("my-first-datapackage-d
     <code>MatrixEntry</code> docstring in <code>matrix_entry.py</code>.
   </blockquote>
 
-  <h3>What's the easiest way to build a datapackage without raw numpy?</h3>
+  <h3 id="what-s-the-easiest-way-to-build-a-datapackage-without-raw-numpy">What's the easiest way to build a datapackage without raw numpy?</h3>
   <blockquote>
     <code>matrix_entry.create_datapackage_from_entries()</code> with a
     <code>{MatrixName: [MatrixEntry(...), ...]}</code> dict. Internally it
@@ -145,7 +145,7 @@ data_array, indices_array, flip_array = dp2.get_resource("my-first-datapackage-d
     <code>utils.py</code>.
   </blockquote>
 
-  <h3>How do I read a datapackage back and get a resource's array?</h3>
+  <h3 id="how-do-i-read-a-datapackage-back-and-get-a-resource-s-array">How do I read a datapackage back and get a resource's array?</h3>
   <blockquote>
     <code>datapackage.load_datapackage()</code> (pass an <code>fsspec</code>
     filesystem, e.g. from <code>io_helpers.generic_directory_filesystem</code>
@@ -155,7 +155,7 @@ data_array, indices_array, flip_array = dp2.get_resource("my-first-datapackage-d
     <code>datapackage.py</code>.
   </blockquote>
 
-  <h3>How do flip / rescale / reference exchanges work?</h3>
+  <h3 id="how-do-flip-rescale-reference-exchanges-work">How do flip / rescale / reference exchanges work?</h3>
   <blockquote>
     Per-entry fields on <code>MatrixEntry</code>/<code>ArrayEntry</code> in
     <code>matrix_entry.py</code>. When set, they're written as separate
@@ -165,7 +165,7 @@ data_array, indices_array, flip_array = dp2.get_resource("my-first-datapackage-d
     in <code>datapackage.py</code>.
   </blockquote>
 
-  <h3>How are several datapackages combined, or indices renumbered?</h3>
+  <h3 id="how-are-several-datapackages-combined-or-indices-renumbered">How are several datapackages combined, or indices renumbered?</h3>
   <blockquote>
     <code>merging.merge_datapackages_with_mask()</code> to combine packages
     with a per-package boolean row mask, and

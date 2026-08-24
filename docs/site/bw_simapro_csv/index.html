@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>bw_simapro_csv — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
   </div>
@@ -30,7 +30,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw_simapro_csv/</code>, ve
 <a class="api-link" href="../api/bw_simapro_csv/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw_simapro_csv</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-<h2>Key files</h2>
+<h2 id="key-files">Key files</h2>
 <table>
 <tr><th>File</th><th>Role</th></tr>
 <tr><td><code>__init__.py</code></td><td>Public API — registers the <code>sloppy-windows-1252</code> codec (via <code>ftfy</code>) and re-exports <code>SimaProCSV</code>, <code>SimaProCSVType</code>.</td></tr>
@@ -55,7 +55,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw_simapro_csv/</code>, ve
 <tr><td><code>blocks/system_description.py</code>, <code>blocks/literature_reference.py</code></td><td><code>SystemDescription</code> (methodology/boundary text); <code>LiteratureReference</code>.</td></tr>
 </table>
 
-<h2>Main classes &amp; entry points</h2>
+<h2 id="main-classes-entry-points">Main classes &amp; entry points</h2>
 
 <div class="grid">
 <div class="card"><a class="name">SimaProCSV</a><p><code>main.py</code> — constructor <code>SimaProCSV(path_or_stream, encoding="sloppy-windows-1252", database_name=None, ...)</code>. Reads the header, splits the file into blocks (<code>get_next_block()</code>), resolves parameters/uncertainty (<code>resolve_parameters()</code>), and normalizes units. Iterable over its parsed <code>.blocks</code>; exposes <code>.header</code> and <code>.to_brightway()</code>.</p></div>
@@ -66,7 +66,7 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw_simapro_csv/</code>, ve
 <div class="card"><a class="name">Method / ImpactCategory</a><p><code>blocks/method.py</code>, <code>blocks/impact_category.py</code> — LCIA method metadata and per-substance characterization factors.</p></div>
 </div>
 
-<h2>Typical usage</h2>
+<h2 id="typical-usage">Typical usage</h2>
 
 <pre><code>from pathlib import Path
 from bw_simapro_csv import SimaProCSV, SimaProCSVType
@@ -91,30 +91,30 @@ if simapro_csv.header["kind"] == SimaProCSVType.processes:
     data = simapro_csv.to_brightway(separate_products=True, shorten_names=True)
 </code></pre>
 
-<h2>Where to look</h2>
+<h2 id="where-to-look">Where to look</h2>
 
-<h3>How is the file split into blocks, and what happens when <code>End</code> markers are missing?</h3>
+<h3 id="how-is-the-file-split-into-blocks-and-what-happens-when-end-markers-are-missing">How is the file split into blocks, and what happens when <code>End</code> markers are missing?</h3>
 <p><code>main.py</code> <code>SimaProCSV.get_next_block()</code>, dispatch tables <code>CONTROL_BLOCK_MAPPING</code>/<code>INDETERMINATE_SECTION_HEADERS</code>; <code>csv_reader.py</code> <code>BeKindRewind.rewind()</code> implements the one-line look-ahead needed because some files never use the <code>End</code> convention (raises <code>errors.IndeterminateBlockEnd</code> if that makes a section ambiguous).</p>
 
-<h3>How is a SimaPro "block" (Process, Method, Units, …) actually parsed?</h3>
+<h3 id="how-is-a-simapro-block-process-method-units-actually-parsed">How is a SimaPro "block" (Process, Method, Units, …) actually parsed?</h3>
 <p><code>blocks/base.py</code> <code>SimaProCSVBlock</code> defines the contract (populate <code>self.parsed</code>). The richest example is <code>blocks/process.py</code> <code>Process.__init__</code>, which uses <code>utils.get_key_multiline_values()</code> to separate metadata key/value pairs from named sub-blocks, dispatched via its own <code>BLOCK_MAPPING</code>.</p>
 
-<h3>How are units and unit conversions handled?</h3>
+<h3 id="how-are-units-and-unit-conversions-handled">How are units and unit conversions handled?</h3>
 <p><code>blocks/units.py</code> <code>Units</code> parses the file's unit → reference-unit + conversion-factor table; <code>units.py</code> <code>normalize_units()</code> applies it afterwards to every exchange's <code>amount</code>/<code>formula</code>/uncertainty distribution across all <code>Process</code> blocks.</p>
 
-<h3>How are uncertainty distributions mapped to <code>stats_arrays</code>?</h3>
+<h3 id="how-are-uncertainty-distributions-mapped-to-stats-arrays">How are uncertainty distributions mapped to <code>stats_arrays</code>?</h3>
 <p><code>uncertainty.py</code> <code>distribution(amount, kind, field1, field2, field3, ...)</code> converts SimaPro's Undefined/Lognormal/Normal/Triangle/Uniform columns into a <code>stats_arrays</code>-compatible dict, with parameter sanity checks that fall back to <code>undefined_distribution()</code>. Called from <code>blocks/process.py</code> <code>Process.resolve_local_parameters()</code> once each exchange's numeric <code>amount</code> is known.</p>
 
-<h3>How are formulas (including SimaPro-specific syntax) parsed and evaluated?</h3>
+<h3 id="how-are-formulas-including-simapro-specific-syntax-parsed-and-evaluated">How are formulas (including SimaPro-specific syntax) parsed and evaluated?</h3>
 <p><code>parameters.py</code> <code>prepare_formulas()</code>/<code>fix_iff_formula()</code>/<code>fix_leading_zero_formula()</code> clean up raw formula strings; <code>FormulaSubstitutor</code> renames variables across parameter scopes; actual evaluation uses <code>bw2parameters.Interpreter</code>/<code>ParameterSet</code>, driven from <code>main.py</code> <code>SimaProCSV.resolve_parameters()</code> (project/database scope) and <code>blocks/process.py</code> <code>Process.resolve_local_parameters()</code> (per-process scope).</p>
 
-<h3>How does this become a bw2data-ready dataset?</h3>
+<h3 id="how-does-this-become-a-bw2data-ready-dataset">How does this become a bw2data-ready dataset?</h3>
 <p><code>main.py</code> <code>SimaProCSV.to_brightway()</code> calls <code>brightway.py</code> <code>lci_to_brightway()</code> — but in practice <code>bw2io.importers.simapro_csv.SimaProCSVImporter</code> is the usual entry point, wrapping a <code>SimaProCSV</code> instance to build full bw2data-compatible activities and exchanges.</p>
 
 <p>No worked example is provided for this package on <a href="../examples/index.html">the Examples page</a> — bw2io ships no bundled SimaPro CSV fixture to run against without a real SimaPro export. <a href="../examples/index.html#ex8">Example 8 (ExcelImporter)</a> demonstrates the same extract → strategies → statistics shape against a format bw2io does bundle a fixture for.</p>
 
 <div class="related">
-  <h2>Related modules</h2>
+  <h2 id="related-modules">Related modules</h2>
   <a href="../bw2io/index.html">bw2io</a> — <code>bw2io.importers.simapro_csv.SimaProCSVImporter</code> wraps this package's parser to build bw2data-compatible datasets, handling the strategies/migrations layer this package deliberately stays out of.
 </div>
 

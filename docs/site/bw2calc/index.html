@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <title>bw2calc — code map</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
   </div>
@@ -31,7 +31,7 @@
 <a class="api-link" href="../api/bw2calc/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw2calc</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
-  <h2>Key files</h2>
+  <h2 id="key-files">Key files</h2>
   <table>
     <tr><th>File</th><th>Role</th></tr>
     <tr><td><code>__init__.py</code></td><td>Public API (<code>__all__</code>); at import time picks a technosphere solver backend (<code>pypardiso</code> → <code>scikit-umfpack</code> → plain <code>scipy.sparse.linalg</code>) and optionally wires in <code>presamples</code></td></tr>
@@ -54,7 +54,7 @@
     <tr><td><code>log_utils.py</code></td><td>Logging configuration helpers (<code>log_config</code> passed to <code>LCA.__init__</code>)</td></tr>
   </table>
 
-  <h2>Main classes / entry points</h2>
+  <h2 id="main-classes-entry-points">Main classes / entry points</h2>
   <p>Everything below is re-exported from <code>bw2calc</code> top-level (see <code>__init__.py</code> <code>__all__</code>):</p>
   <div class="grid">
     <div class="card"><a class="name" id="LCA" href="#LCA">LCA</a><p>lca.py — standard sparse LCA. The default, most-used entry point. Used together with <a href="../bw2data/index.html#Method">bw2data.Method</a> in the <a href="../examples/index.html#ex3">full LCA example</a>.</p></div>
@@ -69,7 +69,7 @@
     <div class="card"><a class="name" href="#">MethodConfig</a><p>method_config.py — pydantic config for methods/normalization/weighting.</p></div>
   </div>
 
-  <h2>Typical usage</h2>
+  <h2 id="typical-usage">Typical usage</h2>
   <p>A runnable, verified version of this pattern — with a real biosphere flow, a registered
   <a href="../bw2data/index.html#Method">Method</a>, and captured output — is
   <a href="../examples/index.html#ex3">Example 3 on the Examples page</a>. For running many
@@ -96,7 +96,7 @@ print(lca.score)
 df = lca.to_dataframe()
 </code></pre>
 
-  <h2>Worked examples</h2>
+  <h2 id="worked-examples">Worked examples</h2>
   <p>Beyond the single-method/single-functional-unit case in
   <a href="../examples/index.html#ex3">Example 3</a>, two more full runnable scripts live in the
   <a href="../examples/index.html#bw2calc">bw2calc section of the Examples page</a>:</p>
@@ -109,9 +109,9 @@ df = lca.to_dataframe()
     Monte Carlo iterations over an exchange with a normal-distributed amount.</li>
   </ul>
 
-  <h2>Where to look</h2>
+  <h2 id="where-to-look">Where to look</h2>
 
-  <h3>How does the technosphere actually get solved?</h3>
+  <h3 id="how-does-the-technosphere-actually-get-solved">How does the technosphere actually get solved?</h3>
   <p><code>lca_base.py</code> <code>LCABase.solve_linear_system()</code> and <code>LCABase.lci()</code>
   drive the process; <code>lca.py</code> <code>LCA</code> builds the concrete
   technosphere/biosphere matrices via <code>matrix_utils.MappedMatrix</code> and calls the
@@ -119,7 +119,7 @@ df = lca.to_dataframe()
   <code>scipy.sparse.linalg.spsolve</code>/<code>factorized</code>, selected in
   <code>__init__.py</code>).</p>
 
-  <h3>How does Monte Carlo uncertainty work?</h3>
+  <h3 id="how-does-monte-carlo-uncertainty-work">How does Monte Carlo uncertainty work?</h3>
   <p>Simplest path: plain <code>LCA(demand, method, use_distributions=True,
   seed_override=...)</code> — since <code>LCABase(Iterator)</code>, every <code>next(lca)</code>
   re-samples each uncertain matrix entry and recomputes <code>lca.score</code>
@@ -133,7 +133,7 @@ df = lca.to_dataframe()
   exc["scale"] = 0.2</code> (field name has a literal space; the integer id matches
   <code>stats_arrays.UncertaintyType</code>, normal == 3).</p>
 
-  <h3>How do multiple methods / functional units run together efficiently?</h3>
+  <h3 id="how-do-multiple-methods-functional-units-run-together-efficiently">How do multiple methods / functional units run together efficiently?</h3>
   <p><code>multi_lca.py</code> <code>MultiLCA</code> (shared factorized technosphere across
   many demands and methods) and <code>method_config.py</code> <code>MethodConfig</code>;
   for score-only batches see <code>fast_scores.py</code> <code>FastScoresOnlyMultiLCA</code>.
@@ -144,24 +144,24 @@ df = lca.to_dataframe()
   <code>dict</code> keyed <code>(impact_category_tuple, functional_unit_name)</code> →
   score. See <a href="../examples/index.html#ex6">Example 6</a>.</p>
 
-  <h3>Where do the LCA-specific exceptions come from?</h3>
+  <h3 id="where-do-the-lca-specific-exceptions-come-from">Where do the LCA-specific exceptions come from?</h3>
   <p><code>errors.py</code> — all subclass <code>BW2CalcError</code>, e.g.
   <code>OutsideTechnosphere</code>, <code>NonsquareTechnosphere</code>,
   <code>MalformedFunctionalUnit</code>, <code>EmptyBiosphere</code>,
   <code>CyclicDependencyGraph</code>.</p>
 
-  <h3>How do matrix row/column indices map back to database ids?</h3>
+  <h3 id="how-do-matrix-row-column-indices-map-back-to-database-ids">How do matrix row/column indices map back to database ids?</h3>
   <p><code>dictionary_manager.py</code> <code>DictionaryManager</code> /
   <code>ReversibleRemappableDictionary</code>, exposed on an LCA instance as
   <code>lca.dicts.activity</code>, <code>lca.dicts.product</code>,
   <code>lca.dicts.biosphere</code>.</p>
 
-  <h3>How do I get results out as a table?</h3>
+  <h3 id="how-do-i-get-results-out-as-a-table">How do I get results out as a table?</h3>
   <p><code>lca.py</code> <code>LCA.to_dataframe()</code> returns a tidy <code>pandas.DataFrame</code>
   of the (optionally characterized) inventory.</p>
 
   <div class="related">
-    <h2>Related modules</h2>
+    <h2 id="related-modules">Related modules</h2>
     <a href="../bw2data/index.html">bw2data</a> — supplies the activities/exchanges and processed datapackages that bw2calc consumes.<br>
     <a href="../bw_processing/index.html">bw_processing</a> — the on-disk datapackage format bw2calc reads (technosphere, biosphere, characterization arrays).<br>
     <a href="../matrix_utils/index.html">matrix_utils</a> — builds those datapackages into the live scipy matrices that <code>lca_base.py</code> solves.<br>

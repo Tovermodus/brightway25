@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tutorial: create an empty database — brightway25 code map</title>
-<link rel="stylesheet" href="../assets/style.css?v=2">
+<link rel="stylesheet" href="../assets/style.css?v=3">
 <script defer src="../assets/highlight.js"></script>
 </head>
 <body>
 <button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
 <div class="layout">
-<nav id="sidebar" class="sidebar" aria-label="Module navigation"></nav>
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
 <div class="content">
-<header class="top">
+<header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
     <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2data/index.html">bw2data</a> · <a href="../examples/index.html">Examples</a></nav>
@@ -28,7 +28,7 @@
 Everything here uses the real installed <code>bw2data</code> API (<code>.venv/lib/python3.11/site-packages/bw2data/</code>), verified by running it. See <a href="../bw2data/index.html">the bw2data module map</a> for the full picture of how this layer fits into Brightway.
 </blockquote>
 
-<h2>1. Pick or create a project</h2>
+<h2 id="1-pick-or-create-a-project">1. Pick or create a project</h2>
 <p>
 Brightway isolates data into <b>projects</b> — each is its own SQLite database + data directory
 (<code>bw2data/project.py</code> <code>ProjectManager</code>). A database always lives inside the
@@ -39,7 +39,7 @@ currently active project, so set that first:
 bd.projects.set_current("my_project")  # created automatically if it doesn't exist yet
 print(list(bd.projects))               # sanity check: see all projects on this machine</code></pre>
 
-<h2>2. Create the database object and register it</h2>
+<h2 id="2-create-the-database-object-and-register-it">2. Create the database object and register it</h2>
 <p>
 <code>bd.Database(name)</code> (an alias for <code>DatabaseChooser</code>, see
 <code>bw2data/database.py</code>) returns a <code>SQLiteBackend</code> instance for that name — it
@@ -59,7 +59,7 @@ valid, empty, <em>processed</em> database — it has a datapackage on disk that 
 could load, it's just empty. You can now add content to it at your own pace.
 </p>
 
-<h2>3. Add activities (nodes)</h2>
+<h2 id="3-add-activities-nodes">3. Add activities (nodes)</h2>
 <p>
 Create new activities with <code>db.new_activity(code, **kwargs)</code> (an alias for
 <code>new_node</code>, <code>bw2data/backends/base.py</code>). This builds an in-memory
@@ -75,7 +75,7 @@ the database until you call <code>.save()</code> on it:
 )
 activity.save()</code></pre>
 
-<h2>4. Give it a production exchange</h2>
+<h2 id="4-give-it-a-production-exchange">4. Give it a production exchange</h2>
 <p>
 An activity with no exchanges has nothing to relate its amount to. Most process activities need
 at least a <b>production exchange</b> pointing to themselves, so that
@@ -89,7 +89,7 @@ at least a <b>production exchange</b> pointing to themselves, so that
 it.
 </p>
 
-<h2>5. Add more activities and link them together</h2>
+<h2 id="5-add-more-activities-and-link-them-together">5. Add more activities and link them together</h2>
 <p>
 Repeat the pattern for inputs, then wire them up with technosphere/biosphere exchanges:
 </p>
@@ -102,12 +102,12 @@ An activity's <code>.key</code> is the <code>(database name, code)</code> tuple 
 as a stable reference — exchanges link activities by their key, not by object identity.
 </p>
 
-<h2>6. Look at what you built</h2>
+<h2 id="6-look-at-what-you-built">6. Look at what you built</h2>
 <pre><code>print(len(db))          # number of activities now in the database
 for act in db:
     print(act, act["unit"], list(act.exchanges()))</code></pre>
 
-<h2>Full example, start to finish</h2>
+<h2 id="full-example-start-to-finish">Full example, start to finish</h2>
 <pre><code>import bw2data as bd
 
 bd.projects.set_current("my_project")
@@ -125,7 +125,7 @@ steel.new_exchange(input=iron_ore.key, amount=2, type="technosphere").save()
 
 print(len(db))  # 2</code></pre>
 
-<h2>Notes &amp; gotchas</h2>
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
 <ul>
 <li><b>Register before writing.</b> <code>db.new_activity(...)</code> works fine before
 <code>register()</code>, but the database won't show up in <code>bd.databases</code> until it's
