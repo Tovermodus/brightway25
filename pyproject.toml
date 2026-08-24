@@ -67,6 +67,7 @@ testing = [
 ]
 dev = [
     "build",
+    "pdoc",
     "pre-commit",
     "pylint",
     "pytest",
