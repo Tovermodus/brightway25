@@ -184,3 +184,24 @@ module or per example. Within it:
   `docs/site/` tree and the `modules/*/CLAUDE.md` files for
   `examples/index.html#ex` links and fix every cross-reference — stale
   anchors are worse than no anchor.
+- This is enforced, not just convention: `docs/tests/test_examples_executable.py`
+  extracts every example's Code block from `docs/site/examples/index.html`,
+  runs it against the installed packages in an isolated project
+  (`BRIGHTWAY2_DIR` pointed at a fresh temp dir), and fails if the script
+  errors or its stdout no longer matches the captured Output block. It runs
+  locally with `python docs/tests/test_examples_executable.py` (after the
+  usual `.venv` setup above) and in CI via
+  `.github/workflows/examples-executable.yml`. When adding or editing an
+  example, re-run it and make sure the Output block matches exactly
+  (module-noise lines like tqdm bars and structlog info/warning lines are
+  stripped by the test itself — everything else must match verbatim).
+
+The browsable HTML "GUI" (`docs/site/`) gets lightweight client-side syntax
+highlighting via `docs/site/assets/highlight.js` (a small dependency-free
+Python/shell tokenizer — no CDN library, since the site is opened via plain
+`file://` links with no network access) plus the `.tok-*` color rules in
+`docs/site/assets/style.css`. It's applied automatically to
+every `pre > code` block on page load except `.output` and `.arch` blocks;
+no per-page markup changes are needed when adding a new module page, as
+long as it includes `<script defer src="../assets/highlight.js"></script>`
+right after its `assets/style.css` link (copy an existing module page).
