@@ -27,7 +27,7 @@
 <div class="wrap">
 
 <h1>Examples</h1>
-<p class="tagline">Every worked example across the whole code map, in one place — full, runnable scripts with real captured output, not snippets. Module reference pages link back here instead of repeating this content inline.</p>
+<p class="tagline">Every worked example across the whole code map, in one place — full, runnable scripts with real captured output, not snippets. Kept short and few on purpose: one page, a handful of examples per module, not a page per example.</p>
 
 <blockquote>
 Every example below is a complete, standalone Python script — copy it into a file and run it (after <code>pip install -e ".[dev]"</code>, see the <a href="../index.html">root page</a>). Each was actually executed against the installed source to produce the <b>Output</b> block shown; internal library log noise (progress bars, structlog info/warning lines) is stripped for readability, but nothing about the printed results is edited.
@@ -37,14 +37,14 @@ Every example below is a complete, standalone Python script — copy it into a f
   <a href="#bw2data">bw2data</a>
 </div>
 
-<p style="color:var(--fg-dim); font-size:0.85rem;">Only <code>bw2data</code> has examples here so far. As other modules (<code>bw2calc</code>, <code>bw2io</code>, …) get worked examples, they land in their own section on this same page, linked from this page's module pages the same way bw2data's is below.</p>
+<p style="color:var(--fg-dim); font-size:0.85rem;">Only <code>bw2data</code> has examples here so far. As other modules get worked examples, they land in their own short section on this same page — not a new page.</p>
 
 <h2 id="bw2data">bw2data</h2>
 <p>See also: <a href="../bw2data/index.html">the bw2data module map</a> · <a href="../tutorials/create-empty-database.html">the "create an empty database" tutorial</a> (a slower-paced walkthrough of example 1 below).</p>
 
 <div class="ex" id="ex1">
-<h3>1. Create an empty database and add activities to it</h3>
-<p class="desc">Registers a new <a href="../bw2data/index.html#Database">database</a>, creates a <a href="../bw2data/index.html#NodeEdge">node</a>, and gives it a production exchange. Nothing is written to disk until <code>.save()</code> is called. Slower-paced version: <a href="../tutorials/create-empty-database.html">the tutorial</a>.</p>
+<h3>1. Create a database, add an activity, look it up</h3>
+<p class="desc">Registers a new <a href="../bw2data/index.html#Database">database</a>, creates a <a href="../bw2data/index.html#NodeEdge">node</a> with a production exchange (nothing persists until <code>.save()</code>), then looks it up again with <a href="../bw2data/index.html#get_node">get_node</a>. For loading many activities at once instead of one-by-one, see <code>Database.write()</code> in the <a href="../bw2data/index.html">bw2data module map</a>.</p>
 <p class="label">Code</p>
 <pre><code>import bw2data as bd
 
@@ -57,122 +57,17 @@ steel = db.new_activity(code="steel", name="steel production", unit="kilogram", 
 steel.save()                              # nothing persists until .save() is called
 steel.new_exchange(input=steel.key, amount=1, type="production").save()
 
-print(len(db))</code></pre>
-<p class="label">Output</p>
-<pre class="output"><code>1</code></pre>
-</div>
-
-<div class="ex" id="ex2">
-<h3>2. Bulk-write a database in one call (what importers do)</h3>
-<p class="desc"><a href="../bw2data/index.html#Database"><code>write()</code></a> replaces the database's entire contents in one shot — this is the path <a href="../bw2io/index.html">bw2io</a> importers use after parsing an external format, rather than building activities one by one. It also auto-classifies each dataset's node type — see <a href="../bw2data/index.html#node-types">process / product / chimaera node types</a>.</p>
-<p class="label">Code</p>
-<pre><code>import bw2data as bd
-
-bd.projects.set_current("my-project")
-db = bd.Database("example_db")
-db.register()
-
-db.write({
-    ("example_db", "act-1"): {
-        "name": "steel production",
-        "unit": "kilogram",
-        "exchanges": [
-            {"input": ("example_db", "act-1"), "amount": 1, "type": "production"},
-        ],
-    },
-})
 print(len(db))
-print(list(db))</code></pre>
-<p class="label">Output</p>
-<pre class="output"><code>1
-['steel production' (kilogram, None, None)]</code></pre>
-</div>
-
-<div class="ex" id="ex3">
-<h3>3. Look up and inspect an activity</h3>
-<p class="desc"><a href="../bw2data/index.html#get_node"><code>bd.get_node(**kwargs)</code></a> finds a single activity by any of its fields; <code>.exchanges()</code> iterates its edges.</p>
-<p class="label">Code</p>
-<pre><code>import bw2data as bd
-
-bd.projects.set_current("my-project")
-db = bd.Database("example_db")
-db.register()
-db.write({
-    ("example_db", "act-1"): {
-        "name": "steel production",
-        "unit": "kilogram",
-        "exchanges": [
-            {"input": ("example_db", "act-1"), "amount": 1, "type": "production"},
-        ],
-    },
-})
-
 activity = bd.get_node(database="example_db", name="steel production")
 for exc in activity.exchanges():
     print(exc.input, exc.amount, exc["type"])</code></pre>
 <p class="label">Output</p>
-<pre class="output"><code>'steel production' (kilogram, None, None) 1 production</code></pre>
+<pre class="output"><code>1
+'steel production' (kilogram, GLO, None) 1 production</code></pre>
 </div>
 
-<div class="ex" id="ex4">
-<h3>4. Search / filter activities in a database</h3>
-<p class="desc"><code>Database.search()</code> uses the <a href="../bw2data/index.html#Searcher">Whoosh full-text index</a> that's built automatically on <code>write()</code>. For small databases, plain Python filtering over <code>for act in db</code> works just as well.</p>
-<p class="label">Code</p>
-<pre><code>import bw2data as bd
-
-bd.projects.set_current("my-project")
-db = bd.Database("example_db")
-db.register()
-a = db.new_node(code="a", name="steel production", unit="kilogram", location="GLO")
-a.save()
-b = db.new_node(code="b", name="iron ore mining", unit="kilogram", location="GLO")
-b.save()
-
-results = list(db.search("steel"))
-print("search:", results)
-
-print("filtered:", [act for act in db if "iron" in act["name"]])</code></pre>
-<p class="label">Output</p>
-<pre class="output"><code>search: ['steel production' (kilogram, GLO, None)]
-filtered: ['iron ore mining' (kilogram, GLO, None)]</code></pre>
-</div>
-
-<div class="ex" id="ex5">
-<h3>5. Run a full LCA: biosphere flow + method + bw2calc</h3>
-<p class="desc">Ties <a href="../bw2data/index.html">bw2data</a> together with <a href="../bw2calc/index.html">bw2calc</a> — a minimal but complete inventory + impact calculation: a process emits CO&#8322;, a <a href="../bw2data/index.html#Method">Method</a> characterizes it, <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> solves the score.</p>
-<p class="label">Code</p>
-<pre><code>import bw2data as bd
-import bw2calc as bc
-
-bd.projects.set_current("my-project")
-
-biosphere = bd.Database("biosphere")
-biosphere.register()
-co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
-co2.save()
-
-db = bd.Database("example_db")
-db.register()
-steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
-steel.save()
-steel.new_exchange(input=steel.key, amount=1, type="production").save()
-steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()   # 1.8 kg CO2 per kg steel
-
-method_key = ("tutorial_method", "gwp")
-method = bd.Method(method_key)
-method.register(unit="kg CO2-eq")
-method.write([(co2.key, 1.0)])            # characterization factor: 1 kg CO2 = 1 kg CO2-eq
-
-lca = bc.LCA({steel.key: 1}, method_key)  # score for producing 1 kg of steel
-lca.lci()
-lca.lcia()
-print(lca.score)</code></pre>
-<p class="label">Output</p>
-<pre class="output"><code>1.7999999523162842</code></pre>
-</div>
-
-<div class="ex" id="ex6">
-<h3>6. Chimaera vs. non-chimaera nodes</h3>
+<div class="ex" id="ex2">
+<h3>2. Chimaera vs. non-chimaera nodes</h3>
 <p class="desc">Same steel production inventory, built two ways, to show the difference between a
 <a href="../bw2data/index.html#node-types">chimaera node and separate process/product nodes</a>.
 <code>Database.write()</code> auto-classifies each: a self-referencing production exchange
@@ -224,14 +119,47 @@ for code in ("steel-chimaera", "steel-process", "steel-product"):
 <pre class="output"><code>steel-chimaera   type=processwithreferenceproduct  name='steel production'
 steel-process    type=process                      name='steel production'
 steel-product    type=product                      name='steel'</code></pre>
-<p class="desc">Both approaches are valid, and <code>bw2calc</code> can solve either — pick chimaera for
-simple one-node-per-flow databases (least bookkeeping, what Examples 1 and 5 above build), or
-separate process/product nodes when a process's reference product needs its own identity (its own
-name distinct from the process, multiple processes sharing one product, allocation across
-co-products via <a href="../multifunctional/index.html">multifunctional</a>, etc). <code>bw2io</code>'s
+<p class="desc">Pick chimaera for simple one-node-per-flow databases (least bookkeeping); pick
+separate process/product nodes when the reference product needs its own identity — shared by
+multiple processes, or allocated across co-products via
+<a href="../multifunctional/index.html">multifunctional</a>. <code>bw2io</code>'s
 <code>strategies.products.separate_processes_from_products()</code> converts chimaera-shaped
 imports into the separate-node form; see <a href="../bw2io/index.html#node-types">bw2io's note on
 this</a>.</p>
+</div>
+
+<div class="ex" id="ex3">
+<h3>3. Run a full LCA: biosphere flow + method + bw2calc</h3>
+<p class="desc">Ties <a href="../bw2data/index.html">bw2data</a> together with <a href="../bw2calc/index.html">bw2calc</a> — a minimal but complete inventory + impact calculation: a process emits CO&#8322;, a <a href="../bw2data/index.html#Method">Method</a> characterizes it, <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> solves the score.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()   # 1.8 kg CO2 per kg steel
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])            # characterization factor: 1 kg CO2 = 1 kg CO2-eq
+
+lca = bc.LCA({steel.key: 1}, method_key)  # score for producing 1 kg of steel
+lca.lci()
+lca.lcia()
+print(lca.score)</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>1.7999999523162842</code></pre>
 </div>
 
 <footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>

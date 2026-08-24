@@ -123,3 +123,25 @@ useful for next time:
   actual installed source, ground truth) over remembered/upstream docs.
 - Still answer the user's question directly in chat — the documentation
   update is in addition to that, not instead of it.
+
+## Examples: stay concise
+
+`docs/site/examples/index.html` is **one central page** for every worked
+example across every module — do not create a separate examples page per
+module or per example. Within it:
+
+- Keep each module's section short: a handful of examples (2-4), not a
+  sprawling catalog. If a new example would mostly restate an existing one
+  with a minor variant (a different keyword arg, a different filter), don't
+  add it as its own example — fold the variant into the existing example's
+  description as a one-line note instead, or skip it.
+- Prefer merging closely related steps into one script over splitting them
+  into separate examples (e.g. "create a database and look it up" is one
+  example, not two).
+- Every example must still be a complete, runnable script with real
+  captured output (see the blockquote at the top of that page) — concise
+  means *fewer* examples, not shorter/fake ones.
+- When adding, removing, or renumbering examples, grep the whole
+  `docs/site/` tree and the `modules/*/CLAUDE.md` files for
+  `examples/index.html#ex` links and fix every cross-reference — stale
+  anchors are worse than no anchor.

@@ -24,16 +24,14 @@ Installed at <code>.venv/lib/python3.11/site-packages/bw2data/</code>, version <
 </blockquote>
 
 <h2>Examples</h2>
-<p>Six runnable scripts, with real captured output, live on the site-wide
+<p>Three short, runnable scripts, with real captured output, live on the site-wide
 <a href="../examples/index.html#bw2data"><b>Examples</b> page</a> — creating an empty
-<a href="#Database">database</a> (<a href="../examples/index.html#ex1">1</a>), bulk
-<code>write()</code> (<a href="../examples/index.html#ex2">2</a>), activity lookup via
-<a href="#get_node">get_node</a> (<a href="../examples/index.html#ex3">3</a>),
-<a href="#Searcher">search</a>/filter (<a href="../examples/index.html#ex4">4</a>), a full
-biosphere-flow + <a href="#Method">Method</a> + <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a>
-round trip (<a href="../examples/index.html#ex5">5</a>), and
+<a href="#Database">database</a>, adding an activity and looking it up
+(<a href="../examples/index.html#ex1">1</a>);
 <a href="#node-types">chimaera vs. non-chimaera node types</a>
-(<a href="../examples/index.html#ex6">6</a>). A slower-paced walkthrough of the first one is also
+(<a href="../examples/index.html#ex2">2</a>); and a full biosphere-flow + <a href="#Method">Method</a>
++ <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> round trip
+(<a href="../examples/index.html#ex3">3</a>). A slower-paced walkthrough of the first one is also
 available as <a href="../tutorials/create-empty-database.html">its own tutorial</a>.</p>
 
 <h2>Key files</h2>
@@ -74,15 +72,15 @@ available as <a href="../tutorials/create-empty-database.html">its own tutorial<
 <h2>Main classes / entry points</h2>
 <p>From <code>__init__.py</code> <code>__all__</code> (imports flattened to <code>bw2data</code>/<code>bd</code> top level):</p>
 <div class="grid">
-  <div class="card"><a class="name" id="Database" href="#Database">Database</a><p>= <code>DatabaseChooser</code>. Factory: <code>bd.Database("name")</code> returns a <code>SQLiteBackend</code> instance. Used in <a href="../examples/index.html#ex1">Example 1</a>, <a href="../examples/index.html#ex2">2</a>, <a href="../examples/index.html#ex4">4</a> and <a href="../examples/index.html#ex5">5</a>.</p></div>
+  <div class="card"><a class="name" id="Database" href="#Database">Database</a><p>= <code>DatabaseChooser</code>. Factory: <code>bd.Database("name")</code> returns a <code>SQLiteBackend</code> instance. Used in every <a href="../examples/index.html#bw2data">example</a>.</p></div>
   <div class="card"><a class="name" id="NodeEdge" href="#NodeEdge">Node / Edge</a><p>Aliases for <code>backends.proxies.Activity</code> / <code>Exchange</code> — see <code>new_activity</code>/<code>save</code> used throughout the <a href="../examples/index.html">Examples</a>.</p></div>
-  <div class="card"><a class="name" id="Method" href="#Method">Method</a><p><code>ImpactAssessmentDataStore</code> subclass — an LCIA method. Used with <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> in <a href="../examples/index.html#ex5">Example 5</a>.</p></div>
+  <div class="card"><a class="name" id="Method" href="#Method">Method</a><p><code>ImpactAssessmentDataStore</code> subclass — an LCIA method. Used with <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> in <a href="../examples/index.html#ex3">Example 3</a>.</p></div>
   <div class="card"><a class="name" id="WeightingNormalization" href="#WeightingNormalization">Weighting / Normalization</a><p>Same storage pattern as <a href="#Method">Method</a>, for LCIA weighting/normalization data.</p></div>
   <div class="card"><a class="name" id="projects" href="#projects">projects</a><p><code>ProjectManager</code> singleton — create/switch/delete projects. <code>set_current()</code> opens every <a href="../examples/index.html">example</a>.</p></div>
   <div class="card"><a class="name" id="databases" href="#databases">databases / methods / geomapping / normalizations / weightings / preferences / calculation_setups</a><p><code>meta.py</code> metadata registry singletons.</p></div>
   <div class="card"><a class="name" id="parameters" href="#parameters">parameters</a><p><code>ParameterManager</code> singleton for formula-driven exchanges — see <code>bw2parameters</code>.</p></div>
-  <div class="card"><a class="name" id="Searcher" href="#Searcher">Searcher / IndexManager</a><p>Whoosh full-text search over activities, exposed as <code>Database.search()</code> in <a href="../examples/index.html#ex4">Example 4</a>.</p></div>
-  <div class="card"><a class="name" id="get_node" href="#get_node">get_node / get_activity</a><p>Look up a single <code>Activity</code> by key/id/kwargs. Used in <a href="../examples/index.html#ex3">Example 3</a>.</p></div>
+  <div class="card"><a class="name" id="Searcher" href="#Searcher">Searcher / IndexManager</a><p>Whoosh full-text search over activities, exposed as <code>Database.search()</code>.</p></div>
+  <div class="card"><a class="name" id="get_node" href="#get_node">get_node / get_activity</a><p>Look up a single <code>Activity</code> by key/id/kwargs. Used in <a href="../examples/index.html#ex1">Example 1</a>.</p></div>
   <div class="card"><a class="name" id="get_id" href="#get_id">get_id</a><p>Resolve an activity key to its integer database id.</p></div>
   <div class="card"><a class="name" id="config" href="#config">config / labels</a><p>Global configuration object and label constants.</p></div>
   <div class="card"><a class="name" id="prepare_lca_inputs" href="#prepare_lca_inputs">prepare_lca_inputs / get_multilca_data_objs</a><p>Build the datapackage objects <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> expects.</p></div>
@@ -109,11 +107,11 @@ informally called a <b>chimaera</b> node in the code and docstrings) — a singl
 self-referential: <code>input</code> equals the node's own <code>(database, code)</code> key.
 Every example on the <a href="../examples/index.html">Examples page</a> that gives an activity a
 self-referencing production exchange (e.g. <code>steel.new_exchange(input=steel.key, ...,
-type="production")</code>, as in <a href="../examples/index.html#ex1">Example 1</a> and
-<a href="../examples/index.html#ex5">Example 5</a>) is building a chimaera-shaped node — the
+type="production")</code>, as in Examples <a href="../examples/index.html#ex1">1</a> and
+<a href="../examples/index.html#ex3">3</a>) is building a chimaera-shaped node — the
 product's name, unit and other properties just live directly on that one node, and both the
 process's and the reference product's information turn up together when you look it up or search
-for it. <a href="../examples/index.html#ex6">Example 6</a> builds the same inventory both ways,
+for it. <a href="../examples/index.html#ex2">Example 2</a> builds the same inventory both ways,
 side by side, and prints the resulting <code>type</code> of each node.</li>
 </ul>
 <p>

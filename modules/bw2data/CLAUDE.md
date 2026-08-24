@@ -88,10 +88,12 @@ activity.new_exchange(input=activity.key, amount=1, type="production").save()
   `db.write({(db_name, code): {...}, ...})` directly — this is the path `bw2io` importers use; it
   replaces the database's entire contents in one call.
 - Full step-by-step walkthrough with a worked example: `docs/site/tutorials/create-empty-database.html`.
-- `docs/site/bw2data/index.html` now leads with an **Examples** section (before the reference
-  tables) covering: creating an empty database, bulk `write()`, activity lookup, search/filter,
-  and a full biosphere-flow + `Method` + `bw2calc.LCA` round trip — all verified by running them
-  against the installed source.
+- `docs/site/bw2data/index.html` leads with a short **Examples** teaser (before the reference
+  tables) pointing at the site-wide `docs/site/examples/index.html#bw2data` section — three
+  verified, runnable scripts: create a database + activity + look it up, chimaera vs.
+  non-chimaera node types, and a full biosphere-flow + `Method` + `bw2calc.LCA` round trip. Keep
+  this page short: one central Examples page for the whole site, a handful of examples per
+  module section, not a page per example.
 
 ## Node types: process / product / chimaera
 
@@ -126,7 +128,7 @@ The reverse split — chimaera/process → separate process + product nodes —
 is `bw2io.strategies.products.separate_processes_from_products()`; see
 `modules/bw2io/CLAUDE.md`.
 
-`docs/site/examples/index.html#ex6` builds the same steel-production inventory both ways side by
+`docs/site/examples/index.html#ex2` builds the same steel-production inventory both ways side by
 side (via one `write()` call) and prints the resulting `type` of each node — verified output:
 `steel-chimaera` → `processwithreferenceproduct`, `steel-process` → `process`, `steel-product` →
 `product`.
