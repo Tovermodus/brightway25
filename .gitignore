@@ -131,3 +131,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Transient worktrees for background subagents (not part of the repo history)
+.claude/worktrees/
