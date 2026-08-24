@@ -80,9 +80,14 @@ substitute_in_formulas   # mangling.py
 
 - **"How does Monte Carlo / stochastic parameter evaluation work?"**
   `parameter_set.py` — `ParameterSet.evaluate_monte_carlo(iterations=1000)`.
-  Uses `stats_arrays.uncertainty_choices` to sample each parameter's
+  Uses `stats_arrays.uncertainty_choices` to sample each *parameter's*
   uncertainty distribution, requires every formula to return a
-  1-D array of shape `(iterations,)` or raises `BroadcastingError`.
+  1-D array of shape `(iterations,)` or raises `BroadcastingError`. This is
+  a distinct mechanism from `bw2calc`'s `LCA(..., use_distributions=True)`
+  Monte Carlo (which samples uncertainty on *exchanges*, not named
+  parameters/formulas) — see `docs/site/examples/index.html#ex7` (bw2calc
+  section) and `modules/bw2calc/CLAUDE.md` for that path; both ultimately
+  draw from the same `stats_arrays` distribution classes.
 
 - **"How does one namespace/prefix a set of parameter formulas (e.g. so an
   activity's local parameters don't collide with project-level ones)?"**

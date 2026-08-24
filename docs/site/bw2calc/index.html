@@ -63,7 +63,7 @@
     <div class="card"><a class="name" href="#">IterativeLCA</a><p>iterative_lca.py — iterative technosphere solver.</p></div>
     <div class="card"><a class="name" href="#">JacobiGMRESLCA</a><p>jacobi_gmres_lca.py — Jacobi-preconditioned GMRES solver.</p></div>
     <div class="card"><a class="name" href="#">LeastSquaresLCA</a><p>least_squares.py — least-squares solve, non-square systems.</p></div>
-    <div class="card"><a class="name" href="#">MultiLCA</a><p>multi_lca.py — many functional units × methods at once.</p></div>
+    <div class="card"><a class="name" id="MultiLCA" href="#MultiLCA">MultiLCA</a><p>multi_lca.py — many functional units × methods at once. See <a href="../examples/index.html#ex6">Example 6</a>.</p></div>
     <div class="card"><a class="name" href="#">FastScoresOnlyMultiLCA</a><p>fast_scores.py — scores-only fast path for large batches.</p></div>
     <div class="card"><a class="name" href="#">PartitionedMonteCarloLCA</a><p>partitioned_lca.py — Monte Carlo with a pre-solved static background.</p></div>
     <div class="card"><a class="name" href="#">MethodConfig</a><p>method_config.py — pydantic config for methods/normalization/weighting.</p></div>
@@ -72,7 +72,10 @@
   <h2>Typical usage</h2>
   <p>A runnable, verified version of this pattern — with a real biosphere flow, a registered
   <a href="../bw2data/index.html#Method">Method</a>, and captured output — is
-  <a href="../examples/index.html#ex3">Example 3 on the Examples page</a>.</p>
+  <a href="../examples/index.html#ex3">Example 3 on the Examples page</a>. For running many
+  impact categories/functional units together, or a stochastic Monte Carlo run, see
+  <a href="../examples/index.html#bw2calc">the bw2calc examples section</a> (Examples 4 and 5)
+  — described under <b>Worked examples</b> below.</p>
   <pre><code>import bw2data as bd
 import bw2calc as bc
 
@@ -93,6 +96,19 @@ print(lca.score)
 df = lca.to_dataframe()
 </code></pre>
 
+  <h2>Worked examples</h2>
+  <p>Beyond the single-method/single-functional-unit case in
+  <a href="../examples/index.html#ex3">Example 3</a>, two more full runnable scripts live in the
+  <a href="../examples/index.html#bw2calc">bw2calc section of the Examples page</a>:</p>
+  <ul>
+    <li><a href="../examples/index.html#ex6">Example 6</a> — <code>MultiLCA</code> over two
+    functional units × two impact categories in one shared technosphere solve, via
+    <code>bd.get_multilca_data_objs()</code>.</li>
+    <li><a href="../examples/index.html#ex7">Example 7</a> — a stochastic
+    <code>LCA(..., use_distributions=True, seed_override=42)</code> run: 1000 reproducible
+    Monte Carlo iterations over an exchange with a normal-distributed amount.</li>
+  </ul>
+
   <h2>Where to look</h2>
 
   <h3>How does the technosphere actually get solved?</h3>
@@ -104,15 +120,29 @@ df = lca.to_dataframe()
   <code>__init__.py</code>).</p>
 
   <h3>How does Monte Carlo uncertainty work?</h3>
-  <p><code>partitioned_lca.py</code> <code>PartitionedMonteCarloLCA</code> (splits a static
-  background solved once from a stochastic foreground sampled per iteration); the
-  distributions themselves come from <code>stats_arrays</code>, and how uncertain
-  parameters are stored on disk comes from <code>bw_processing</code>.</p>
+  <p>Simplest path: plain <code>LCA(demand, method, use_distributions=True,
+  seed_override=...)</code> — since <code>LCABase(Iterator)</code>, every <code>next(lca)</code>
+  re-samples each uncertain matrix entry and recomputes <code>lca.score</code>
+  (see <a href="../examples/index.html#ex7">Example 7</a>). For a large system where only a
+  foreground subset is stochastic, <code>partitioned_lca.py</code>
+  <code>PartitionedMonteCarloLCA</code> pre-solves the static background once and samples only
+  the stochastic partition per iteration. Both draw from <code>stats_arrays</code>'
+  distributions, stored on disk via <code>bw_processing</code>'s
+  <code>UNCERTAINTY_DTYPE</code>. Exchange-level uncertainty is set in <code>bw2data</code>
+  before <code>.save()</code>, e.g. <code>exc["uncertainty type"] = 3; exc["loc"] = 1.8;
+  exc["scale"] = 0.2</code> (field name has a literal space; the integer id matches
+  <code>stats_arrays.UncertaintyType</code>, normal == 3).</p>
 
   <h3>How do multiple methods / functional units run together efficiently?</h3>
   <p><code>multi_lca.py</code> <code>MultiLCA</code> (shared factorized technosphere across
   many demands and methods) and <code>method_config.py</code> <code>MethodConfig</code>;
-  for score-only batches see <code>fast_scores.py</code> <code>FastScoresOnlyMultiLCA</code>.</p>
+  for score-only batches see <code>fast_scores.py</code> <code>FastScoresOnlyMultiLCA</code>.
+  <code>bd.get_multilca_data_objs(functional_units, method_config)</code>
+  (<code>bw2data/compat.py</code>) builds the matching <code>data_objs</code> — the
+  <code>MultiLCA</code> analogue of <code>prepare_lca_inputs()</code>. After
+  <code>mlca.lci(); mlca.lcia()</code>, <code>MultiLCA.scores</code> is a
+  <code>dict</code> keyed <code>(impact_category_tuple, functional_unit_name)</code> →
+  score. See <a href="../examples/index.html#ex6">Example 6</a>.</p>
 
   <h3>Where do the LCA-specific exceptions come from?</h3>
   <p><code>errors.py</code> — all subclass <code>BW2CalcError</code>, e.g.

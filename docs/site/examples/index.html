@@ -40,9 +40,8 @@ Every example below is a complete, standalone Python script — copy it into a f
 <div class="modnav">
   <a href="#bw2data">bw2data</a>
   <a href="#bw2data-projects">bw2data-projects</a>
+  <a href="#bw2calc">bw2calc</a>
 </div>
-
-<p style="color:var(--fg-dim); font-size:0.85rem;">Only <code>bw2data</code> has examples here so far. As other modules get worked examples, they land in their own short section on this same page — not a new page.</p>
 
 <h2 id="bw2data">bw2data</h2>
 <p>See also: <a href="../bw2data/index.html">the bw2data module map</a> · <a href="../tutorials/create-empty-database.html">the "create an empty database" tutorial</a> (a slower-paced walkthrough of example 1 below).</p>
@@ -269,6 +268,129 @@ for exc in part.exchanges():
 1 1
 production 'steel part' (unit, GLO, None) in parts_supply_chain
 technosphere 'iron ore mining' (kilogram, GLO, None) in steel_supply_chain</code></pre>
+</div>
+
+<h2 id="bw2calc">bw2calc</h2>
+<p>See also: <a href="../bw2calc/index.html">the bw2calc module map</a>. Builds on example 3 above (a single method, single functional unit) to show the two other calculation shapes <a href="../bw2calc/index.html#MultiLCA">bw2calc.MultiLCA</a> and stochastic <code>use_distributions=True</code> LCA cover.</p>
+
+<div class="ex" id="ex6">
+<h3>6. Multiple impact categories &times; multiple functional units in one go: <code>MultiLCA</code></h3>
+<p class="desc">The single-<code>LCA</code> class from example 3 answers "what is the score of demand X under method Y?" one pair at a time. <a href="../bw2calc/index.html#MultiLCA">bw2calc.MultiLCA</a> instead builds <em>one</em> shared technosphere/biosphere matrix and solves every (functional unit, impact category) combination against it, driven by a <a href="../bw2calc/index.html#MethodConfig">MethodConfig</a>-shaped dict. <code>bd.get_multilca_data_objs()</code> (<code>bw2data/compat.py</code>) collects the datapackages for all of it.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+so2 = biosphere.new_node(code="so2", name="sulfur dioxide", unit="kilogram", type="emission")
+so2.save()
+
+db = bd.Database("example_db")
+db.register()
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()
+steel.new_exchange(input=so2.key, amount=0.02, type="biosphere").save()
+
+concrete = db.new_node(code="concrete", name="concrete production", unit="kilogram", location="GLO")
+concrete.save()
+concrete.new_exchange(input=concrete.key, amount=1, type="production").save()
+concrete.new_exchange(input=co2.key, amount=0.1, type="biosphere").save()
+
+gwp_key = ("tutorial_method", "gwp")
+gwp = bd.Method(gwp_key)
+gwp.register(unit="kg CO2-eq")
+gwp.write([(co2.key, 1.0)])
+
+acid_key = ("tutorial_method", "acidification")
+acid = bd.Method(acid_key)
+acid.register(unit="kg SO2-eq")
+acid.write([(so2.key, 1.0)])
+
+# MultiLCA runs many (functional unit x impact category) combinations
+# together, sharing one factorized technosphere solve.
+func_units = {"1kg steel": {steel.id: 1}, "1kg concrete": {concrete.id: 1}}
+method_config = {"impact_categories": [gwp_key, acid_key]}
+data_objs = bd.get_multilca_data_objs(func_units, method_config)
+
+mlca = bc.MultiLCA(demands=func_units, method_config=method_config, data_objs=data_objs)
+mlca.lci()
+mlca.lcia()
+
+for (ic, fu), score in sorted(mlca.scores.items()):
+    print(f"{fu:12s} {ic} = {score}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>1kg concrete ('tutorial_method', 'acidification') = 0.0
+1kg steel    ('tutorial_method', 'acidification') = 0.019999999552965164
+1kg concrete ('tutorial_method', 'gwp') = 0.10000000149011612
+1kg steel    ('tutorial_method', 'gwp') = 1.7999999523162842</code></pre>
+<p class="desc"><code>mlca.scores</code> keys are <code>(impact_category, functional_unit_name)</code> tuples — the impact category tuple registered in <code>method_config["impact_categories"]</code>, and whatever string key the functional unit was given in <code>demands</code>. Functional unit dicts must use integer node ids (<code>steel.id</code>), not <code>(database, code)</code> keys or <code>Node</code> objects, unlike plain <code>LCA</code>.</p>
+</div>
+
+<div class="ex" id="ex7">
+<h3>7. Stochastic (Monte Carlo) LCA with <code>use_distributions=True</code></h3>
+<p class="desc">An exchange's uncertainty is stored as extra fields on the exchange (<code>"uncertainty type"</code>, <code>"loc"</code>, <code>"scale"</code>, ...) using the same integer ids as <a href="../stats_arrays/index.html">stats_arrays</a>' <code>UncertaintyType</code> (normal = 3). Passing <code>use_distributions=True</code> to <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> makes every <code>next(lca)</code> call re-sample each uncertain value from its distribution and resolve a fresh score; <code>seed_override</code> seeds that sampling for reproducibility.</p>
+<p class="label">Code</p>
+<pre><code>import numpy as np
+import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+
+# Uncertain CO2 factor: normal distribution, mean 1.8 kg, std 0.2 kg.
+# Field names/values follow stats_arrays' UncertaintyType (normal id == 3);
+# bw2data stores them on the exchange as "uncertainty type"/"loc"/"scale".
+co2_exchange = steel.new_exchange(input=co2.key, amount=1.8, type="biosphere")
+co2_exchange["uncertainty type"] = 3  # stats_arrays.UncertaintyType.normal
+co2_exchange["loc"] = 1.8
+co2_exchange["scale"] = 0.2
+co2_exchange.save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+# use_distributions=True samples a fresh value per exchange's distribution
+# on every iteration; seed_override makes that sampling reproducible.
+lca = bc.LCA({steel.key: 1}, method_key, use_distributions=True, seed_override=42)
+lca.lci()
+lca.lcia()
+
+scores = [lca.score]
+for _ in range(999):
+    next(lca)                 # re-samples the technosphere/biosphere/CF matrices
+    scores.append(lca.score)
+
+scores = np.array(scores)
+print(f"iterations = {len(scores)}")
+print(f"mean       = {scores.mean():.4f}")
+print(f"std        = {scores.std():.4f}")
+print(f"min        = {scores.min():.4f}")
+print(f"max        = {scores.max():.4f}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>iterations = 1000
+mean       = 1.8039
+std        = 0.1957
+min        = 1.1517
+max        = 2.5705</code></pre>
+<p class="desc">This is the same mechanism <code>PartitionedMonteCarloLCA</code> (<a href="../bw2calc/index.html">bw2calc module map</a>) builds on for large background systems — sample once, re-solve, repeat. The RNG dispatch for mixed uncertainty types on the underlying params array is <code>stats_arrays.MCRandomNumberGenerator</code>; see the <a href="../stats_arrays/index.html">stats_arrays module map</a>.</p>
 </div>
 
 <footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>

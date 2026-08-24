@@ -115,6 +115,17 @@ min/max), `MaximumIterationsError` (couldn't sample within bounds in
 single-row params array but got several — see the `one_row_params_array`
 decorator in `utils.py`).
 
+**Q: How does this show up in a real Monte Carlo LCA run?**
+`bw2calc.LCA(demand, method, use_distributions=True, seed_override=42)`
+samples a fresh value per uncertain exchange on every `next(lca)` call —
+each exchange's uncertainty is stored in `bw2data` as `"uncertainty
+type"`/`"loc"`/`"scale"`/... fields using exactly these `UncertaintyType`
+ids (normal == 3), which flow unchanged into `bw_processing`'s
+`UNCERTAINTY_DTYPE` and are sampled by `MCRandomNumberGenerator` under the
+hood. Full runnable script + captured output:
+`docs/site/examples/index.html#ex7` (bw2calc section) — see also
+`modules/bw2calc/CLAUDE.md`.
+
 **Q: How does this relate to `bw_processing`'s stored arrays?**
 `bw_processing.constants.UNCERTAINTY_DTYPE` uses the identical field names
 (`uncertainty_type`, `loc`, `scale`, `shape`, `minimum`, `maximum`,
