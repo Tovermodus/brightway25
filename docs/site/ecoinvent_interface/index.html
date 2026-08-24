@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ecoinvent_interface — code map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+  <h1><span class="pkgname">ecoinvent_interface</span></h1>
+  <p class="tagline">
+    Authenticated HTTP client for the ecoinvent LCI database's download API.
+    It logs in against ecoinvent's SSO, then lists and downloads release
+    archives, per-version extra files, reports, and individual process
+    datasets, caching everything on disk. It does not parse the data itself —
+    <code>bw2io</code> reads the files this package downloads and imports
+    them into <code>bw2data</code>.
+  </p>
+
+  <h2>Key files</h2>
+  <table>
+    <tr><th>File</th><th>Role</th></tr>
+    <tr><td><code>core.py</code></td><td><code>InterfaceBase</code> — shared login/token-refresh/download plumbing used by both <code>EcoinventRelease</code> and <code>EcoinventProcess</code>; also the API URLs, the <code>SYSTEM_MODELS</code> name map, and the <code>@logged_in</code>/<code>@fresh_login</code> decorators</td></tr>
+    <tr><td><code>release.py</code></td><td><code>EcoinventRelease</code> — list and download full releases, reports, and per-version extra files; <code>ReleaseType</code> enum; <code>get_excel_lcia_file_for_version()</code></td></tr>
+    <tr><td><code>settings.py</code></td><td><code>Settings</code> (pydantic-settings) — username / password / client_id / output_path, from <code>EI_*</code> env vars or an on-disk secrets store; <code>permanent_setting()</code> persists a credential</td></tr>
+    <tr><td><code>storage.py</code></td><td><code>CachedStorage</code> — the on-disk download cache and its JSON <code>Catalogue</code> of downloaded-file metadata; <code>md5()</code> checksum helper</td></tr>
+    <tr><td><code>mapping.py</code></td><td><code>ProcessMapping</code> — builds/caches the process-metadata → filename/UUID table used to select a single dataset by name, product, or location</td></tr>
+    <tr><td><code>process_interface.py</code></td><td><code>EcoinventProcess</code> — select and download files for one dataset/process; <code>ProcessFileType</code> enum; <code>MissingProcess</code> exception</td></tr>
+    <tr><td><code>spold_versions.py</code></td><td>Post-download fixups: rewrites version fields inside extracted ecoSpold/master-data XML so they match the requested release version</td></tr>
+    <tr><td><code>string_distance.py</code></td><td><code>damerau_levenshtein()</code> — fuzzy filename matching, used when ecoinvent's real filename doesn't follow the predicted naming pattern</td></tr>
+  </table>
+
+  <h2>Main classes / entry points</h2>
+  <p>Re-exported from <code>ecoinvent_interface</code> top-level (see <code>__init__.py</code> <code>__all__</code>):</p>
+  <div class="grid">
+    <div class="card"><a class="name" href="#">Settings</a><p>settings.py — credentials/config object passed into every client class.</p></div>
+    <div class="card"><a class="name" href="#">permanent_setting</a><p>settings.py — persist username/password/output_path to disk.</p></div>
+    <div class="card"><a class="name" href="#">EcoinventRelease</a><p>release.py — the main client: list versions/system models, download releases, reports, extras.</p></div>
+    <div class="card"><a class="name" href="#">ReleaseType</a><p>release.py — which archive kind to download (ecospold, matrix, lci, lcia, cumulative_lci, cumulative_lcia).</p></div>
+    <div class="card"><a class="name" href="#">get_excel_lcia_file_for_version</a><p>release.py — fetch the LCIA Excel workbook for a version.</p></div>
+    <div class="card"><a class="name" href="#">EcoinventProcess</a><p>process_interface.py — select and download files for a single dataset.</p></div>
+    <div class="card"><a class="name" href="#">ProcessFileType</a><p>process_interface.py — file kind for a process download (upr, lci, lcia, pdf, undefined).</p></div>
+    <div class="card"><a class="name" href="#">ProcessMapping</a><p>mapping.py — process metadata → filename/UUID lookup table.</p></div>
+    <div class="card"><a class="name" href="#">CachedStorage</a><p>storage.py — on-disk download cache and catalogue, held as <code>self.storage</code>.</p></div>
+  </div>
+
+  <h2>Typical usage</h2>
+  <p>Authenticate once via <code>Settings</code>, then use <code>EcoinventRelease</code> to
+  discover and download a full release:</p>
+  <pre><code>from ecoinvent_interface import EcoinventRelease, ReleaseType, Settings, permanent_setting
+
+# one-time: persist credentials to disk (or set EI_USERNAME / EI_PASSWORD env vars)
+permanent_setting("username", "my-ecoinvent-username")
+permanent_setting("password", "my-ecoinvent-password")
+
+settings = Settings()
+release = EcoinventRelease(settings)
+
+print(release.list_versions())            # e.g. ['3.9.1', '3.10', ...]
+print(release.list_system_models("3.10")) # e.g. ['cutoff', 'apos', 'consequential']
+
+path = release.get_release(
+    version="3.10",
+    system_model="cutoff",
+    release_type=ReleaseType.ecospold,
+)
+# path now points at the extracted, locally-cached ecoSpold02 directory
+</code></pre>
+  <p>To grab a single dataset instead of a whole release, use
+  <code>EcoinventProcess</code>:</p>
+  <pre><code>from ecoinvent_interface import EcoinventProcess, ProcessFileType, Settings
+
+process = EcoinventProcess(Settings())
+process.set_release(version="3.10", system_model="cutoff")
+process.select_process(attributes={
+    "name": "electricity production, hydro, pumped storage",
+    "reference product": "electricity, high voltage",
+    "location": "CH",
+})
+info = process.get_basic_info()
+process.get_file(ProcessFileType.upr, directory=".")
+</code></pre>
+
+  <h2>Where to look</h2>
+  <blockquote>
+    <strong>"How does login/authentication work?"</strong><br>
+    <code>core.py</code> — <code>InterfaceBase.__init__</code> reads credentials from
+    <code>Settings</code>; <code>InterfaceBase.login()</code> and
+    <code>refresh_tokens()</code> talk to ecoinvent's SSO endpoint. The
+    <code>@logged_in</code> / <code>@fresh_login</code> decorators auto-login/refresh
+    before any API call, so you never call them yourself.
+  </blockquote>
+  <blockquote>
+    <strong>"Where do downloaded files end up, and how is caching decided?"</strong><br>
+    <code>storage.py</code> — <code>CachedStorage</code> picks a cache directory
+    (explicit path, <code>Settings.output_path</code>, or a <code>platformdirs</code>
+    default) and tracks what's already downloaded in <code>Catalogue</code>
+    (<code>catalogue.json</code>). <code>_download_and_cache()</code> in
+    <code>core.py</code> is where the actual skip-if-cached / redownload logic lives.
+  </blockquote>
+  <blockquote>
+    <strong>"How do I download a full release archive?"</strong><br>
+    <code>EcoinventRelease.get_release()</code> in <code>release.py</code> — pass a
+    version string, a system model, and a <code>ReleaseType</code>. It also patches
+    version strings in the extracted XML afterwards via <code>spold_versions.py</code>.
+  </blockquote>
+  <blockquote>
+    <strong>"How do I download just one process/dataset?"</strong><br>
+    <code>EcoinventProcess</code> in <code>process_interface.py</code>:
+    <code>set_release()</code> → <code>select_process()</code> (by attributes,
+    filename, or dataset_id) → <code>get_file()</code> / <code>get_basic_info()</code> /
+    <code>get_documentation()</code>.
+  </blockquote>
+  <blockquote>
+    <strong>"Where does the name/product/location → filename matching happen?"</strong><br>
+    <code>mapping.py</code>'s <code>ProcessMapping</code> builds and caches the lookup
+    table; <code>process_interface.get_cached_mapping()</code> loads it for
+    <code>select_process()</code>.
+  </blockquote>
+  <blockquote>
+    <strong>"How are credentials configured, and how do I avoid retyping them?"</strong><br>
+    <code>settings.py</code> — <code>Settings</code> reads <code>EI_USERNAME</code>,
+    <code>EI_PASSWORD</code>, <code>EI_CLIENT_ID</code>, <code>EI_OUTPUT_PATH</code> env
+    vars or an on-disk secrets store; <code>permanent_setting(key, value)</code> writes
+    a value to that store so future <code>Settings()</code> instances pick it up.
+  </blockquote>
+
+  <div class="related">
+    <a href="../bw2io/index.html">bw2io →</a> uses <code>EcoinventRelease</code> (via <code>import_ecoinvent_release</code>) to fetch release archives before importing them into <code>bw2data</code>.
+  </div>
+</div>
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

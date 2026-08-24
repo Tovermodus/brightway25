@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>mrio_common_metadata — brightway25 code map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+
+  <h1><span class="pkgname">mrio_common_metadata</span></h1>
+  <p class="tagline">
+    Shared metadata helpers for MRIO / EXIOBASE-style multi-region
+    input-output datapackages — reading frictionless-data-style
+    <code>datapackage.json</code> resource metadata together with
+    bz2-compressed CSV data files, plus scripts that convert raw EXIOBASE
+    spreadsheet downloads into that common format.
+  </p>
+
+  <h2>Key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>__init__.py</code></td><td>Public runtime API: <code>list_resources()</code>, <code>get_metadata_resource()</code>, <code>get_numeric_data_iterator()</code>, plus private helpers (<code>_get_resources</code>, <code>_get_resource</code>, <code>_get_foreign_key</code>) that all read a directory's <code>datapackage.json</code>. Also contains a large block of commented-out legacy/draft code — dead, not part of the current API.</td></tr>
+      <tr><td><code>utils.py</code></td><td><code>md5()</code>, <code>load_compressed_csv()</code> / <code>iterate_compressed_csv()</code> (read a bz2-compressed CSV resource, all at once or row-by-row), <code>load_compressed_csv_as_dataframe()</code> (same, returned as a pandas <code>DataFrame</code> indexed by the resource's <code>primaryKey</code>).</td></tr>
+      <tr><td><code>version.py</code></td><td><code>version = (0, 2, 1)</code> tuple, exposed as <code>__version__</code>.</td></tr>
+      <tr><td><code>conversion/exiobase_3_hybrid_io/</code></td><td>Conversion pipeline for EXIOBASE 3 hybrid <strong>input-output</strong> tables. <code>__init__.py</code>: <code>convert_exiobase(sourcedir, targetdir=None, version=...)</code> entry point plus <code>extract_metadata()</code>, <code>extract_extension_exchanges()</code>, <code>extract_production_exchanges()</code>, <code>extract_io_exchanges()</code>, <code>package_exiobase()</code>. <code>datapackage.py</code>: static <code>DATAPACKAGE</code> template dict. <code>utils.py</code>: <code>.xlsb</code> reading (<code>read_xlsb</code>, <code>convert_xlsb</code>) and <code>write_compressed_csv()</code>. <code>version_config.py</code>: <code>VERSIONS</code> dict of per-release source filenames/worksheets/column mappings.</td></tr>
+      <tr><td><code>conversion/exiobase_3_hybrid_su/</code></td><td>Same pipeline for EXIOBASE 3 hybrid <strong>supply-use</strong> tables (separate supply/use sheets rather than one combined IO table). Mirrors the <code>_io</code> layout: <code>__init__.py</code> (<code>convert_exiobase(sourcedir, version=...)</code>, <code>extract_su_exchanges()</code>, <code>package_exiobase()</code>), <code>datapackage.py</code> (<code>DATAPACKAGE</code> template), <code>utils.py</code> (<code>.xlsb</code>/CSV helpers), <code>version_config.py</code> (<code>VERSIONS</code> dict).</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Main functions &amp; entry points</h2>
+  <div class="grid">
+    <div class="card">
+      <a class="name">list_resources(dirpath)</a>
+      <p><code>__init__.py</code> — return the resource names declared in <code>dirpath/datapackage.json</code>.</p>
+    </div>
+    <div class="card">
+      <a class="name">get_metadata_resource(dirpath, resource_name)</a>
+      <p><code>__init__.py</code> — load one metadata resource's compressed CSV as a list of dicts keyed by its schema field names.</p>
+    </div>
+    <div class="card">
+      <a class="name">get_numeric_data_iterator(dirpath, resource_name)</a>
+      <p><code>__init__.py</code> — for a numeric (row, col, value) resource with two <code>foreignKeys</code>, yield <code>(row_metadata, col_metadata, float_value)</code> tuples, resolving both foreign keys first.</p>
+    </div>
+    <div class="card">
+      <a class="name">convert_exiobase()</a>
+      <p><code>conversion/exiobase_3_hybrid_io/__init__.py</code> and <code>conversion/exiobase_3_hybrid_su/__init__.py</code> — top-level conversion entry point from raw EXIOBASE spreadsheets to the common datapackage format.</p>
+    </div>
+  </div>
+
+  <h2>Typical usage</h2>
+  <pre><code>from mrio_common_metadata import (
+    list_resources,
+    get_metadata_resource,
+    get_numeric_data_iterator,
+)
+
+dirpath = "/path/to/exiobase-3.3.17-hybrid"
+
+# See what's in this datapackage
+print(list_resources(dirpath))
+# e.g. ['locations', 'activities', 'products', 'extensions', 'IO exchanges', ...]
+
+# Load a lookup table
+locations = get_metadata_resource(dirpath, "locations")
+# [{'code': 'AT', 'name': 'Austria'}, {'code': 'BE', 'name': 'Belgium'}, ...]
+
+# Iterate over the actual IO table, with row/column metadata resolved
+for row_meta, col_meta, value in get_numeric_data_iterator(dirpath, "IO exchanges"):
+    if value:
+        print(row_meta["name"], "->", col_meta["name"], value)
+</code></pre>
+
+  <h2>Where to look</h2>
+
+  <h3>How do I read an already-built MRIO datapackage (e.g. one bw2io uses for EXIOBASE)?</h3>
+  <blockquote>
+    Top-level <code>__init__.py</code>: <code>list_resources()</code> to see what's
+    available, <code>get_metadata_resource()</code> for lookup tables (locations,
+    activities, products), <code>get_numeric_data_iterator()</code> for the actual
+    matrix data — it resolves foreign keys via the private <code>_get_foreign_key()</code>.
+  </blockquote>
+
+  <h3>What does a <code>datapackage.json</code> for this format look like?</h3>
+  <blockquote>
+    <code>conversion/exiobase_3_hybrid_io/datapackage.py</code> or
+    <code>conversion/exiobase_3_hybrid_su/datapackage.py</code> — the static
+    <code>DATAPACKAGE</code> dict shows the full frictionless-data-style
+    resource/schema/foreignKeys structure that the top-level reader
+    functions expect.
+  </blockquote>
+
+  <h3>How is a raw EXIOBASE <code>.xlsb</code> download converted into this format?</h3>
+  <blockquote>
+    <code>conversion/exiobase_3_hybrid_io/__init__.py</code>'s
+    <code>convert_exiobase(sourcedir, targetdir=None, version=...)</code> (or the
+    SU equivalent in <code>conversion/exiobase_3_hybrid_su/__init__.py</code>) is
+    the entry point; it calls <code>extract_metadata()</code>,
+    <code>extract_extension_exchanges()</code>,
+    <code>extract_production_exchanges()</code> /
+    <code>extract_su_exchanges()</code>, <code>extract_io_exchanges()</code>, then
+    <code>package_exiobase()</code> to assemble the output using
+    <code>utils.write_compressed_csv()</code>.
+  </blockquote>
+
+  <h3>Where are per-version source file/sheet names configured?</h3>
+  <blockquote>
+    <code>conversion/exiobase_3_hybrid_io/version_config.py</code> and
+    <code>conversion/exiobase_3_hybrid_su/version_config.py</code>, both a
+    <code>VERSIONS</code> dict keyed by version string (e.g.
+    <code>"3.3.17 hybrid"</code>), listing source spreadsheet filenames,
+    worksheet names, and column-name → schema-field mappings.
+  </blockquote>
+
+  <h3>How is the compressed CSV data itself read or written?</h3>
+  <blockquote>
+    <code>utils.py</code> at the package root for the generic reader used by the
+    runtime API (<code>load_compressed_csv</code>, <code>iterate_compressed_csv</code>,
+    <code>load_compressed_csv_as_dataframe</code>); the per-variant
+    <code>conversion/exiobase_3_hybrid_{io,su}/utils.py</code> for the
+    conversion-time writer <code>write_compressed_csv()</code> and
+    <code>.xlsb</code> extraction helpers (<code>read_xlsb</code>,
+    <code>convert_xlsb</code>, <code>extract_with_pandas</code>).
+  </blockquote>
+
+  <div class="related">
+    <strong>Related modules:</strong><br>
+    <a href="../bw2io/index.html">bw2io</a> — imports EXIOBASE/MRIO data into Brightway, consuming datapackages produced/read via this package.<br>
+    <a href="../bw_processing/index.html">bw_processing</a> — Brightway's own datapackage format; overlapping frictionless-data-style <code>datapackage.json</code> metadata conventions, though a distinct on-disk layout.
+  </div>
+
+</div>
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

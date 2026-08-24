@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bw2analyzer — code map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+  <h1><span class="pkgname">bw2analyzer</span></h1>
+  <p class="tagline">
+    The results/analysis layer of Brightway 2.5 — takes an already-solved
+    <code>bw2calc.LCA</code> object and <code>bw2data</code> activities and turns them
+    into contribution rankings, activity-to-activity comparisons, tag-based
+    aggregation, supply-chain graph post-processing, and database health checks.
+    It performs no LCA calculation itself; it consumes what <code>bw2calc</code>
+    and <code>bw2data</code> already produced.
+  </p>
+
+  <h2>Key files</h2>
+  <table>
+    <tr><th>File</th><th>Role</th></tr>
+    <tr><td><code>__init__.py</code></td><td>Public API (<code>__all__</code>)</td></tr>
+    <tr><td><code>contribution.py</code></td><td><code>ContributionAnalysis</code> — sorting/top-N helpers (<code>sort_array</code>, <code>top_matrix</code>, <code>top_processes</code>, <code>top_emissions</code>, <code>annotated_top_processes</code>, <code>annotated_top_emissions</code>, <code>hinton_matrix</code>, <code>d3_treemap</code>) for the biggest contributors in an LCA's matrices</td></tr>
+    <tr><td><code>comparisons.py</code></td><td>Compare activities: <code>compare_activities_by_lcia_score</code>, <code>compare_activities_by_grouped_leaves</code>, <code>find_differences_in_inputs</code>, plus helpers <code>aggregated_dict</code>, <code>compare_dictionaries</code>, <code>find_leaves</code>, <code>group_leaves</code>, <code>get_cpc</code></td></tr>
+    <tr><td><code>tagged.py</code></td><td>Tag-based supply-chain traversal/aggregation: <code>traverse_tagged_databases</code>, <code>recurse_tagged_database</code>, <code>aggregate_tagged_graph</code>; multi-method variants <code>multi_traverse_tagged_databases</code>, <code>multi_recurse_tagged_database</code>, <code>multi_aggregate_tagged_graph</code>; cumulative-impact helpers <code>get_cum_impact</code>, <code>get_multi_cum_impact</code></td></tr>
+    <tr><td><code>sc_graph.py</code></td><td><code>GTManipulator</code> — post-processes <code>bw2calc</code> <code>GraphTraversal</code> <code>nodes</code>/<code>edges</code> results: <code>unroll_graph</code>, <code>simplify</code>/<code>simplify_naive</code>, <code>add_metadata</code>, <code>d3_force_directed</code>, <code>d3_treemap</code> (D3.js-ready JSON)</td></tr>
+    <tr><td><code>page_rank.py</code></td><td><code>PageRank</code> — Google-style PageRank over a database's technosphere matrix to rank activities by "importance" (<code>ConvergenceError</code> if it doesn't converge)</td></tr>
+    <tr><td><code>health_check.py</code></td><td><code>DatabaseHealthCheck</code> — sanity-checks a <code>bw2data</code> <code>Database</code>: <code>unique_exchanges</code>, <code>uncertainty_check</code>, <code>multioutput_processes</code>, <code>aggregated_processes</code>, <code>no_self_production</code>, <code>page_rank()</code>, <code>make_graphs()</code>/<code>check()</code></td></tr>
+    <tr><td><code>matrix_grapher.py</code></td><td><code>SparseMatrixGrapher</code> — matplotlib scatter plots of a sparse matrix's non-zero structure (<code>graph</code>, <code>magnitude_graph</code>, <code>ordered_graph</code> via <code>reverse_cuthill_mckee</code> reordering)</td></tr>
+    <tr><td><code>lci.py</code></td><td><code>get_labeled_inventory(lca)</code> — turns <code>lca.inventory</code> into a labeled <code>pandas.DataFrame</code> (activity-metadata <code>MultiIndex</code> rows/columns)</td></tr>
+    <tr><td><code>econ.py</code></td><td>Economic concentration/inequality statistics on plain arrays: <code>gini_coefficient</code>, <code>herfindahl_index</code>, <code>concentration_ratio</code>, <code>theil_index</code></td></tr>
+    <tr><td><code>utils.py</code></td><td><code>print_recursive_calculation</code>, <code>print_recursive_supply_chain</code> (recursive console traversal/printing), plus <code>contribution_for_all_datasets_one_method</code>, <code>recursive_calculation_to_object</code>, <code>infinite_alphabet</code></td></tr>
+    <tr><td><code>report.py</code></td><td><code>SerializedLCAReport</code> — Monte Carlo + treemap + force-directed report builder; <strong>not</strong> exported in <code>__init__.py</code> (commented out of <code>__all__</code>)</td></tr>
+    <tr><td><code>version.py</code></td><td><code>version = (0, 11, 8)</code>, re-exported as <code>bw2analyzer.__version__</code></td></tr>
+  </table>
+
+  <h2>Main classes / entry points</h2>
+  <p>All below are re-exported from <code>bw2analyzer</code> top-level (see <code>__init__.py</code> <code>__all__</code>):</p>
+  <div class="grid">
+    <div class="card"><a class="name" href="#">ContributionAnalysis</a><p>contribution.py — top-N contributors, sorted matrix values.</p></div>
+    <div class="card"><a class="name" href="#">compare_activities_by_lcia_score</a><p>comparisons.py — rank/band activities by LCIA score.</p></div>
+    <div class="card"><a class="name" href="#">compare_activities_by_grouped_leaves</a><p>comparisons.py — diff activities by grouped leaf inputs.</p></div>
+    <div class="card"><a class="name" href="#">find_differences_in_inputs</a><p>comparisons.py — diff two activities' exchange dicts.</p></div>
+    <div class="card"><a class="name" href="#">traverse_tagged_databases</a><p>tagged.py — aggregate impacts by custom tag label.</p></div>
+    <div class="card"><a class="name" href="#">GTManipulator</a><p>sc_graph.py — post-process GraphTraversal nodes/edges.</p></div>
+    <div class="card"><a class="name" href="#">PageRank</a><p>page_rank.py — importance-rank activities in a database.</p></div>
+    <div class="card"><a class="name" href="#">DatabaseHealthCheck</a><p>health_check.py — data-quality checks on a Database.</p></div>
+    <div class="card"><a class="name" href="#">print_recursive_calculation</a><p>utils.py — print an LCIA-weighted supply-chain trace.</p></div>
+    <div class="card"><a class="name" href="#">print_recursive_supply_chain</a><p>utils.py — print an unweighted supply-chain trace.</p></div>
+  </div>
+
+  <h2>Typical usage</h2>
+  <pre><code>import bw2data as bd
+import bw2calc as bc
+from bw2analyzer import ContributionAnalysis
+
+bd.projects.set_current("my project")
+activity = bd.get_node(name="some activity")
+
+lca = bc.LCA({activity: 1}, method=("some", "method"))
+lca.lci()
+lca.lcia()
+
+# Top contributing processes/emissions to the score just computed
+ca = ContributionAnalysis()
+top_processes = ca.annotated_top_processes(lca, limit=10)
+top_emissions = ca.annotated_top_emissions(lca, limit=10)
+
+for score, amount, name in top_processes:
+    print(f"{score:.4g}  {name}")
+
+# Human-readable recursive trace of where the score comes from
+from bw2analyzer import print_recursive_calculation
+print_recursive_calculation(activity, ("some", "method"), max_level=3, cutoff=0.02)
+</code></pre>
+
+  <h2>Where to look</h2>
+
+  <h3>I have a solved <code>bw2calc.LCA</code>, how do I find its biggest contributors?</h3>
+  <p><code>contribution.py</code> <code>ContributionAnalysis</code> — call
+  <code>.annotated_top_processes(lca)</code> or <code>.annotated_top_emissions(lca)</code>
+  for human-readable <code>(score, amount, name)</code> results;
+  <code>.top_matrix()</code> / <code>.sort_array()</code> are the lower-level numeric
+  building blocks.</p>
+
+  <h3>How do I compare two activities, or see why their LCA scores differ?</h3>
+  <p><code>comparisons.py</code>: <code>compare_activities_by_lcia_score</code>
+  (band-based ranking of several activities by score) and
+  <code>compare_activities_by_grouped_leaves</code> /
+  <code>find_differences_in_inputs</code> (diff underlying leaf-level inputs, via
+  <code>find_leaves</code> / <code>group_leaves</code>).</p>
+
+  <h3>How do I aggregate impacts by a custom tag instead of by activity?</h3>
+  <p><code>tagged.py</code> <code>traverse_tagged_databases</code> (single LCIA method)
+  and <code>multi_traverse_tagged_databases</code> (several methods at once); tags
+  come from an activity/exchange <code>"tag"</code> key (configurable <code>label</code>
+  arg), falling back to <code>default_tag</code> when absent.</p>
+
+  <h3>How do I turn a <code>GraphTraversal</code> result into a treemap / force-directed
+  graph, or simplify it?</h3>
+  <p><code>sc_graph.py</code> <code>GTManipulator</code> — <code>unroll_graph</code>,
+  <code>simplify</code> / <code>simplify_naive</code>, <code>d3_treemap</code>,
+  <code>d3_force_directed</code>.</p>
+
+  <h3>How do I sanity-check a whole database for data-quality issues?</h3>
+  <p><code>health_check.py</code> <code>DatabaseHealthCheck(database).check()</code> —
+  bundles duplicate/unlinked exchange checks, uncertainty-distribution sanity
+  checks, multi-output/self-production checks, and PageRank-based importance
+  ranking (delegates to <code>page_rank.py</code> and
+  <code>matrix_grapher.py</code>).</p>
+
+  <h3>How do I get the inventory as a labeled table, or print a
+  human-readable supply-chain trace?</h3>
+  <p><code>lci.py</code> <code>get_labeled_inventory(lca)</code> for a labeled
+  <code>pandas.DataFrame</code>; <code>utils.py</code>
+  <code>print_recursive_calculation</code> (LCIA-weighted, needs a method) and
+  <code>print_recursive_supply_chain</code> (unweighted amounts only) for
+  console output.</p>
+
+  <div class="related">
+    <h2>Related modules</h2>
+    <a href="../bw2calc/index.html">bw2calc</a> — produces the solved <code>LCA</code> objects (score, inventory, technosphere matrix) that bw2analyzer's contribution/comparison/health-check functions consume.<br>
+    <a href="../bw2data/index.html">bw2data</a> — supplies the <code>Activity</code>/<code>Database</code> objects, exchanges, and tags that bw2analyzer reads and reports on.<br>
+    <a href="../bw_graph_tools/index.html">bw_graph_tools</a> — the lower-level supply-chain graph traversal engine; <code>sc_graph.py</code> here post-processes the <code>nodes</code>/<code>edges</code> results that traversal produces.
+  </div>
+</div>
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

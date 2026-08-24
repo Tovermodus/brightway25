@@ -1,0 +1,163 @@
+<!doctype html>
+<title>matrix_utils — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css">
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+
+  <h1><span class="pkgname">matrix_utils</span></h1>
+  <p class="tagline">
+    Turns <code>bw_processing</code> datapackages into <code>scipy.sparse</code> matrices —
+    the glue layer between on-disk/in-memory LCA data resources and the matrices
+    <code>bw2calc</code> actually factorizes. Version installed: <code>0.9</code>.
+  </p>
+
+  <blockquote>
+    <code>matrix_utils</code> has no LCA-specific knowledge. It doesn't know what a
+    "technosphere" or "biosphere" matrix is — it just knows how to map arbitrary
+    integer ids to dense matrix indices, merge multiple data sources into one sparse
+    matrix, and advance that matrix through Monte Carlo iterations or scenarios.
+    That semantic meaning is layered on top by <code>bw2calc</code>.
+  </blockquote>
+
+  <h2>Key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>matrix_utils/__init__.py</code></td><td>Version string and public API (<code>__all__</code>).</td></tr>
+      <tr><td><code>matrix_utils/mapped_matrix.py</code></td><td><code>MappedMatrix</code> — the core class. Builds one <code>scipy.sparse.csr_matrix</code> from a set of datapackages + a matrix label, wires up indexers, exposes <code>input_*</code> introspection methods.</td></tr>
+      <tr><td><code>matrix_utils/mapped_matrix_dict.py</code></td><td><code>MappedMatrixDict</code> (a dict of <code>MappedMatrix</code> objects sharing row/col mappers and one global indexer) and <code>SparseMatrixDict</code> (dict of plain sparse matrices with <code>@</code> overloaded).</td></tr>
+      <tr><td><code>matrix_utils/resource_group.py</code></td><td><code>ResourceGroup</code> — wraps one datapackage "group" (data + indices + optional flip/rescale/distributions/params) contributing to a matrix. Handles index mapping, masking, intra-group aggregation, and per-iteration <code>calculate()</code>.</td></tr>
+      <tr><td><code>matrix_utils/array_mapper.py</code></td><td><code>ArrayMapper</code> — maps an arbitrary 1-D array of non-negative integer ids onto dense <code>0..n-1</code> indices via a sparse lookup matrix. Used for both row and column mapping.</td></tr>
+      <tr><td><code>matrix_utils/indexers.py</code></td><td>Iteration/scenario state: <code>Indexer</code>, <code>RandomIndexer</code>, <code>SequentialIndexer</code>, <code>CombinatorialIndexer</code>, <code>Proxy</code>.</td></tr>
+      <tr><td><code>matrix_utils/aggregation.py</code></td><td><code>aggregate_with_sparse</code> — sums duplicate <code>(row, col)</code> entries via a throwaway <code>coo_matrix</code>; used when <code>sum_intra_duplicates</code> is set.</td></tr>
+      <tr><td><code>matrix_utils/utils.py</code></td><td>Helper functions used in <code>MappedMatrix.__init__</code>: <code>filter_groups_for_packages</code>, <code>has_relevant_data</code>, <code>safe_concatenate_indices</code>, <code>unroll</code>, <code>handle_all_arrays_empty</code>.</td></tr>
+      <tr><td><code>matrix_utils/errors.py</code></td><td><code>MatrixUtilsError</code> base class, plus <code>AllArraysEmpty</code>, <code>NoArrays</code>, <code>EmptyArray</code>, <code>EmptyInterface</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Main classes &amp; entry points</h2>
+  <p>Everything below is exported from the top-level package (see <code>__init__.py</code> <code>__all__</code>):</p>
+  <div class="grid">
+    <div class="card">
+      <a class="name">MappedMatrix</a>
+      <p><code>mapped_matrix.py</code> — build one sparse matrix from a list of datapackages targeting the same matrix label.</p>
+    </div>
+    <div class="card">
+      <a class="name">MappedMatrixDict</a>
+      <p><code>mapped_matrix_dict.py</code> — a dict of <code>MappedMatrix</code> objects sharing row/col mapping and a global indexer.</p>
+    </div>
+    <div class="card">
+      <a class="name">SparseMatrixDict</a>
+      <p><code>mapped_matrix_dict.py</code> — dict of plain <code>scipy.sparse</code> matrices; overloads <code>@</code> for bulk multiplication.</p>
+    </div>
+    <div class="card">
+      <a class="name">ArrayMapper</a>
+      <p><code>array_mapper.py</code> — map arbitrary integer ids to dense <code>0..n-1</code> matrix indices.</p>
+    </div>
+    <div class="card">
+      <a class="name">ResourceGroup</a>
+      <p><code>resource_group.py</code> — one datapackage group's data/indices/masks/aggregation logic.</p>
+    </div>
+    <div class="card">
+      <a class="name">RandomIndexer</a>
+      <p><code>indexers.py</code> — seeded RNG (via <code>numpy.random.Generator</code>) producing the next column/sample index.</p>
+    </div>
+    <div class="card">
+      <a class="name">SequentialIndexer</a>
+      <p><code>indexers.py</code> — simple incrementing index, wraps at array width by consumers.</p>
+    </div>
+    <div class="card">
+      <a class="name">CombinatorialIndexer</a> / <a class="name">Proxy</a>
+      <p><code>indexers.py</code> — cartesian product over several <code>max_values</code>; <code>Proxy</code> exposes one dimension of it per resource group.</p>
+    </div>
+  </div>
+
+  <h2>Typical usage</h2>
+  <p>Building a matrix from one or more <code>bw_processing</code> datapackages, then stepping through Monte Carlo iterations:</p>
+  <pre><code>from bw_processing import load_datapackage, create_datapackage
+from matrix_utils import MappedMatrix
+
+# `packages` is a list of already-loaded bw_processing Datapackage objects,
+# each containing one or more resource groups tagged matrix="technosphere_matrix"
+mm = MappedMatrix(
+    packages=packages,
+    matrix="technosphere_matrix",
+    use_vectors=True,
+    use_arrays=True,
+    use_distributions=False,
+)
+
+mm.matrix               # scipy.sparse.csr_matrix, ready to use
+mm.row_mapper.to_dict()  # {original_row_id: matrix_row_index, ...}
+
+# Advance to the next Monte Carlo iteration / scenario column and refill in place
+next(mm)
+mm.matrix  # same object, data updated
+
+# Trace elements back to their source datapackage
+mm.input_provenance()     # [(datapackage, group_label, (start, end)), ...]
+mm.input_raw_indices()    # original ids, aligned with input_data_vector()
+</code></pre>
+
+  <h2>Where to look</h2>
+
+  <h3>How does a datapackage row/col id become a matrix row/col index?</h3>
+  <p><code>ArrayMapper</code> in <code>matrix_utils/array_mapper.py</code>. It dedupes and sorts the input id
+  array, builds a one-column sparse lookup, and exposes <code>map_array()</code> (returns <code>-1</code>
+  for unmapped ids), plus <code>to_dict()</code>/<code>reverse_dict()</code> for debugging. <code>MappedMatrix.__init__</code>
+  builds a row and column <code>ArrayMapper</code> automatically unless one is passed in explicitly
+  (used to force alignment with an existing mapping, e.g. reusing a biosphere row mapping
+  when building a characterization matrix).</p>
+
+  <h3>How do I build a matrix from a set of datapackages?</h3>
+  <p><code>MappedMatrix.__init__</code> in <code>matrix_utils/mapped_matrix.py</code>. Flow: filter resource
+  groups down to the requested <code>matrix</code> label (<code>utils.filter_groups_for_packages</code>) →
+  wrap each in a <code>ResourceGroup</code> → build/attach row &amp; column <code>ArrayMapper</code>s →
+  assemble an empty <code>scipy.sparse.coo_matrix</code> sized to the mapped dimensions → <code>.tocsr()</code>
+  → <code>rebuild_matrix()</code> to fill in data. Raises <code>AllArraysEmpty</code> unless <code>empty_ok=True</code>.</p>
+
+  <h3>How does Monte Carlo / scenario iteration work?</h3>
+  <p><code>matrix_utils/indexers.py</code> defines the indexer types; <code>MappedMatrix.add_indexers</code>
+  (in <code>mapped_matrix.py</code>) picks one indexer per datapackage based on its metadata
+  (<code>combinatorial</code>, <code>sequential</code>, or falls back to a seeded <code>RandomIndexer</code>), shared
+  across all of that package's resource groups. Calling <code>next(mapped_matrix)</code> runs
+  <code>MappedMatrix.__next__</code> → <code>iterate_indexers()</code> then <code>rebuild_matrix()</code>, which recomputes
+  each group's <code>(row, col, data)</code> via <code>ResourceGroup.calculate()</code>.</p>
+
+  <h3>How do several matrices stay aligned across scenarios (e.g. per-database matrices)?</h3>
+  <p><code>MappedMatrixDict</code> in <code>matrix_utils/mapped_matrix_dict.py</code>. It forces every
+  <code>MappedMatrix</code> it builds to share the same <code>row_mapper</code>/<code>col_mapper</code> and the same
+  <code>global_indexer</code>, so <code>next(mapped_matrix_dict)</code> advances all of them together.
+  <code>SparseMatrixDict</code> (same file) overloads <code>@</code> so a dict of matrices can be multiplied
+  against a sparse matrix or another dict in one call, using <code>utils.unroll</code> to merge
+  tuple keys.</p>
+
+  <h3>What's the difference between a resource group's <code>.row_mapped</code> and <code>.row</code>?</h3>
+  <p><code>ResourceGroup</code> in <code>matrix_utils/resource_group.py</code> — see the class docstring
+  (top of the file) for a worked example. <code>.row_mapped</code>/<code>.col_mapped</code> are raw datapackage
+  ids run through the <code>ArrayMapper</code> (may contain <code>-1</code> for unmapped ids); <code>.row</code>/<code>.col</code>
+  are what actually gets inserted into the matrix, after optional intra-group aggregation
+  (<code>sum_intra_duplicates</code>, via <code>aggregation.aggregate_with_sparse</code>) and masking out
+  unmapped or filtered elements.</p>
+
+  <h3>What exceptions can this package raise?</h3>
+  <p><code>matrix_utils/errors.py</code>: <code>AllArraysEmpty</code> (no data available to build the
+  requested matrix — message built by <code>utils.handle_all_arrays_empty</code>), <code>EmptyArray</code>
+  (an <code>ArrayMapper</code> got/was asked to map an empty array without <code>empty_ok=True</code>),
+  <code>EmptyInterface</code> (a datapackage interface resource is "dehydrated" and needs
+  rehydrating before use — checked in <code>MappedMatrix.__init__</code>), and <code>NoArrays</code>
+  (defined for API compatibility; not currently raised within this package).</p>
+
+  <div class="related">
+    <a href="../bw_processing/index.html">bw_processing</a> — the datapackage format that <code>matrix_utils</code> reads (vectors, arrays, indices, flip/rescale, metadata).<br>
+    <a href="../bw2calc/index.html">bw2calc</a> — the LCA calculation engine that uses <code>MappedMatrix</code>/<code>MappedMatrixDict</code> to build technosphere, biosphere, and characterization matrices and solve the linear systems.<br>
+    <a href="../bw2data/index.html">bw2data</a> — the database layer whose integer node/activity "row ids" are exactly the ids that <code>ArrayMapper</code> maps to matrix row/column indices.<br>
+  </div>
+
+</div>
+<footer class="site">brightway25 code map</footer>

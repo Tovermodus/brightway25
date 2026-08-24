@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>stats_arrays — brightway25 code map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+
+  <h1><span class="pkgname">stats_arrays</span></h1>
+  <p class="tagline">
+    Uncertainty distribution definitions and Monte Carlo random number
+    generation, shared across the Brightway stack for representing and
+    sampling parameter/exchange uncertainty (means, standard deviations,
+    bounds, distribution shape).
+  </p>
+
+  <h2>Key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>distributions/base.py</code></td><td><code>UncertaintyBase</code> — abstract base class every distribution subclasses: validation, <code>from_tuples()</code>/<code>from_dicts()</code> constructors for building params arrays, <code>bounded_random_variables()</code>/<code>random_variables()</code>, <code>ppf()</code>, <code>cdf()</code>, <code>pdf()</code>, <code>statistics()</code>. <code>BoundedUncertaintyBase</code> — base for distributions confined to <code>[minimum, maximum]</code> (rescales to/from the unit interval for SciPy).</td></tr>
+      <tr><td><code>distributions/bernoulli.py</code></td><td><code>BernoulliUncertainty</code> — id <code>6</code>, Bernoulli/binary uncertainty.</td></tr>
+      <tr><td><code>distributions/beta.py</code></td><td><code>BetaUncertainty</code> — id <code>10</code>, Beta distribution.</td></tr>
+      <tr><td><code>distributions/beta_pert.py</code></td><td><code>BetaPERTUncertainty</code> (subclass of <code>BetaUncertainty</code>) — id <code>13</code>, Beta-PERT (min/mode/max parameterized).</td></tr>
+      <tr><td><code>distributions/discrete_uniform.py</code></td><td><code>DiscreteUniform</code> — id <code>7</code>, discrete uniform uncertainty over integers.</td></tr>
+      <tr><td><code>distributions/extreme.py</code></td><td><code>GeneralizedExtremeValueUncertainty</code> — id <code>11</code>, generalized extreme value (GEV) distribution.</td></tr>
+      <tr><td><code>distributions/gamma.py</code></td><td><code>GammaUncertainty</code> — id <code>9</code>, Gamma distribution.</td></tr>
+      <tr><td><code>distributions/geometric.py</code></td><td><code>UniformUncertainty</code> (id <code>4</code>) and <code>TriangularUncertainty</code> (id <code>5</code>) — both bounded distributions.</td></tr>
+      <tr><td><code>distributions/lognormal.py</code></td><td><code>LognormalUncertainty</code> — id <code>2</code>, lognormal distribution.</td></tr>
+      <tr><td><code>distributions/normal.py</code></td><td><code>NormalUncertainty</code> — id <code>3</code>, normal (Gaussian) distribution.</td></tr>
+      <tr><td><code>distributions/student.py</code></td><td><code>StudentsTUncertainty</code> — id <code>12</code>, Student's t distribution.</td></tr>
+      <tr><td><code>distributions/undefined.py</code></td><td><code>UndefinedUncertainty</code> — id <code>0</code>, "undefined or unknown uncertainty" (returns <code>loc</code> when sampled). <code>NoUncertainty</code> (subclass) — id <code>1</code>, fixed/no uncertainty.</td></tr>
+      <tr><td><code>distributions/weibull.py</code></td><td><code>WeibullUncertainty</code> — id <code>8</code>, Weibull distribution.</td></tr>
+      <tr><td><code>random.py</code></td><td><code>RandomNumberGenerator</code> — single-distribution-type generator over a params array. <code>MCRandomNumberGenerator</code> — Monte Carlo generator over a params array with <em>mixed</em> uncertainty types per row. <code>LatinHypercubeRNG</code> — Latin hypercube variant.</td></tr>
+      <tr><td><code>uncertainty_choices.py</code></td><td><code>UncertaintyChoices</code> — registry mapping integer id → distribution class; <code>DISTRIBUTIONS</code> tuple of all built-ins; module-level singleton <code>uncertainty_choices</code>.</td></tr>
+      <tr><td><code>uncertainty_types.py</code></td><td><code>UncertaintyType(IntEnum)</code> — named constants for every distribution id, e.g. <code>UncertaintyType.normal == 3</code>.</td></tr>
+      <tr><td><code>dataset_statistics.py</code></td><td>Free functions <code>weighted_mean()</code>, <code>weighted_sample_variance()</code>, <code>weighted_sample_stddev()</code>.</td></tr>
+      <tr><td><code>errors.py</code></td><td>All exceptions: <code>StatsArraysError</code> (base), <code>ImproperBoundsError</code>, <code>MaximumIterationsError</code>, <code>UnknownUncertaintyType</code>, <code>UndefinedDistributionError</code>, <code>InvalidParamsError</code>, <code>MultipleRowParamsArrayError</code>, <code>UnreasonableBoundsError</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Main classes and entry points</h2>
+  <p>
+    From <code>__init__.py</code>'s <code>__all__</code>, the package exports:
+  </p>
+  <div class="grid">
+    <div class="card">
+      <a class="name">Distribution classes</a>
+      <p><code>UncertaintyBase</code>, <code>BoundedUncertaintyBase</code>,
+      <code>BernoulliUncertainty</code>, <code>BetaUncertainty</code>,
+      <code>BetaPERTUncertainty</code>, <code>DiscreteUniform</code>,
+      <code>GammaUncertainty</code>,
+      <code>GeneralizedExtremeValueUncertainty</code>,
+      <code>LognormalUncertainty</code>, <code>NormalUncertainty</code>,
+      <code>NoUncertainty</code>, <code>StudentsTUncertainty</code>,
+      <code>TriangularUncertainty</code>, <code>UndefinedUncertainty</code>,
+      <code>UniformUncertainty</code>, <code>WeibullUncertainty</code></p>
+    </div>
+    <div class="card">
+      <a class="name">Enums &amp; registries</a>
+      <p><code>UncertaintyType</code> (IntEnum of ids) and
+      <code>uncertainty_choices</code> (the <code>UncertaintyChoices</code>
+      singleton).</p>
+    </div>
+    <div class="card">
+      <a class="name">Random number generation</a>
+      <p><code>RandomNumberGenerator</code>, <code>MCRandomNumberGenerator</code>,
+      <code>LatinHypercubeRNG</code>.</p>
+    </div>
+    <div class="card">
+      <a class="name">Errors</a>
+      <p><code>StatsArraysError</code> and its subclasses (see key files
+      table above).</p>
+    </div>
+  </div>
+
+  <h3>Numeric type codes and <code>UncertaintyBase</code></h3>
+  <p>
+    Every distribution class carries a class attribute <code>id</code> — a
+    small integer &lt; 256 — that identifies it, plus a <code>description</code>
+    string. <code>UncertaintyType</code> (<code>uncertainty_types.py</code>) is
+    an <code>IntEnum</code> giving names to the same integers
+    (<code>UncertaintyType.normal == 3 == NormalUncertainty.id</code>), and
+    <code>uncertainty_choices</code> (<code>uncertainty_choices.py</code>) is a
+    registry that looks a distribution class up by that integer:
+    <code>uncertainty_choices[UncertaintyType.normal] is NormalUncertainty</code>.
+  </p>
+  <p>
+    Parameters for one or more distributions are stored in a "params array" —
+    a numpy structured array with fields <code>loc</code>, <code>scale</code>,
+    <code>shape</code>, <code>minimum</code>, <code>maximum</code>,
+    <code>negative</code>, and (usually) <code>uncertainty_type</code>
+    (see <code>utils.py</code>'s <code>BASE_DTYPE_FIELDS</code>). This exact
+    field layout — same names, same order — is mirrored by
+    <code>bw_processing.constants.UNCERTAINTY_DTYPE</code> (which uses
+    <code>float32</code> instead of <code>float64</code>), so an uncertainty
+    resource read out of a datapackage can be handed straight to
+    <code>stats_arrays</code>' RNG classes without conversion.
+  </p>
+
+  <h2>Typical usage</h2>
+  <pre><code>from stats_arrays import (
+    UncertaintyBase,
+    TriangularUncertainty,
+    MCRandomNumberGenerator,
+    RandomNumberGenerator,
+)
+
+# Single distribution type: build a params array and sample directly
+params = TriangularUncertainty.from_dicts(
+    {"loc": 5, "minimum": 3, "maximum": 10},
+    {"loc": 1, "minimum": 0.7, "maximum": 4.4},
+)
+rng = RandomNumberGenerator(TriangularUncertainty, params, seed=42)
+samples = rng.generate_random_numbers()  # one row of samples per params row
+
+# Mixed distribution types in a single array, keyed by uncertainty_type id
+params = UncertaintyBase.from_dicts(
+    {"loc": 5, "minimum": 3, "maximum": 10, "uncertainty_type": 5},  # triangular
+    {"loc": 1, "scale": 0.7, "uncertainty_type": 3},                 # normal
+)
+mcrng = MCRandomNumberGenerator(params, seed=42)
+next(mcrng)   # one Monte Carlo draw per row, dispatched to the right distribution
+</code></pre>
+
+  <h2>Where to look</h2>
+
+  <h3>How do I know which integer code means which distribution?</h3>
+  <p>
+    <code>uncertainty_types.py</code> — <code>UncertaintyType(IntEnum)</code>,
+    e.g. <code>normal = 3</code>, <code>lognormal = 2</code>,
+    <code>triangular = 5</code>, <code>beta_pert = 13</code>. Each
+    distribution class's <code>id</code> attribute equals the same integer,
+    and <code>uncertainty_choices[id]</code>
+    (<code>uncertainty_choices.py</code>) resolves an integer to its class.
+  </p>
+
+  <h3>What's the shape/dtype of a "params array"?</h3>
+  <p>
+    <code>utils.py</code> — <code>BASE_DTYPE_FIELDS</code> /
+    <code>BASE_DTYPE</code> define the numpy structured dtype
+    (<code>loc</code>, <code>scale</code>, <code>shape</code>,
+    <code>minimum</code>, <code>maximum</code>, <code>negative</code>, plus
+    <code>uncertainty_type</code> when <code>include_type=True</code>).
+    <code>construct_params_array()</code> builds an empty one;
+    <code>UncertaintyBase.from_tuples()</code> /
+    <code>UncertaintyBase.from_dicts()</code>
+    (<code>distributions/base.py</code>) build one from plain Python data.
+  </p>
+
+  <h3>How do I sample from an array containing several different distribution types?</h3>
+  <p>
+    <code>random.py</code>'s <code>MCRandomNumberGenerator</code> sorts rows
+    by <code>uncertainty_type</code>, groups them via
+    <code>get_positions()</code>, calls each distribution's
+    <code>bounded_random_variables()</code>/<code>random_variables()</code>
+    per group, then restores the original row order. Use plain
+    <code>RandomNumberGenerator</code> instead when every row is the same
+    distribution type.
+  </p>
+
+  <h3>How do I add a new distribution?</h3>
+  <p>
+    Add a <code>distributions/&lt;name&gt;.py</code> module with a class
+    subclassing <code>UncertaintyBase</code> (or
+    <code>BoundedUncertaintyBase</code> for a <code>[minimum, maximum]</code>
+    bounded distribution) in <code>distributions/base.py</code>. Set a unique
+    <code>id</code> (&lt; 256) and a <code>description</code>, then register
+    the class in the <code>DISTRIBUTIONS</code> tuple in
+    <code>uncertainty_choices.py</code> so it is picked up by
+    <code>uncertainty_choices</code> and <code>MCRandomNumberGenerator</code>.
+  </p>
+
+  <h3>What exceptions can this package raise, and when?</h3>
+  <p>
+    <code>errors.py</code> — e.g. <code>InvalidParamsError</code> (bad params
+    array on construction), <code>ImproperBoundsError</code> /
+    <code>UnreasonableBoundsError</code> (bad or too-narrow min/max),
+    <code>MaximumIterationsError</code> (couldn't sample within bounds in
+    <code>maximum_iterations</code> tries), <code>UnknownUncertaintyType</code>
+    (id not registered in <code>uncertainty_choices</code>),
+    <code>MultipleRowParamsArrayError</code> (a function needing a
+    single-row params array got several — see the
+    <code>one_row_params_array</code> decorator in <code>utils.py</code>).
+  </p>
+
+  <h3>How do PDF/CDF/percentile calculations work?</h3>
+  <p>
+    <code>distributions/base.py</code>'s <code>UncertaintyBase.pdf()</code>,
+    <code>.cdf()</code>, <code>.ppf()</code>, <code>.statistics()</code> are
+    classmethods every concrete distribution implements/overrides (built on
+    SciPy); <code>default_number_points_in_pdf</code> (200) and
+    <code>standard_deviations_in_default_range</code> (2.2) control default
+    resolution/range.
+  </p>
+
+  <div class="related">
+    <strong>Related modules:</strong><br>
+    <a href="../bw_processing/index.html">bw_processing</a> — stores exchange/parameter uncertainty using the same field layout in <code>UNCERTAINTY_DTYPE</code> (mirrors <code>stats_arrays</code>' params array dtype).<br>
+    <a href="../bw2calc/index.html">bw2calc</a> — its Monte Carlo LCA classes sample from datapackage uncertainty data using <code>stats_arrays</code>' RNG classes.<br>
+    <a href="../bw2data/index.html">bw2data</a> — writes exchange/parameter uncertainty (uncertainty type + params) that ends up in this format.<br>
+    <a href="../bw2parameters/index.html">bw2parameters</a> — parameterized exchanges that also carry uncertainty distributions defined here.
+  </div>
+
+</div>
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

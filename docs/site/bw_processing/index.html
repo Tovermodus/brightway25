@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bw_processing — brightway25 code map</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+<div class="wrap">
+
+  <h1><span class="pkgname">bw_processing</span></h1>
+  <p class="tagline">
+    The on-disk "datapackage" format Brightway uses to store technosphere,
+    biosphere, and characterization matrix data — structured numpy (or
+    Parquet) arrays plus JSON metadata, written by <code>bw2data</code> and
+    read by <code>bw2calc</code>/<code>matrix_utils</code> to build live
+    scipy matrices.
+  </p>
+
+  <h2>Key files</h2>
+  <table>
+    <thead><tr><th>File</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><code>datapackage.py</code></td><td>The main API (~1700 lines). <code>DatapackageBase</code> (ABC) for shared read/query logic, <code>Datapackage</code> — the concrete read/write class with all <code>add_*</code> resource methods, <code>FilteredDatapackage</code> — read-only filtered view. Module functions <code>create_datapackage()</code>, <code>load_datapackage()</code>, deprecated <code>simple_graph()</code>.</td></tr>
+      <tr><td><code>matrix_entry.py</code></td><td>Modern, recommended high-level API: <code>MatrixEntry</code> (one row/col/amount/uncertainty entry), <code>ArrayEntry</code> (a whole scenario-array resource group), <code>MatrixName</code> (str Enum of standard matrix names), <code>create_datapackage_from_entries()</code>.</td></tr>
+      <tr><td><code>constants.py</code></td><td><code>INDICES_DTYPE</code>, <code>UNCERTAINTY_DTYPE</code>, <code>MatrixSerializeFormat</code>, <code>DEFAULT_LICENSES</code> — the fixed numpy structured dtypes every datapackage array uses.</td></tr>
+      <tr><td><code>array_creation.py</code></td><td><code>create_array</code>, <code>create_structured_array</code>, plus <code>chunked</code>/<code>create_chunked</code> helpers for building arrays from iterators in bounded-memory chunks.</td></tr>
+      <tr><td><code>param_labels.py</code></td><td><code>StringLabelSchema</code>, <code>ParamLabelField</code>, <code>ParamLabelSchema</code>, <code>schema_from_json_schema()</code> — schemas for labelling an optional per-resource <code>params_array</code>.</td></tr>
+      <tr><td><code>indexing.py</code></td><td><code>reindex()</code>, <code>reset_index()</code> — remap row/col indices, e.g. after merging or renumbering databases.</td></tr>
+      <tr><td><code>merging.py</code></td><td><code>merge_datapackages_with_mask()</code> and helpers for combining multiple datapackages.</td></tr>
+      <tr><td><code>filesystem.py</code></td><td><code>clean_datapackage_name</code>, <code>safe_filename</code>, <code>md5</code> — filesystem-safety helpers.</td></tr>
+      <tr><td><code>io_helpers.py</code></td><td><code>generic_directory_filesystem()</code>, <code>generic_zipfile_filesystem()</code> (wrap <code>fsspec</code>), and <code>file_reader()</code>/<code>file_writer()</code> that dispatch by mimetype/format (npy, csv, json, parquet), with proxy support.</td></tr>
+      <tr><td><code>io_parquet_helpers.py</code>, <code>io_pyarrow_helpers.py</code></td><td>Parquet serialization backend (optional <code>pyarrow</code> dependency) — numpy structured arrays ⇄ pyarrow Tables ⇄ <code>.parquet</code> files.</td></tr>
+      <tr><td><code>unique_fields.py</code></td><td><code>greedy_set_cover</code>, <code>as_unique_attributes[_dataframe]</code> — find a minimal set of fields that uniquely identify each row, used with <code>add_csv_metadata</code>.</td></tr>
+      <tr><td><code>proxies.py</code></td><td><code>UndefinedInterface</code> (placeholder for external, non-persisted data), <code>Proxy</code> (deferred-read wrapper used when <code>proxy=True</code>).</td></tr>
+      <tr><td><code>utils.py</code></td><td><code>resolve_dict_iterator</code> (turns dict/<code>MatrixEntry</code> iterators into data/indices/distributions/flip/rescale/reference arrays), <code>load_bytes</code>, <code>check_name</code>, <code>as_uncertainty_type</code>, <code>utc_now</code>.</td></tr>
+      <tr><td><code>errors.py</code></td><td>Exception hierarchy off <code>BrightwayProcessingError</code>: <code>InconsistentFields</code>, <code>NonUnique</code>, <code>WrongDatatype</code>, <code>ShapeMismatch</code>, <code>InvalidName</code>, <code>FileIntegrityError</code>, <code>LengthMismatch</code>, etc.</td></tr>
+      <tr><td><code>examples/</code></td><td><code>examples_dir</code>, <code>interfaces.py</code> (<code>ExampleVectorInterface</code>, <code>ExampleArrayInterface</code>), <code>parquet_files.py</code> — bundled example datapackages used in bw_processing's own tests/docs.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Main classes &amp; entry points</h2>
+  <div class="grid">
+    <div class="card">
+      <a class="name">Datapackage</a>
+      <p><code>datapackage.py</code> — the concrete read/write datapackage. <code>add_persistent_vector</code>, <code>add_persistent_array</code>, <code>add_entries</code>, <code>add_csv_metadata</code>, <code>add_json_metadata</code>, <code>get_resource</code>, <code>filter_by_attribute</code>.</p>
+    </div>
+    <div class="card">
+      <a class="name">create_datapackage()</a>
+      <p><code>datapackage.py</code> — build a new, empty <code>Datapackage</code> (in-memory <code>DictFS</code> by default, or a given <code>fsspec</code> filesystem).</p>
+    </div>
+    <div class="card">
+      <a class="name">load_datapackage()</a>
+      <p><code>datapackage.py</code> — read an existing datapackage from a filesystem, with optional <code>mmap_mode</code> / <code>proxy=True</code> lazy loading.</p>
+    </div>
+    <div class="card">
+      <a class="name">MatrixEntry / ArrayEntry</a>
+      <p><code>matrix_entry.py</code> — dataclasses describing one matrix cell (or a whole scenario-array group): row, col, amount, flip, uncertainty params, rescale, reference.</p>
+    </div>
+    <div class="card">
+      <a class="name">create_datapackage_from_entries()</a>
+      <p><code>matrix_entry.py</code> — recommended high-level constructor: <code>{MatrixName: [MatrixEntry, ...]}</code> → <code>Datapackage</code>, no raw numpy needed.</p>
+    </div>
+    <div class="card">
+      <a class="name">MatrixName</a>
+      <p><code>matrix_entry.py</code> — str Enum of standard matrix names: <code>technosphere</code>, <code>biosphere</code>, <code>characterization</code>.</p>
+    </div>
+  </div>
+
+  <h2>Typical usage</h2>
+  <pre><code>from bw_processing import (
+    create_datapackage_from_entries,
+    load_datapackage,
+)
+from bw_processing.matrix_entry import MatrixEntry, MatrixName
+
+# Build a datapackage from plain Python objects
+dp = create_datapackage_from_entries(
+    {
+        MatrixName.technosphere: [
+            MatrixEntry(row=0, col=0, amount=1.0),           # production
+            MatrixEntry(row=1, col=0, amount=2.5, flip=True),  # input, consumed
+        ],
+        MatrixName.biosphere: [
+            MatrixEntry(row=10, col=0, amount=0.3),
+        ],
+    },
+    name="my-first-datapackage",
+)
+
+# Persist it to disk
+from bw_processing import generic_directory_filesystem
+dp.fs = generic_directory_filesystem(dirpath="./my-datapackage")
+dp.finalize_serialization()
+
+# ...later, read it back (e.g. the way bw2calc/matrix_utils do)
+dp2 = load_datapackage(generic_directory_filesystem(dirpath="./my-datapackage"))
+data_array, indices_array, flip_array = dp2.get_resource("my-first-datapackage-data.data")
+</code></pre>
+
+  <h2>Where to look</h2>
+
+  <h3>What does a datapackage actually contain on disk?</h3>
+  <blockquote>
+    <code>constants.py</code> for the fixed dtypes (<code>INDICES_DTYPE</code>,
+    <code>UNCERTAINTY_DTYPE</code>), and <code>Datapackage.add_persistent_vector</code> /
+    <code>add_persistent_array</code> in <code>datapackage.py</code> for how each
+    resource group (indices, data, distributions, flip, rescale, reference)
+    becomes its own <code>.npy</code>/<code>.parquet</code> file plus an entry
+    in the JSON metadata resource list.
+  </blockquote>
+
+  <h3>How is uncertainty encoded?</h3>
+  <blockquote>
+    <code>UNCERTAINTY_DTYPE</code> in <code>constants.py</code> (fields
+    <code>uncertainty_type</code>, <code>loc</code>, <code>scale</code>,
+    <code>shape</code>, <code>minimum</code>, <code>maximum</code>,
+    <code>negative</code>). The integer <code>uncertainty_type</code> codes
+    are defined by <a href="../stats_arrays/index.html">stats_arrays</a>
+    (0/1 = no uncertainty, 2 = lognormal, 3 = normal, etc). See the
+    <code>MatrixEntry</code> docstring in <code>matrix_entry.py</code>.
+  </blockquote>
+
+  <h3>What's the easiest way to build a datapackage without raw numpy?</h3>
+  <blockquote>
+    <code>matrix_entry.create_datapackage_from_entries()</code> with a
+    <code>{MatrixName: [MatrixEntry(...), ...]}</code> dict. Internally it
+    calls <code>Datapackage.add_entries</code> →
+    <code>add_persistent_vector_from_iterator</code> →
+    <code>utils.resolve_dict_iterator</code> in <code>datapackage.py</code> /
+    <code>utils.py</code>.
+  </blockquote>
+
+  <h3>How do I read a datapackage back and get a resource's array?</h3>
+  <blockquote>
+    <code>datapackage.load_datapackage()</code> (pass an <code>fsspec</code>
+    filesystem, e.g. from <code>io_helpers.generic_directory_filesystem</code>
+    / <code>generic_zipfile_filesystem</code>; use <code>mmap_mode</code> or
+    <code>proxy=True</code> for lazy loading of large arrays), then
+    <code>Datapackage.get_resource(name_or_index)</code> in
+    <code>datapackage.py</code>.
+  </blockquote>
+
+  <h3>How do flip / rescale / reference exchanges work?</h3>
+  <blockquote>
+    Per-entry fields on <code>MatrixEntry</code>/<code>ArrayEntry</code> in
+    <code>matrix_entry.py</code>. When set, they're written as separate
+    resources (<code>kind="flip"</code>/<code>"rescale"</code>/<code>"reference"</code>)
+    alongside the main data/indices arrays inside
+    <code>Datapackage.add_persistent_vector</code> / <code>add_persistent_array</code>
+    in <code>datapackage.py</code>.
+  </blockquote>
+
+  <h3>How are several datapackages combined, or indices renumbered?</h3>
+  <blockquote>
+    <code>merging.merge_datapackages_with_mask()</code> to combine packages
+    with a per-package boolean row mask, and
+    <code>indexing.reindex()</code> / <code>indexing.reset_index()</code>
+    to remap row/col index values in place.
+  </blockquote>
+
+  <div class="related">
+    <strong>Related modules:</strong><br>
+    <a href="../bw2data/index.html">bw2data</a> — writes datapackages via <code>DataStore.process()</code>; the main producer of this format.<br>
+    <a href="../bw2calc/index.html">bw2calc</a> — reads datapackages (via <code>matrix_utils</code>) to build and solve LCA matrices.<br>
+    <a href="../matrix_utils/index.html">matrix_utils</a> — consumes datapackage resource groups directly to assemble scipy sparse matrices.<br>
+    <a href="../stats_arrays/index.html">stats_arrays</a> — defines the uncertainty distribution type codes stored in <code>UNCERTAINTY_DTYPE</code>.
+  </div>
+
+</div>
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>

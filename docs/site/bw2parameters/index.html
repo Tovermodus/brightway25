@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bw2parameters — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1><span class="pkgname">bw2parameters</span></h1>
+<p class="tagline">The formula-evaluation engine for Brightway: a safe expression interpreter (built on <code>asteval</code>) plus a dependency-ordered <code>ParameterSet</code> for evaluating interdependent named parameters, with optional <code>pint</code> unit awareness. Consumed by <code>bw2data.parameters</code> to evaluate parameterized exchanges and activities — it has no knowledge of Brightway's data model itself, only plain dicts and formula strings.</p>
+
+<blockquote>
+Installed at <code>.venv/lib/python3.11/site-packages/bw2parameters/</code>, version <code>1.1.0</code> (PyPI <code>bw2parameters</code>). Built on <code>asteval</code> (safe expression parsing), <code>astunparse</code> (AST → source), <code>pint</code> (units), and <code>stats_arrays</code> (Monte Carlo uncertainty sampling).
+</blockquote>
+
+<h2>Key files</h2>
+<table>
+<tr><th>File</th><th>Role</th></tr>
+<tr><td><code>__init__.py</code></td><td>Public API surface — re-exports the classes/functions below and computes <code>__version__</code> via <code>utils.get_version_tuple()</code>.</td></tr>
+<tr><td><code>interpreter.py</code></td><td><code>Interpreter</code> (wraps <code>asteval.Interpreter</code>) and <code>PintInterpreter</code> — the core formula evaluator; parses formula strings, tracks a symbol table, evaluates expressions safely.</td></tr>
+<tr><td><code>parameter_set.py</code></td><td><code>ParameterSet</code> and <code>PintParameterSet</code> — take a dict of named parameters (each with a <code>formula</code> or static <code>amount</code>), topologically order them by dependency, and evaluate them in order.</td></tr>
+<tr><td><code>pint.py</code></td><td><code>PintWrapperSingleton</code> (module-level singleton instance <code>PintWrapper</code>) — wraps a single shared <code>pint.UnitRegistry</code> for parsing unit strings and building/converting <code>Quantity</code> objects.</td></tr>
+<tr><td><code>mangling.py</code></td><td>AST-level formula rewriting: prefixing variable names (<code>mangle_formula</code>, <code>prefix_parameter_dict</code>) and substituting names per an explicit map (<code>substitute_in_formulas</code>, <code>FormulaSubstitutor</code>) — used to namespace parameters from different scopes so their formulas don't collide.</td></tr>
+<tr><td><code>errors.py</code></td><td>Exception hierarchy rooted at <code>ValidationError</code>: <code>ParameterError</code>, <code>CapitalizationError</code>, <code>DuplicateName</code>, <code>MissingName</code>, <code>SelfReference</code>, <code>BroadcastingError</code>.</td></tr>
+<tr><td><code>utils.py</code></td><td><code>isidentifier(ident)</code> — valid-Python-name check used to validate parameter labels; <code>get_version_tuple()</code> — reads the installed package version.</td></tr>
+</table>
+
+<h2>Main classes &amp; entry points</h2>
+
+<div class="grid">
+<div class="card"><a class="name">Interpreter</a><p><code>interpreter.py</code> — subclasses <code>asteval.Interpreter</code>. Key methods: <code>eval(expr, known_symbols=None)</code>, <code>get_symbols(text)</code>, <code>get_unknown_symbols(text, known_symbols=None)</code>, <code>add_symbols</code>/<code>remove_symbols</code>, <code>is_numeric</code>.</p></div>
+<div class="card"><a class="name">PintInterpreter</a><p><code>interpreter.py</code> — <code>Interpreter</code> subclass that also recognizes bare unit tokens (e.g. <code>kg</code>) in formulas via <code>PintWrapper</code> and tracks <code>pint.Quantity</code> values.</p></div>
+<div class="card"><a class="name">ParameterSet</a><p><code>parameter_set.py</code> — constructor <code>ParameterSet(params, global_params=None, interpreter=None)</code>. Key methods: <code>evaluate()</code>, <code>evaluate_and_set_amount_field()</code>, <code>evaluate_monte_carlo(iterations=1000)</code>, <code>get_order()</code>, <code>get_references()</code>, callable as <code>__call__(ds=None)</code> to also evaluate formulas on a list of exchange dicts.</p></div>
+<div class="card"><a class="name">PintParameterSet</a><p><code>parameter_set.py</code> — <code>ParameterSet</code> subclass defaulting to a <code>PintInterpreter</code>; results carry units and update both <code>amount</code> and <code>unit</code> fields.</p></div>
+<div class="card"><a class="name">PintWrapper</a><p><code>pint.py</code> — singleton instance of <code>PintWrapperSingleton</code>. Methods: <code>to_unit</code>, <code>to_units</code>, <code>to_quantity(amount, unit)</code>, <code>get_dimensionality</code>, <code>is_quantity</code>.</p></div>
+<div class="card"><a class="name">mangle_formula / prefix_parameter_dict</a><p><code>mangling.py</code> — <code>mangle_formula(string, prefix, context=None)</code> renames free variables in one formula; <code>prefix_parameter_dict(dct, prefix)</code> does this across a whole parameter dict and records an <code>original</code> name on each value.</p></div>
+</div>
+
+<h2>Typical usage</h2>
+
+<h3>Evaluating a formula directly with <code>Interpreter</code></h3>
+<pre><code>from bw2parameters import Interpreter
+
+interp = Interpreter()
+result = interp.eval("2 * mass + offset", known_symbols={"mass": 4, "offset": 1})
+# result == 9
+</code></pre>
+
+<h3>Evaluating interdependent named parameters with <code>ParameterSet</code></h3>
+<pre><code>from bw2parameters import ParameterSet
+
+params = {
+    "mass":   {"amount": 10},
+    "density": {"amount": 2.5},
+    "volume": {"formula": "mass / density"},
+}
+
+ps = ParameterSet(params)
+result = ps.evaluate()
+# result == {"volume": 4.0, "mass": 10, "density": 2.5}
+# ps.order gives the evaluation order, e.g. ["mass", "density", "volume"]
+
+# Or evaluate and write results back into the `amount` field in place:
+ps.evaluate_and_set_amount_field()
+</code></pre>
+
+<h3>Namespacing parameters from two scopes before combining them</h3>
+<pre><code>from bw2parameters import prefix_parameter_dict
+
+activity_params = {"efficiency": {"formula": "base_rate * 1.1"}}
+namespaced, substitutions = prefix_parameter_dict(activity_params, "act1__")
+# namespaced == {"act1__efficiency": {"formula": "(base_rate * 1.1)", "original": "efficiency"}}
+</code></pre>
+
+<h2>Where to look</h2>
+
+<h3>How does a formula string actually get evaluated?</h3>
+<p><code>interpreter.py</code>, <code>Interpreter.eval()</code> — injects <code>known_symbols</code> into the symbol table, calls the underlying <code>asteval.Interpreter.eval</code>, then removes them again; wraps <code>NameError</code>/<code>SyntaxError</code> into <code>errors.MissingName</code>.</p>
+
+<h3>How are dependent parameters evaluated in the correct order?</h3>
+<p><code>parameter_set.py</code>, <code>ParameterSet.get_references()</code> (builds a name → dependency-set map using <code>Interpreter.get_unknown_symbols</code>) and <code>ParameterSet.get_order()</code> (topological sort; raises <code>ParameterError</code> on unresolved/circular references, or <code>CapitalizationError</code> if the mismatch looks like a case typo).</p>
+
+<h3>How do units get parsed and attached to values?</h3>
+<p><code>pint.py</code>, <code>PintWrapperSingleton</code> — wraps a shared <code>pint.UnitRegistry</code>. Consumed by <code>interpreter.PintInterpreter</code> and <code>parameter_set.PintParameterSet</code>, which additionally track a parameter's <code>unit</code> field alongside <code>amount</code>.</p>
+
+<h3>How does Monte Carlo / stochastic evaluation work?</h3>
+<p><code>parameter_set.py</code>, <code>ParameterSet.evaluate_monte_carlo(iterations=1000)</code> — samples each parameter's uncertainty distribution via <code>stats_arrays.uncertainty_choices</code>; every formula must return a 1-D array of shape <code>(iterations,)</code> or <code>errors.BroadcastingError</code> is raised.</p>
+
+<h3>How are parameters from different scopes (project/database/activity) combined without name collisions?</h3>
+<p><code>mangling.py</code> — <code>prefix_parameter_dict(dct, prefix)</code> renames dict keys and rewrites formula references via <code>mangle_formula</code>; <code>substitute_in_formulas</code>/<code>FormulaSubstitutor</code> apply an explicit <code>{old: new}</code> rename map. This is what <code>bw2data.parameters.ParameterManager</code> uses to merge scoped parameter sets.</p>
+
+<h3>What exceptions can this package raise?</h3>
+<p><code>errors.py</code> — all inherit <code>ValidationError</code>: <code>MissingName</code> (undefined variable in a formula), <code>SelfReference</code> (parameter references itself), <code>DuplicateName</code> (name collides with a built-in), <code>CapitalizationError</code> (likely case-mismatch), <code>BroadcastingError</code> (bad Monte Carlo array shape), <code>ParameterError</code> (generic ordering/definition failure).</p>
+
+<div class="related">
+  <h2>Related modules</h2>
+  <a href="../bw2data/index.html">bw2data</a> — the main consumer: <code>bw2data/parameters.py</code> defines <code>ProjectParameter</code>/<code>DatabaseParameter</code>/<code>ActivityParameter</code>/<code>ParameterManager</code>, which build the plain-dict parameter sets that <code>bw2parameters.ParameterSet</code> evaluates.<br>
+  <a href="../bw2calc/index.html">bw2calc</a> — downstream: LCA calculations run on exchange amounts that <code>bw2data</code> may have already resolved from formulas via this package.<br>
+  <a href="../stats_arrays/index.html">stats_arrays</a> — supplies the uncertainty distributions sampled by <code>ParameterSet.evaluate_monte_carlo</code>.<br>
+</div>
+
+</div>
+
+<footer class="site">brightway25 code map</footer>
+</body>
+</html>
