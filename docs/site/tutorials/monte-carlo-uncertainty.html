@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: Monte Carlo uncertainty analysis — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2calc/index.html">bw2calc</a> · <a href="../stats_arrays/index.html">stats_arrays</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: Monte Carlo uncertainty analysis</h1>
+<p class="tagline">
+Attach an uncertainty distribution to an exchange, run a stochastic
+<code>bw2calc.LCA</code> for several iterations, and summarize the resulting
+score distribution with NumPy.
+</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2calc</code>/<code>bw2data</code>/<code>stats_arrays</code>
+APIs (<code>.venv/lib/python3.11/site-packages/</code>), verified by running it. See
+<a href="../bw2calc/index.html">the bw2calc module map</a> and
+<a href="../stats_arrays/index.html">the stats_arrays module map</a> for how these layers fit
+together, and <a href="../examples/index.html">the Examples page</a> for shorter worked
+snippets of other workflows.
+</blockquote>
+
+<h2>1. Build a tiny inventory with one uncertain exchange</h2>
+<p>
+Exchanges carry uncertainty as plain fields on the exchange dict/proxy —
+<code>uncertainty_type</code> plus whichever of <code>loc</code>/<code>scale</code>/<code>shape</code>/
+<code>minimum</code>/<code>maximum</code> that distribution needs. These field names and the
+integer <code>uncertainty_type</code> codes come straight from <code>stats_arrays</code>
+(<code>stats_arrays/uncertainty_types.py</code> <code>UncertaintyType</code>, and each
+distribution class's <code>id</code> attribute — see
+<a href="../stats_arrays/index.html">the stats_arrays module map</a>); <code>bw2data</code> and
+<code>bw_processing</code> don't reinterpret them, they just store and pass through the same
+dtype fields. Here we give a biosphere exchange (a CO₂ emission) a
+<b>lognormal</b> uncertainty (<code>stats_arrays.LognormalUncertainty</code>, <code>id == 2</code>),
+where <code>loc</code> is the log-space mean (mu) and <code>scale</code> is the log-space standard
+deviation (sigma) — see <code>stats_arrays/distributions/lognormal.py</code>
+<code>LognormalUncertainty.random_variables()</code>, which samples
+<code>np.random.lognormal(loc, scale, ...)</code>-equivalent draws directly from these two fields:
+</p>
+<pre><code>import bw2data as bd
+import numpy as np
+import stats_arrays as sa
+
+bd.projects.set_current("mc_tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO", type="process")
+steel.save()
+steel.new_edge(input=steel.key, amount=1, type="production").save()
+
+# Without uncertainty fields, an exchange has no uncertainty_type at all:
+exc = steel.new_edge(input=co2.key, amount=2.5, type="biosphere")
+exc.save()
+print(exc.get("uncertainty_type", "not set"))</code></pre>
+<pre class="output"><code>not set</code></pre>
+<p>
+Now save it again with a real distribution attached:
+</p>
+<pre><code>exc["uncertainty_type"] = sa.LognormalUncertainty.id  # 2
+exc["loc"] = np.log(2.5)   # mu, in log-space (median amount stays 2.5)
+exc["scale"] = 0.2         # sigma
+exc.save()
+
+print(sa.LognormalUncertainty.id, sa.LognormalUncertainty.description)</code></pre>
+<pre class="output"><code>2 Lognormal uncertainty</code></pre>
+<p>
+<code>amount</code> is the point estimate used by an ordinary (non-stochastic) LCA;
+<code>uncertainty_type</code>/<code>loc</code>/<code>scale</code>/... only take effect when the LCA is told
+to sample distributions (next step). Any other distribution in
+<code>stats_arrays</code> works the same way — e.g. <code>sa.TriangularUncertainty.id</code> (5)
+needs <code>minimum</code>/<code>loc</code>(mode)/<code>maximum</code> instead of <code>loc</code>/<code>scale</code>.
+</p>
+
+<h2>2. Register an LCIA method that scores the uncertain flow</h2>
+<p>
+<code>bd.Method(name).write([(flow_key_or_id, cf), ...])</code>
+(<code>bw2data/method.py</code>) creates/overwrites a characterization method — here a
+one-flow "gwp" method that just passes CO₂ through with a factor of 1:
+</p>
+<pre><code>method = ("example", "gwp")
+bd.Method(method).write([(co2.key, 1)])</code></pre>
+
+<h2>3. Create a stochastic <code>LCA</code> object</h2>
+<p>
+Pass <code>use_distributions=True</code> to <code>bc.LCA(...)</code>
+(<code>bw2calc/lca.py</code> <code>LCA.__init__</code>) so that, instead of using each
+exchange's fixed <code>amount</code>, the technosphere/biosphere/characterization matrices are
+rebuilt from <code>matrix_utils.MappedMatrix</code> objects that resample from
+<code>stats_arrays</code> distributions on every iteration. Also pass a fixed
+<code>seed_override</code> (an <code>int</code>, threaded down to every underlying
+<code>MappedMatrix</code> — see <code>bw2calc/lca_base.py</code> <code>LCABase.load_lci_data()</code>
+line ~46) so the whole run is reproducible instead of drawing a fresh OS-entropy seed each
+time:
+</p>
+<pre><code>import bw2calc as bc
+
+lca = bc.LCA({steel: 1}, method=method, use_distributions=True, seed_override=42)
+lca.lci()
+lca.lcia()
+print("first score", lca.score)</code></pre>
+<pre class="output"><code>first score 2.7611122622639517</code></pre>
+<p>
+This first <code>lca.score</code> already used one random draw of the CO₂ amount (not exactly
+2.5, because <code>lci()</code>/<code>lcia()</code> build the matrices from the datapackage's
+distributions the moment <code>use_distributions=True</code> is set — there is no separate
+"static first pass").
+</p>
+
+<h2>4. Iterate: resample and recompute</h2>
+<p>
+An <code>LCA</code> object is itself a Python <code>Iterator</code> (<code>bw2calc/lca_base.py</code>
+<code>class LCABase(Iterator)</code>). Each <code>next(lca)</code> — or one step of a
+<code>for</code>/<code>zip</code> loop over <code>lca</code> — calls
+<code>next()</code> on every underlying <code>MappedMatrix</code> (technosphere, biosphere,
+characterization), which draws a fresh set of random values for every uncertain field and
+rebuilds the matrices (<code>bw2calc/lca.py</code> <code>LCA.__next__</code>). It does
+<em>not</em> resolve the linear system itself — call <code>lca.lci_calculation()</code> and
+<code>lca.lcia_calculation()</code> (or just <code>lca.lcia()</code>) afterwards to get the new
+<code>lca.score</code>:
+</p>
+<pre><code>scores = [lca.score]                 # keep the first draw from step 3
+for _ in zip(lca, range(49)):        # 49 more draws -> 50 total
+    lca.lcia_calculation()
+    scores.append(lca.score)
+
+print(len(scores), scores[:5])</code></pre>
+<pre class="output"><code>50 [2.7611122622639517, 2.4318150176608437, 2.845755168932493, 3.3902265086151977, 2.385622470953585]</code></pre>
+<p>
+<code>zip(lca, range(49))</code> is just a concise way to step the iterator exactly 49 times;
+<code>for _ in lca: ...</code> alone would iterate forever since <code>LCA</code> never raises
+<code>StopIteration</code> on its own.
+</p>
+
+<h2>5. Summarize the score distribution</h2>
+<p>
+The collected scores are a plain list of floats — hand them to
+<code>numpy</code> for summary statistics:
+</p>
+<pre><code>import numpy as np
+
+scores = np.array(scores)
+print("iterations:", len(scores))
+print("mean :", round(scores.mean(), 4))
+print("std  :", round(scores.std(), 4))
+print("min  :", round(scores.min(), 4))
+print("max  :", round(scores.max(), 4))</code></pre>
+<pre class="output"><code>iterations: 50
+mean : 2.4312
+std  : 0.4569
+min  : 1.6894
+max  : 3.621</code></pre>
+
+<h2>Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+import numpy as np
+import stats_arrays as sa
+
+bd.projects.set_current("mc_tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO", type="process")
+steel.save()
+steel.new_edge(input=steel.key, amount=1, type="production").save()
+
+steel.new_edge(
+    input=co2.key,
+    amount=2.5,
+    type="biosphere",
+    uncertainty_type=sa.LognormalUncertainty.id,  # 2
+    loc=np.log(2.5),   # mu, in log-space
+    scale=0.2,         # sigma
+).save()
+
+method = ("example", "gwp")
+bd.Method(method).write([(co2.key, 1)])
+
+lca = bc.LCA({steel: 1}, method=method, use_distributions=True, seed_override=42)
+lca.lci()
+lca.lcia()
+
+scores = [lca.score]
+for _ in zip(lca, range(49)):     # 49 more iterations -> 50 total
+    lca.lcia_calculation()
+    scores.append(lca.score)
+
+scores = np.array(scores)
+print("iterations:", len(scores))
+print("mean :", round(scores.mean(), 4))
+print("std  :", round(scores.std(), 4))
+print("min  :", round(scores.min(), 4))
+print("max  :", round(scores.max(), 4))</code></pre>
+<pre class="output"><code>iterations: 50
+mean : 2.4312
+std  : 0.4569
+min  : 1.6894
+max  : 3.621</code></pre>
+
+<h2>Notes &amp; gotchas</h2>
+<ul>
+<li><b>Without <code>seed_override</code>, results are genuinely random.</b> Omitting it lets
+each <code>MappedMatrix</code> draw its own seed from OS entropy
+(<code>bw2calc/utils.py</code> <code>get_seed()</code>), so exact scores differ between runs —
+only the shape of the distribution (mean/std in the right ballpark for the parameters chosen)
+is guaranteed to reproduce. With <code>seed_override=42</code> as used above, the exact numbers
+printed here reproduce run to run (verified by running the full example twice back to back).</li>
+<li><b><code>use_distributions=True</code> is what turns on sampling.</b> Without it, an
+<code>LCA</code> just uses each exchange's fixed <code>amount</code> and ignores
+<code>uncertainty_type</code>/<code>loc</code>/<code>scale</code>/... entirely — an activity or
+exchange can carry uncertainty data indefinitely without it ever affecting an ordinary
+<code>lca.lci()</code>/<code>lca.lcia()</code> call.</li>
+<li><b>Iterating rebuilds all matrices with <code>use_distributions=True</code>, not just the
+one uncertain cell.</b> Every resource across the technosphere/biosphere/characterization
+datapackages that was built with <code>use_distributions=True</code> is resampled each
+<code>next(lca)</code> (<code>bw2calc/lca.py</code> <code>LCA.__next__</code> loops over
+<code>self.matrix_labels</code>); this example only has one stochastic value, but a larger
+inventory would resample every uncertain exchange together on each iteration.</li>
+<li><b>The first score is already stochastic.</b> Building the <code>LCA</code> object with
+<code>use_distributions=True</code> and calling <code>lci()</code>/<code>lcia()</code> once
+already draws a random sample — there's no separate "static baseline" pass to skip before
+Monte Carlo begins, so include that first <code>lca.score</code> in your collected samples
+(as done in step 4) rather than discarding it.</li>
+<li><b>Selective control per matrix.</b> The <code>selective_use</code> argument to
+<code>bc.LCA(...)</code> (see <code>bw2calc/lca.py</code> <code>LCA.__init__</code>) can turn
+<code>use_distributions</code> on/off per matrix label (e.g. sample the biosphere matrix but
+keep the technosphere matrix fixed) instead of the same flag applying to all three.</li>
+<li><b>An always-forward iterator.</b> <code>LCA</code> never raises <code>StopIteration</code>
+— a bare <code>for _ in lca:</code> loop runs forever; bound it explicitly, e.g. with
+<code>zip(lca, range(n))</code> or a plain counted <code>for</code>/<code>while</code> loop as
+shown above.</li>
+<li><b>For very large Monte Carlo batches</b>, where only the final scores (not full
+inventory/characterized matrices) are needed per iteration,
+<code>bw2calc.FastScoresOnlyMultiLCA</code> (<code>bw2calc/fast_scores.py</code>) skips
+retaining the intermediate matrices for a leaner loop — worth reaching for once iteration
+counts get into the thousands. This tutorial's plain <code>LCA</code> iteration loop is the
+simplest correct starting point.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

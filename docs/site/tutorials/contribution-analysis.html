@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: find contribution hotspots in an LCA result — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2analyzer/index.html">bw2analyzer</a> · <a href="../bw2calc/index.html">bw2calc</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: find contribution hotspots in an LCA result</h1>
+<p class="tagline">Once <code>bw2calc</code> has solved an LCA, which process is actually driving the score — and which emission? Walk through <code>bw2analyzer.ContributionAnalysis</code> on a small multi-process inventory to find out.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2analyzer</code> API (<code>.venv/lib/python3.11/site-packages/bw2analyzer/contribution.py</code>), run against a real <code>bw2calc.LCA</code> result. See <a href="../bw2analyzer/index.html">the bw2analyzer module map</a> and <a href="../bw2calc/index.html">the bw2calc module map</a> for how these two layers fit together, and <a href="../examples/index.html#ex3">Examples #3</a> for the minimal single-process LCA this tutorial builds on.
+</blockquote>
+
+<h2>1. Build a small multi-process inventory</h2>
+<p>
+Contribution analysis is only interesting when there's more than one process to compare. Build a
+tiny supply chain: a <b>widget</b> assembled from <b>steel</b> and <b>plastic</b>, each of which
+emits CO&#8322; on its own, plastic also emits a bit of SO&#8322;, and the assembly step adds a
+little more CO&#8322; directly:
+</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("tutorial-contrib")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+so2 = biosphere.new_node(code="so2", name="sulfur dioxide", unit="kilogram", type="emission")
+so2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()   # 1.8 kg CO2 / kg steel
+
+plastic = db.new_node(code="plastic", name="plastic production", unit="kilogram", location="GLO")
+plastic.save()
+plastic.new_exchange(input=plastic.key, amount=1, type="production").save()
+plastic.new_exchange(input=co2.key, amount=2.5, type="biosphere").save()  # 2.5 kg CO2 / kg plastic
+plastic.new_exchange(input=so2.key, amount=0.01, type="biosphere").save() # + a little SO2
+
+widget = db.new_node(code="widget", name="widget assembly", unit="unit", location="GLO")
+widget.save()
+widget.new_exchange(input=widget.key, amount=1, type="production").save()
+widget.new_exchange(input=steel.key, amount=0.5, type="technosphere").save()   # 0.5 kg steel / widget
+widget.new_exchange(input=plastic.key, amount=0.2, type="technosphere").save() # 0.2 kg plastic / widget
+widget.new_exchange(input=co2.key, amount=0.1, type="biosphere").save()        # assembly's own CO2</code></pre>
+<p>
+This is the same node/exchange pattern as the
+<a href="../tutorials/create-empty-database.html">create-an-empty-database tutorial</a>, just with
+three linked process nodes instead of one. <code>widget</code> pulls in <code>steel</code> and
+<code>plastic</code> as technosphere inputs, so <code>bw2calc</code> will have to resolve all three
+before there's a score to analyze.
+</p>
+
+<h2>2. Give SO&#8322; a much higher characterization factor, then run the LCA</h2>
+<p>
+To make contribution analysis actually show something interesting, the two biosphere flows need
+different weights — otherwise "which flow matters most" just tracks raw mass. Register a method
+where 1&nbsp;kg SO&#8322; counts 45&times; more than 1&nbsp;kg CO&#8322;, then solve for 10 widgets:
+</p>
+<pre><code>method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0), (so2.key, 45.0)])
+
+lca = bc.LCA({widget.key: 10}, method_key)   # score for producing 10 widgets
+lca.lci()
+lca.lcia()
+print(lca.score)</code></pre>
+<pre class="output"><code>15.899999844282865</code></pre>
+
+<h2>3. The lowest-level API: <code>top_processes</code> / <code>top_emissions</code></h2>
+<p>
+<code>bw2analyzer.ContributionAnalysis</code> operates on
+<code>lca.characterized_inventory</code> — the matrix bw2calc builds by multiplying every
+biosphere flow's amount by its characterization factor, one row per biosphere flow and one column
+per technosphere activity (see <code>bw2calc</code>'s <code>lca.py</code>
+<code>LCA.lcia()</code>, which sets <code>characterized_inventory = characterization_matrix @
+inventory</code>). Summing that matrix along one axis or the other is what
+<code>top_processes</code>/<code>top_emissions</code> do
+(<code>contribution.py</code> lines 119-125):
+</p>
+<pre><code>import bw2analyzer as bwa
+
+ca = bwa.ContributionAnalysis()
+print(ca.top_processes(lca.characterized_inventory))</code></pre>
+<pre class="output"><code>[[8.99999976 0.        ]
+ [5.90000007 1.        ]
+ [1.00000001 2.        ]]</code></pre>
+<p>
+Each row is <code>[value, matrix column index]</code> — <code>top_processes</code> sums
+<em>columns</em> (one column = one activity's own direct biosphere flows, scaled by how much of it
+was produced) and <code>top_emissions</code> sums <em>rows</em> (one row = one biosphere flow,
+summed across every activity that emits it). Both funnel through
+<code>ContributionAnalysis.sort_array()</code> (<code>contribution.py</code> lines 6-49), which
+sorts by <code>abs(value)</code> descending and returns at most <code>limit</code> rows (default
+25, or <code>limit_type="percent"</code> to keep everything above a fraction of the total — see
+step 5). The indices are raw matrix positions, not activity keys — that's what step 4 fixes.
+</p>
+
+<h2>4. Human-readable: <code>annotated_top_processes</code> / <code>annotated_top_emissions</code></h2>
+<p>
+These wrap the same sort with a lookup through <code>lca.dicts.activity.reversed</code> /
+<code>lca.dicts.biosphere.reversed</code> (the <code>bw2calc</code> index↔database-id mapping, see
+<code>bw2calc</code>'s <code>dictionary_manager.py</code>) and <code>bw2data.get_activity()</code>,
+so you get real activity objects back instead of matrix indices
+(<code>contribution.py</code> lines 127-161):
+</p>
+<pre><code>for score, supply, act in ca.annotated_top_processes(lca):
+    print(round(score, 4), round(supply, 4), act["name"])</code></pre>
+<pre class="output"><code>9.0 5.0 steel production
+5.9 2.0 plastic production
+1.0 10.0 widget assembly</code></pre>
+<p>
+Each tuple is <code>(lca score, supply, activity)</code>: <b>score</b> is that activity's own
+column-sum of the characterized inventory — the impact caused directly by <em>that activity's own</em>
+biosphere emissions, not the cumulative impact of everything it consumes upstream (steel and
+plastic's scores don't include the fraction of the assembly step's emissions, and widget's score
+of <code>1.0</code> only reflects its own direct 0.1&nbsp;kg CO&#8322; over 10 widgets — the
+9.0 + 5.9 from steel and plastic show up as their own separate rows, not folded into widget's).
+<b>supply</b> is <code>lca.supply_array[index]</code> — how much of that activity's reference
+product actually got produced to meet the demand (5&nbsp;kg steel and 2&nbsp;kg plastic for
+10 widgets at 0.5/0.2&nbsp;kg each), not an impact number.
+</p>
+<pre><code>for score, amount, act in ca.annotated_top_emissions(lca):
+    print(round(score, 4), round(amount, 4), act["name"])</code></pre>
+<pre class="output"><code>15.0 15.0 carbon dioxide
+0.9 0.02 sulfur dioxide</code></pre>
+<p>
+Here the tuple is <code>(lca score, inventory amount, activity)</code>: <b>score</b> is that
+flow's row-sum of the characterized inventory (total weighted impact from this flow across every
+activity), and <b>amount</b> is <code>lca.inventory[index, :].sum()</code> — the raw,
+<em>un</em>characterized total mass of that flow (<code>contribution.py</code> line 154). CO&#8322;'s
+score and amount happen to match here only because its characterization factor is exactly
+<code>1.0</code>; SO&#8322;'s don't — 0.02&nbsp;kg of SO&#8322; at a factor of 45 scores 0.9,
+not 0.02. This is the number that tells you a small-mass flow can still dominate the score.
+</p>
+
+<h2>5. Narrow the results: <code>limit</code> and <code>limit_type</code></h2>
+<p>
+Both <code>annotated_top_*</code> methods forward <code>**kwargs</code> straight to
+<code>sort_array()</code>, so the same two knobs work everywhere: <code>limit_type="number"</code>
+(default) keeps the top <code>limit</code> rows; <code>limit_type="percent"</code> keeps every row
+whose <code>abs(value)</code> is at least <code>limit &times; total</code> (<code>0 &lt; limit
+&lt;= 1</code>):
+</p>
+<pre><code>print([act["name"] for _, _, act in ca.annotated_top_processes(lca, limit=1)])
+print([act["name"] for _, _, act in ca.annotated_top_processes(lca, limit=0.5, limit_type="percent")])</code></pre>
+<pre class="output"><code>['steel production']
+['steel production']</code></pre>
+<p>
+Pass <code>names=False</code> to skip the <code>get_activity()</code> lookup and get the raw
+database row id back as the last tuple element instead of an activity object — useful when you
+just need a fast id to key a dict by, without the extra SQLite lookup per row.
+</p>
+
+<h2>Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+import bw2analyzer as bwa
+
+bd.projects.set_current("tutorial-contrib")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+so2 = biosphere.new_node(code="so2", name="sulfur dioxide", unit="kilogram", type="emission")
+so2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()
+
+plastic = db.new_node(code="plastic", name="plastic production", unit="kilogram", location="GLO")
+plastic.save()
+plastic.new_exchange(input=plastic.key, amount=1, type="production").save()
+plastic.new_exchange(input=co2.key, amount=2.5, type="biosphere").save()
+plastic.new_exchange(input=so2.key, amount=0.01, type="biosphere").save()
+
+widget = db.new_node(code="widget", name="widget assembly", unit="unit", location="GLO")
+widget.save()
+widget.new_exchange(input=widget.key, amount=1, type="production").save()
+widget.new_exchange(input=steel.key, amount=0.5, type="technosphere").save()
+widget.new_exchange(input=plastic.key, amount=0.2, type="technosphere").save()
+widget.new_exchange(input=co2.key, amount=0.1, type="biosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0), (so2.key, 45.0)])
+
+lca = bc.LCA({widget.key: 10}, method_key)
+lca.lci()
+lca.lcia()
+print("score", lca.score)
+
+ca = bwa.ContributionAnalysis()
+
+print("--- annotated_top_processes ---")
+for score, supply, act in ca.annotated_top_processes(lca):
+    print(round(score, 4), round(supply, 4), act["name"])
+
+print("--- annotated_top_emissions ---")
+for score, amount, act in ca.annotated_top_emissions(lca):
+    print(round(score, 4), round(amount, 4), act["name"])</code></pre>
+<pre class="output"><code>score 15.899999844282865
+--- annotated_top_processes ---
+9.0 5.0 steel production
+5.9 2.0 plastic production
+1.0 10.0 widget assembly
+--- annotated_top_emissions ---
+15.0 15.0 carbon dioxide
+0.9 0.02 sulfur dioxide</code></pre>
+
+<h2>Notes &amp; gotchas</h2>
+<ul>
+<li><b>These scores are per-activity direct contributions, not cumulative supply-chain totals.</b>
+<code>annotated_top_processes</code> sums each activity's <em>own</em> column of the characterized
+inventory. It does not roll steel's and plastic's impact up into widget's — widget's score of
+<code>1.0</code> is only its own 0.1&nbsp;kg CO&#8322; per assembly. If you want cumulative
+upstream contributions attributed to one node, that's a different question — look at
+<code>bw_graph_tools</code> traversal or <code>bw2analyzer.tagged.traverse_tagged_databases</code>
+(see <a href="../bw2analyzer/index.html">the bw2analyzer module map</a>), not
+<code>ContributionAnalysis</code>.</li>
+<li><b>Sorting is by absolute value.</b> <code>sort_array()</code> (<code>contribution.py</code>
+line 49) sorts by <code>abs(value)</code>, so a large negative contribution (e.g. an avoided
+emission / credit) would rank ahead of a small positive one — check the sign before assuming
+"top" means "worst".</li>
+<li><b>Score vs. supply vs. amount are three different units</b> — mixing them up is the easiest
+mistake. In <code>annotated_top_processes</code> the second element is <b>supply</b> (physical
+output quantity); in <code>annotated_top_emissions</code> the second element is <b>amount</b>
+(uncharacterized flow mass). Neither is the score.</li>
+<li><b>A tiny mass can still be the biggest score.</b> SO&#8322; here is 0.02&nbsp;kg total —
+less than 0.2% of the CO&#8322; mass — but still contributes 0.9 out of 15.9 to the score because
+its characterization factor is 45&times; higher. This is exactly the case
+<code>annotated_top_emissions</code> is for: ranking by <em>weighted</em> impact, not mass.</li>
+<li><b><code>top_processes</code>/<code>top_emissions</code> take a raw matrix</b>, not an
+<code>LCA</code> object — they're reused by <code>hinton_matrix</code> and <code>d3_treemap</code>
+in the same file for visualization data structures, so you can point them at other matrices too
+(e.g. <code>lca.inventory</code> for uncharacterized results).</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

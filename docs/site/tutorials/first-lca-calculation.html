@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: run your first LCA calculation — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=2">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2data/index.html">bw2data</a> · <a href="../bw2calc/index.html">bw2calc</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: run your first LCA calculation</h1>
+<p class="tagline">Build a tiny inventory from scratch with <code>bw2data</code>, then solve it with <code>bw2calc.LCA</code> — walking through <code>.lci()</code> and <code>.lcia()</code> separately so you can see what each one actually builds.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2data</code>/<code>bw2calc</code> API (<code>.venv/lib/python3.11/site-packages/</code>), verified by running it. See <a href="../bw2data/index.html">the bw2data module map</a> and <a href="../bw2calc/index.html">the bw2calc module map</a> for the full picture of how these layers fit together. If you haven't built a database before, <a href="create-empty-database.html">the empty-database tutorial</a> covers that groundwork in more depth.
+</blockquote>
+
+<h2>1. Set up a project and a biosphere database</h2>
+<p>
+An LCA needs at least two databases: a <b>biosphere</b> database holding elementary flows
+(emissions, resource extractions — things exchanged with the environment, not produced by any
+process) and a <b>foreground</b> database holding the processes you actually want to model. Start
+with the biosphere side: one flow, carbon dioxide.
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("first-lca-tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+
+co2 = biosphere.new_node(code="co2", name="Carbon dioxide", unit="kilogram", type="emission")
+co2.save()</code></pre>
+<p>
+This is the same <code>new_node</code>/<code>.save()</code> pattern as any other activity (see
+<a href="create-empty-database.html">the empty-database tutorial</a>) — a biosphere flow is just a
+node with <code>type="emission"</code> instead of <code>"process"</code>
+(<code>bw2data/configuration.py</code> <code>labels.biosphere_node_default</code> is
+<code>"emission"</code>). It doesn't need a production exchange; nothing "produces" CO<sub>2</sub>
+as a technosphere output — processes only emit it via a <code>biosphere</code>-type exchange, step 2.
+</p>
+
+<h2>2. Build the foreground process</h2>
+<p>
+Now add one process activity — electricity production — with a production exchange (so
+<code>bw2calc</code> knows what 1 unit of this activity supplies) and a biosphere exchange linking
+it to the CO<sub>2</sub> flow (so running it has an environmental consequence):
+</p>
+<pre><code>foreground = bd.Database("foreground")
+foreground.register()
+
+electricity = foreground.new_node(
+    code="electricity",
+    name="electricity production",
+    unit="kilowatt hour",
+    location="GLO",
+    type="process",
+)
+electricity.save()
+
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+electricity.new_exchange(input=co2.key, amount=0.5, type="biosphere").save()</code></pre>
+<p>
+Read the second exchange as: producing 1 kWh of electricity emits 0.5 kg of CO<sub>2</sub>. That's
+the entire inventory — one biosphere flow, one process, one edge between them — deliberately
+minimal so every number in the final score is traceable by hand.
+</p>
+
+<h2>3. Define an LCIA method with a characterization factor</h2>
+<p>
+An LCIA <b>method</b> (<code>bw2data/method.py</code> <code>Method</code>, an
+<code>ImpactAssessmentDataStore</code>) is a set of characterization factors: a weight applied to
+each biosphere flow it cares about. Register one and give it a single factor of 1.0 for CO<sub>2</sub>
+— so this toy method's score is directly the kilograms of CO<sub>2</sub> emitted, keeping the
+arithmetic transparent:
+</p>
+<pre><code>method_key = ("tutorial", "climate change")
+method = bd.Method(method_key)
+method.register()
+method.write([(co2.key, 1.0)])</code></pre>
+<p>
+<code>Method.write()</code> takes a list of <code>(flow_key, factor)</code> tuples (a third,
+uncertainty-dict element is optional per row) and persists them, the same way
+<code>SQLiteBackend.write()</code> persists activity data. A method must be registered before it
+can be characterized against.
+</p>
+
+<h2>4. Construct the LCA object</h2>
+<p>
+<code>bw2calc.LCA(demand, method=...)</code> (<code>bw2calc/lca.py</code>
+<code>LCA.__init__</code>, line ~43) takes a <b>functional unit</b> — a dict mapping an activity (or
+its key, or its integer id) to a demanded amount — plus the method tuple. Ask for 10 kWh of our
+electricity:
+</p>
+<pre><code>import bw2calc as bc
+
+lca = bc.LCA({electricity: 10}, method=method_key)</code></pre>
+<p>
+Under the hood, <code>__init__</code> calls <code>bw2data.prepare_lca_inputs(demand=..., method=...)</code>
+(<code>lca.py</code> line ~117) to resolve the demand and gather the <code>bw_processing</code>
+datapackages for the technosphere, biosphere, and characterization matrices — but nothing is
+loaded into actual matrices yet. Confirm that: right after construction, the object has no
+<code>technosphere_matrix</code> attribute at all.
+</p>
+<pre><code>print(hasattr(lca, "technosphere_matrix"))  # False — nothing built yet</code></pre>
+
+<h2>5. Run <code>.lci()</code> — the inventory</h2>
+<p>
+<code>LCA.lci()</code> (defined on <code>LCABase</code> in <code>lca_base.py</code>, line ~157) does
+three things, per its own docstring: load the LCI data and build the technosphere/biosphere
+matrices (<code>load_lci_data()</code>), build the demand array from your functional unit
+(<code>build_demand_array()</code>), then solve the linear system <code>A·s = f</code> for the
+<b>supply array</b> <code>s</code> and compute the <b>inventory</b> as
+<code>B · diag(s)</code> (<code>lca.py</code> <code>lci_calculation()</code>, line ~290-302, via
+<code>solve_linear_system()</code> in <code>lca_base.py</code> line ~131, using
+<code>scipy.sparse.linalg.spsolve</code> or a factorized solver if one was installed at import
+time):
+</p>
+<pre><code>lca.lci()
+
+print(lca.supply_array)          # how much of each technosphere activity must run
+print(lca.inventory.sum())       # total (characterization-independent) biosphere flow, weighted by supply</code></pre>
+<p>
+After <code>.lci()</code>, <code>lca.technosphere_matrix</code>, <code>lca.biosphere_matrix</code>,
+<code>lca.supply_array</code>, and <code>lca.inventory</code> all exist — but
+<code>lca.characterized_inventory</code> and <code>lca.score</code> do not yet. <code>.lci()</code>
+never touches the characterization matrix at all; it only knows about the technosphere and
+biosphere.
+</p>
+
+<h2>6. Run <code>.lcia()</code> — the impact assessment</h2>
+<p>
+<code>LCA.lcia()</code> (<code>lca_base.py</code> line ~193) loads and builds the characterization
+matrix, then multiplies it by the inventory computed in step 5
+(<code>lca.py</code> <code>lcia_calculation()</code>, line ~304-311:
+<code>self.characterized_inventory = self.characterization_matrix @ self.inventory</code>). It
+requires <code>.lci()</code> to have already run — it reuses <code>self.inventory</code> rather
+than recomputing it:
+</p>
+<pre><code>lca.lcia()
+
+print(lca.characterized_inventory.sum())</code></pre>
+
+<h2>7. Read the score</h2>
+<p>
+<code>lca.score</code> is a property (<code>lca.py</code> line ~332) that sums
+<code>characterized_inventory</code> (or the normalized/weighted inventory instead, if you called
+<code>.normalize()</code>/<code>.weight()</code> — not used here). It <b>asserts</b>
+<code>characterized_inventory</code> exists rather than raising a plain <code>AttributeError</code>
+— so accessing <code>.score</code> before <code>.lcia()</code> fails with
+<code>AssertionError: Must do LCIA first</code>, not a missing-attribute error:
+</p>
+<pre><code>print(lca.score)</code></pre>
+<pre class="output">5.0</pre>
+<p>
+10 kWh × 0.5 kg CO<sub>2</sub>/kWh × a characterization factor of 1.0 = 5.0 — every step of that
+arithmetic is visible in <code>supply_array</code>, <code>inventory</code>, and
+<code>characterized_inventory</code> above.
+</p>
+
+<h2>Under the hood: the A/B/C formulation</h2>
+<p>
+This whole tutorial is one instance of Brightway's standard matrix formulation. <b>A</b> is the
+technosphere matrix (here 1×1: just "electricity production" supplying itself), <b>B</b> is the
+biosphere matrix (1×1: the CO<sub>2</sub> exchange), and <b>C</b> is the characterization matrix
+(1×1: the factor of 1.0). Given a demand vector <b>f</b> (here <code>[10]</code>), the LCA score is:
+</p>
+<pre><code>score = C · B · A⁻¹ · f</code></pre>
+<p>
+<code>.lci()</code> computes <code>A⁻¹·f</code> (as the supply array <code>s</code>, without ever
+forming the inverse — it solves <code>A·s = f</code> directly) and then <code>B·s</code> (the
+inventory); <code>.lcia()</code> applies <code>C</code> on top. Print the shapes to see it directly
+— all three matrices come out 1×1 here because this inventory has exactly one process, one
+biosphere flow, and one characterized flow:
+</p>
+<pre><code>print(lca.technosphere_matrix.shape)       # (1, 1)
+print(lca.biosphere_matrix.shape)          # (1, 1)
+print(lca.characterization_matrix.shape)   # (1, 1)</code></pre>
+
+<h2>Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("first-lca-tutorial")
+
+# 1. Biosphere database: one emission flow
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="Carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+# 2. Foreground database: one process, with a production exchange and a biosphere exchange
+foreground = bd.Database("foreground")
+foreground.register()
+electricity = foreground.new_node(
+    code="electricity",
+    name="electricity production",
+    unit="kilowatt hour",
+    location="GLO",
+    type="process",
+)
+electricity.save()
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+electricity.new_exchange(input=co2.key, amount=0.5, type="biosphere").save()
+
+# 3. Method: one characterization factor for CO2
+method_key = ("tutorial", "climate change")
+method = bd.Method(method_key)
+method.register()
+method.write([(co2.key, 1.0)])
+
+# 4. LCA: 10 kWh of electricity
+lca = bc.LCA({electricity: 10}, method=method_key)
+
+lca.lci()
+print("supply_array:", lca.supply_array)
+print("inventory (biosphere flows for this supply):", lca.inventory.sum())
+
+lca.lcia()
+print("score:", lca.score)</code></pre>
+<pre class="output">supply_array: [10.]
+inventory (biosphere flows for this supply): 5.0
+score: 5.0</pre>
+
+<h2>Notes &amp; gotchas</h2>
+<ul>
+<li><b><code>.lci()</code> and <code>.lcia()</code> are independent steps, not one call.</b> This
+matters in practice: you can call <code>.lci()</code> once and then <code>.lcia()</code> with
+several different methods against the same solved inventory (<code>lcia(demand=...)</code> even
+lets you re-run against a different demand without rebuilding the technosphere matrix), or use
+<code>bc.MultiLCA</code> to share one factorized technosphere across many functional units and
+methods at once (see <code>modules/bw2calc/CLAUDE.md</code>).</li>
+<li><b><code>lca.score</code> raises <code>AssertionError</code>, not <code>AttributeError</code>,
+if you skip <code>.lcia()</code>.</b> Verified directly: <code>hasattr(lca, "score")</code> before
+calling <code>.lcia()</code> does not return <code>False</code> — it propagates the assertion,
+because <code>hasattr</code> in Python 3 only swallows <code>AttributeError</code>
+(<code>bw2calc/lca.py</code> line ~340).</li>
+<li><b>Elementary flows are just nodes with <code>type="emission"</code>.</b> There's no separate
+"biosphere flow" class — a biosphere database is a regular <code>bw2data.Database</code>, and what
+makes an exchange a biosphere exchange is <code>type="biosphere"</code> on the exchange that
+references it, not anything special about the flow node itself.</li>
+<li><b>The production exchange is what makes the technosphere matrix square.</b> Without
+<code>electricity.new_exchange(input=electricity.key, amount=1, type="production")</code>, the
+process has no column entry in <b>A</b> for its own output, and <code>bw2calc</code> raises
+(see <code>bw2calc/errors.py</code> <code>NonsquareTechnosphere</code>).</li>
+<li><b>Everything here is minimal on purpose.</b> A realistic inventory has many processes, many
+biosphere flows, and technosphere-to-technosphere exchanges between processes — see
+<a href="../examples/index.html#bw2data">the bw2data Examples section</a> for a slightly larger
+round trip, and <a href="create-empty-database.html">the empty-database tutorial</a> for building
+up a multi-activity database step by step.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>
