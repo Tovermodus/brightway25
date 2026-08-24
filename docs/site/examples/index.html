@@ -42,6 +42,9 @@ Every example below is a complete, standalone Python script — copy it into a f
   <a href="#bw2data-projects">bw2data-projects</a>
   <a href="#bw2calc">bw2calc</a>
   <a href="#bw2io">bw2io</a>
+  <a href="#bw_graph_tools">bw_graph_tools</a>
+  <a href="#bw2analyzer">bw2analyzer</a>
+  <a href="#multifunctional">multifunctional</a>
 </div>
 
 <h2 id="bw2data">bw2data</h2>
@@ -548,6 +551,463 @@ print(exc["name"], exc["unit"], exc["amount"])</code></pre>
 <p class="label">Output</p>
 <pre class="output"><code>electricity kilowatt hour 0.5</code></pre>
 </div>
+
+<h2 id="bw_graph_tools">bw_graph_tools</h2>
+<p>See also: <a href="../bw_graph_tools/index.html">the bw_graph_tools module map</a>.</p>
+
+<div class="ex" id="ex11">
+<h3>11. Traverse a small supply chain, ranked by cumulative LCA score</h3>
+<p class="desc">Builds a 3-process supply chain (steel ← iron ore + electricity) on top of a solved <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a>, then runs <a href="../bw_graph_tools/index.html#NewNodeEachVisitGraphTraversal">NewNodeEachVisitGraphTraversal</a> to find which upstream activities contribute most to the score. <code>node.cumulative_score</code> includes everything further upstream of that node; <code>node.direct_emissions_score</code> is just that node's own biosphere flows.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+from bw_graph_tools import NewNodeEachVisitGraphTraversal, GraphTraversalSettings
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+iron_ore = db.new_node(code="iron_ore", name="iron ore mining", unit="kilogram", location="GLO")
+iron_ore.save()
+electricity = db.new_node(code="electricity", name="electricity production", unit="kilowatt hour", location="GLO")
+electricity.save()
+
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=iron_ore.key, amount=1.6, type="technosphere").save()
+steel.new_exchange(input=electricity.key, amount=0.5, type="technosphere").save()
+steel.new_exchange(input=co2.key, amount=0.2, type="biosphere").save()
+
+iron_ore.new_exchange(input=iron_ore.key, amount=1, type="production").save()
+iron_ore.new_exchange(input=co2.key, amount=0.1, type="biosphere").save()
+
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+electricity.new_exchange(input=co2.key, amount=0.9, type="biosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+lca = bc.LCA({steel.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print("score:", round(lca.score, 4))
+
+gt = NewNodeEachVisitGraphTraversal(lca, GraphTraversalSettings(cutoff=0.001))
+gt.traverse()
+
+for node in sorted(gt.nodes.values(), key=lambda n: n.depth):
+    if node.unique_id == -1:
+        continue
+    act = bd.get_node(id=node.activity_datapackage_id)
+    print(f"depth={node.depth} {act['name']:26s} cumulative_score={node.cumulative_score:.4f} direct_score={node.direct_emissions_score:.4f}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>score: 0.81
+depth=1 steel production           cumulative_score=0.8100 direct_score=0.2000
+depth=2 iron ore mining            cumulative_score=0.1600 direct_score=0.1600
+depth=2 electricity production     cumulative_score=0.4500 direct_score=0.4500</code></pre>
+</div>
+
+<div class="ex" id="ex12">
+<h3>12. Find the dominant path between two activities</h3>
+<p class="desc">Same supply chain, but now iron ore mining also consumes electricity directly. <a href="../bw_graph_tools/index.html#path_as_brightway_objects">path_as_brightway_objects</a> finds the path of <em>greatest multiplicative technosphere flow</em> between two nodes — here it correctly reports that steel's biggest route to electricity is indirect, through iron ore, not the direct edge.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+from bw_graph_tools import path_as_brightway_objects
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+iron_ore = db.new_node(code="iron_ore", name="iron ore mining", unit="kilogram", location="GLO")
+iron_ore.save()
+electricity = db.new_node(code="electricity", name="electricity production", unit="kilowatt hour", location="GLO")
+electricity.save()
+
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=iron_ore.key, amount=1.6, type="technosphere").save()
+steel.new_exchange(input=electricity.key, amount=0.5, type="technosphere").save()
+steel.new_exchange(input=co2.key, amount=0.2, type="biosphere").save()
+
+iron_ore.new_exchange(input=iron_ore.key, amount=1, type="production").save()
+iron_ore.new_exchange(input=electricity.key, amount=3.0, type="technosphere").save()
+iron_ore.new_exchange(input=co2.key, amount=0.1, type="biosphere").save()
+
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+electricity.new_exchange(input=co2.key, amount=0.9, type="biosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+lca = bc.LCA({steel.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+
+# Find the path of greatest multiplicative technosphere flow from steel to electricity
+# (steel consumes electricity directly, but also indirectly via iron ore, which
+# itself consumes a lot of electricity -- path_as_brightway_objects reports which
+# route dominates).
+path = path_as_brightway_objects(steel, electricity, lca=lca)
+for product_node, activity_node, amount in path:
+    print(f"{product_node['name']:12s} -&gt; {activity_node['name']:26s} amount={amount:.4f}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>steel production -&gt; iron ore mining            amount=1.6000
+iron ore mining -&gt; electricity production     amount=3.0000</code></pre>
+</div>
+
+<h2 id="bw2analyzer">bw2analyzer</h2>
+<p>See also: <a href="../bw2analyzer/index.html">the bw2analyzer module map</a>.</p>
+
+<div class="ex" id="ex13">
+<h3>13. Top contributing processes and emissions</h3>
+<p class="desc"><a href="../bw2analyzer/index.html#ContributionAnalysis">ContributionAnalysis</a>'s <code>annotated_top_processes</code>/<code>annotated_top_emissions</code> rank a solved LCA's technosphere and biosphere contributions — here methane's much higher characterization factor (28 vs. 1 for CO&#8322;) makes it the top emission despite a tiny mass.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+from bw2analyzer import ContributionAnalysis
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+ch4 = biosphere.new_node(code="ch4", name="methane", unit="kilogram", type="emission")
+ch4.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+iron_ore = db.new_node(code="iron_ore", name="iron ore mining", unit="kilogram", location="GLO")
+iron_ore.save()
+
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=iron_ore.key, amount=1.6, type="technosphere").save()
+steel.new_exchange(input=co2.key, amount=0.2, type="biosphere").save()
+steel.new_exchange(input=ch4.key, amount=0.01, type="biosphere").save()
+
+iron_ore.new_exchange(input=iron_ore.key, amount=1, type="production").save()
+iron_ore.new_exchange(input=co2.key, amount=0.1, type="biosphere").save()
+iron_ore.new_exchange(input=ch4.key, amount=0.05, type="biosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0), (ch4.key, 28.0)])   # CH4 has a much higher GWP per kg
+
+lca = bc.LCA({steel.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print("total score:", round(lca.score, 4))
+
+ca = ContributionAnalysis()
+
+print("\ntop processes:")
+for score, supply, activity in ca.annotated_top_processes(lca):
+    print(f"  {activity['name']:24s} score={score:.4f} supply={supply:.4f}")
+
+print("\ntop emissions:")
+for score, amount, flow in ca.annotated_top_emissions(lca):
+    print(f"  {flow['name']:12s} score={score:.4f} amount={amount:.4f}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>total score: 2.88
+
+top processes:
+  iron ore mining          score=2.4000 supply=1.6000
+  steel production         score=0.4800 supply=1.0000
+
+top emissions:
+  methane      score=2.5200 amount=0.0900
+  carbon dioxide score=0.3600 amount=0.3600</code></pre>
+</div>
+
+<div class="ex" id="ex14">
+<h3>14. Compare two activities' LCA scores</h3>
+<p class="desc"><a href="../bw2analyzer/index.html#compare_activities_by_lcia_score">compare_activities_by_lcia_score</a> runs one LCA covering several activities at once (via <code>redo_lcia</code>) and prints whether their scores are "substantially different" (outside a <code>band * max_score</code> tolerance) — a quick way to check if an alternative route to the same product is actually better.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+from bw2analyzer import compare_activities_by_lcia_score
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel_a = db.new_node(code="steel_a", name="steel production, route A", unit="kilogram", location="GLO")
+steel_a.save()
+steel_a.new_exchange(input=steel_a.key, amount=1, type="production").save()
+steel_a.new_exchange(input=co2.key, amount=2.0, type="biosphere").save()
+
+steel_b = db.new_node(code="steel_b", name="steel production, route B", unit="kilogram", location="GLO")
+steel_b.save()
+steel_b.new_exchange(input=steel_b.key, amount=1, type="production").save()
+steel_b.new_exchange(input=co2.key, amount=0.5, type="biosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+compare_activities_by_lcia_score([steel_a, steel_b], method_key)</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>Differences observed. LCA scores:
+	2.000 -&gt; ('example_db', 'steel_a')
+	0.500 -&gt; ('example_db', 'steel_b')</code></pre>
+</div>
+
+<div class="ex" id="ex15">
+<h3>15. Print a recursive, LCIA-weighted supply-chain trace</h3>
+<p class="desc"><a href="../bw2analyzer/index.html#print_recursive_calculation">print_recursive_calculation</a> walks the supply chain from an activity and prints each input's fraction of the total score, absolute score, and amount — a fast console alternative to a full graph traversal (example 4 above) when all you need is a quick look.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+from bw2analyzer import print_recursive_calculation
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+iron_ore = db.new_node(code="iron_ore", name="iron ore mining", unit="kilogram", location="GLO")
+iron_ore.save()
+electricity = db.new_node(code="electricity", name="electricity production", unit="kilowatt hour", location="GLO")
+electricity.save()
+
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=iron_ore.key, amount=1.6, type="technosphere").save()
+steel.new_exchange(input=electricity.key, amount=0.5, type="technosphere").save()
+steel.new_exchange(input=co2.key, amount=0.2, type="biosphere").save()
+
+iron_ore.new_exchange(input=iron_ore.key, amount=1, type="production").save()
+iron_ore.new_exchange(input=co2.key, amount=0.1, type="biosphere").save()
+
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+electricity.new_exchange(input=co2.key, amount=0.9, type="biosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+print_recursive_calculation(steel, method_key, cutoff=0.05)</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>Fraction of score | Absolute score | Amount | Activity
+0001 |  0.81 |     1 | 'steel production' (kilogram, GLO, None)
+  0.198 |  0.16 |   1.6 | 'iron ore mining' (kilogram, GLO, None)
+  0.556 |  0.45 |   0.5 | 'electricity production' (kilowatt hour, GLO, None)</code></pre>
+</div>
+
+<h2 id="multifunctional">multifunctional</h2>
+<p>See also: <a href="../multifunctional/index.html">the multifunctional module map</a>.</p>
+
+<div class="ex" id="ex16">
+<h3>16. Build a multi-output process and allocate it by price</h3>
+<p class="desc">"oil refining" has two functional (reference) output edges, diesel and naphtha, each carrying a <code>price</code> <a href="../multifunctional/index.html#allocation">property</a>. <code>Database(backend="multifunctional")</code> auto-detects it as <code>type="multifunctional"</code>; writing it (with <code>default_allocation="price"</code> set on the database) runs <a href="../multifunctional/index.html#allocate">.allocate()</a>, which splits it into two read-only, single-output <code>ReadOnlyProcessWithReferenceProduct</code> nodes, each carrying its share of the amount.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import multifunctional  # noqa: F401  -- registers the "multifunctional" backend into bw2data
+
+bd.projects.set_current("my-project")
+
+db = bd.Database("example_db", backend="multifunctional")
+db.register(default_allocation="price")
+
+# "refining" is a multifunctional process: it has two functional (reference)
+# output edges, diesel and naphtha, each carrying a "price" property used
+# as the economic allocation factor.
+db.write({
+    ("example_db", "refining"): {
+        "name": "oil refining",
+        "location": "GLO",
+        "exchanges": [
+            {
+                "functional": True, "type": "production",
+                "name": "diesel", "unit": "kilogram", "amount": 0.6,
+                "properties": {"price": 1.2},
+            },
+            {
+                "functional": True, "type": "production",
+                "name": "naphtha", "unit": "kilogram", "amount": 0.4,
+                "properties": {"price": 0.5},
+            },
+        ],
+    },
+})
+
+refining = bd.get_node(database="example_db", code="refining")
+print("multifunctional:", refining.multifunctional)
+
+print(f"{refining['code']:10s} type={refining['type']:24s} name={refining['name']!r}")
+
+# Read-only process codes are randomly generated each allocation run
+# (mf_allocation_run_uuid), so sort/print by reference product, not code.
+for act in sorted(
+    (a for a in bd.Database("example_db") if a.get("type") == "readonly_process"),
+    key=lambda a: a["reference product"],
+):
+    print(f"  readonly process, reference product={act['reference product']:8s} production amount={act['production amount']}")
+
+print("\nallocation factors on the parent process's functional exchanges:")
+functional_excs = sorted((e for e in refining.exchanges() if e.get("functional")), key=lambda e: e["name"])
+for exc in functional_excs:
+    print(f"  {exc['name']:8s} amount={exc.amount} price={exc['properties']['price']} allocation_factor={exc['mf_allocation_factor']:.3f}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>multifunctional: True
+refining   type=multifunctional          name='oil refining'
+  readonly process, reference product=diesel   production amount=0.6
+  readonly process, reference product=naphtha  production amount=0.4
+
+allocation factors on the parent process's functional exchanges:
+  diesel   amount=0.6 price=1.2 allocation_factor=0.783
+  naphtha  amount=0.4 price=0.5 allocation_factor=0.217</code></pre>
+</div>
+
+<div class="ex" id="ex17">
+<h3>17. Compare built-in allocation strategies</h3>
+<p class="desc">Re-running <code>.allocate()</code> with a different <a href="../multifunctional/index.html#allocation-strategies">strategy label</a> replaces the previous read-only processes with a fresh allocation. Same process, three strategies from <code>multifunctional.allocation_strategies</code>: <code>"price"</code> and <code>"mass"</code> (both property-based, normalized by production amount) vs. <code>"equal"</code> (flat 1.0 factor per functional edge, so it just splits by production amount).</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import multifunctional  # noqa: F401
+
+bd.projects.set_current("my-project")
+
+db = bd.Database("example_db", backend="multifunctional")
+db.register(default_allocation="price")
+
+db.write({
+    ("example_db", "refining"): {
+        "name": "oil refining",
+        "location": "GLO",
+        "exchanges": [
+            {
+                "functional": True, "type": "production",
+                "name": "diesel", "unit": "kilogram", "amount": 0.6,
+                "properties": {"price": 1.2, "mass": 0.6},
+            },
+            {
+                "functional": True, "type": "production",
+                "name": "naphtha", "unit": "kilogram", "amount": 0.4,
+                "properties": {"price": 0.5, "mass": 0.4},
+            },
+        ],
+    },
+})
+
+refining = bd.get_node(database="example_db", code="refining")
+
+# Re-run allocation with different strategies and compare the resulting
+# factors -- switching strategy is just calling .allocate() again with a
+# different label; each run replaces the previously generated read-only
+# processes (purge_expired_linked_readonly_processes, keyed by a fresh
+# mf_allocation_run_uuid stamped on the parent each time).
+for strategy in ("price", "mass", "equal"):
+    refining.allocate(strategy)
+    factors = {
+        exc["name"]: exc["mf_allocation_factor"]
+        for exc in refining.exchanges() if exc.get("functional")
+    }
+    print(f"{strategy:6s} -&gt; diesel={factors['diesel']:.3f} naphtha={factors['naphtha']:.3f}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>price  -&gt; diesel=0.783 naphtha=0.217
+mass   -&gt; diesel=0.692 naphtha=0.308
+equal  -&gt; diesel=0.500 naphtha=0.500</code></pre>
+</div>
+
+<div class="ex" id="ex18">
+<h3>18. Run an LCA against one allocated co-product</h3>
+<p class="desc">The whole point of allocation: after splitting "oil refining" by price, its 3 kg of CO&#8322; also gets split by the same factor and copied onto each read-only process (<code>rescale_exchange</code> in <code>allocation.py</code>) — so <code>bw2calc.LCA</code> can now solve a normal square matrix for "1 kg of diesel" alone, something it can't do for a multi-output process directly.</p>
+<p class="label">Code</p>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+import multifunctional  # noqa: F401
+
+bd.projects.set_current("my-project")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db", backend="multifunctional")
+db.register(default_allocation="price")
+
+db.write({
+    ("example_db", "refining"): {
+        "name": "oil refining",
+        "location": "GLO",
+        "exchanges": [
+            {
+                "functional": True, "type": "production",
+                "name": "diesel", "unit": "kilogram", "amount": 0.6,
+                "properties": {"price": 1.2},
+            },
+            {
+                "functional": True, "type": "production",
+                "name": "naphtha", "unit": "kilogram", "amount": 0.4,
+                "properties": {"price": 0.5},
+            },
+            # 3 kg CO2 emitted per unit of "refining" activity, split
+            # across diesel/naphtha by the same price-based factor.
+            {"type": "biosphere", "input": co2.key, "amount": 3.0},
+        ],
+    },
+})
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+readonly = {a["reference product"]: a for a in bd.Database("example_db") if a.get("type") == "readonly_process"}
+diesel, naphtha = readonly["diesel"], readonly["naphtha"]
+
+for act in (diesel, naphtha):
+    co2_exc = next(e for e in act.exchanges() if e.input == co2.key)
+    print(f"{act['reference product']:8s} co2 exchange amount={co2_exc.amount:.3f}")
+
+    lca = bc.LCA({act.key: 1}, method_key)
+    lca.lci()
+    lca.lcia()
+    print(f"{act['reference product']:8s} LCA score for 1 {act['unit']}: {lca.score:.3f}")</code></pre>
+<p class="label">Output</p>
+<pre class="output"><code>diesel   co2 exchange amount=2.348
+diesel   LCA score for 1 kilogram: 3.913
+naphtha  co2 exchange amount=0.652
+naphtha  LCA score for 1 kilogram: 1.630</code></pre>
+</div>
+
 
 <footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
 </div>
