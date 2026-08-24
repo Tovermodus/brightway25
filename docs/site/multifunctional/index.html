@@ -108,6 +108,21 @@ db.process()
 electricity = bd.get_node(database="mf-db", name="electricity")
 </code></pre>
 
+<p>Three full runnable scripts (verified against the installed source, with real captured output) are on the
+site-wide <a href="../examples/index.html#multifunctional">Examples page</a>: <a href="../examples/index.html#ex9">
+build a multi-output process and allocate it by price</a>, <a href="../examples/index.html#ex10">compare the
+built-in <code>"price"</code>/<code>"mass"</code>/<code>"equal"</code> strategies</a>, and
+<a href="../examples/index.html#ex11">run an LCA against one allocated co-product</a>.</p>
+
+<p style="color:var(--fg-dim); font-size:0.9rem;">Gotcha found while writing those examples: don't put an explicit
+<code>"input"</code> on a functional exchange unless it already points at an existing product node — a same-key
+placeholder gets stripped by <code>generic_allocation()</code> (<code>allocation.py</code>) before it generates a
+fresh code, but a made-up <code>"input"</code> pointing nowhere makes the datapackage build raise
+<code>UnknownObject</code>. Also, <code>MultifunctionalDatabase.process()</code> (called automatically by
+<code>write()</code>) runs allocation unconditionally, so <code>default_allocation</code> must already be set
+(on the database via <code>db.register(default_allocation=...)</code>, or per-node) <em>before</em> the first
+<code>write()</code>, or it raises <code>ValueError</code>.</p>
+
 <h2>Where to look</h2>
 
 <h3>How does a "multifunctional" backend database actually activate this package?</h3>

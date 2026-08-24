@@ -68,6 +68,14 @@ package still works if `bw2data` isn't installed). Typically used
 interactively or in `bw2analyzer`/UI code to render "what contributes most
 to this LCA score" sunburst/tree visualizations.
 
+## Worked examples
+
+Two runnable, verified scripts live on the site-wide examples page:
+`docs/site/examples/index.html#ex4` (build a 3-process supply chain, run
+`NewNodeEachVisitGraphTraversal`, read `cumulative_score`/`direct_emissions_score`
+off `nodes`) and `#ex5` (`path_as_brightway_objects` to find the
+dominant/most-important path between two activities, not a full traversal).
+
 ## Where to look for common questions
 
 - "How do I run a graph traversal?" → instantiate `bw2calc.LCA`, call

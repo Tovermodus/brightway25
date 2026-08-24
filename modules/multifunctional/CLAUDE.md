@@ -53,6 +53,30 @@ having this package installed activates the plugin for any database created with
 Note: `multifunctional_node_dispatcher` (in `node_dispatch.py`) is used internally and
 registered into `bw2data`'s mapping, but is **not** exported in `__all__`.
 
+## Worked examples
+
+Three runnable, verified scripts live on the site-wide examples page:
+`docs/site/examples/index.html#ex9` (build a multifunctional process with two
+functional edges carrying a `price` property and write it against
+`Database(backend="multifunctional")` — writing auto-runs `.allocate()`),
+`#ex10` (re-run `.allocate()` with `"price"` / `"mass"` / `"equal"` and
+compare the resulting `mf_allocation_factor`s on the parent's functional
+exchanges), and `#ex11` (run `bw2calc.LCA` against one of the resulting
+`ReadOnlyProcessWithReferenceProduct` nodes — the whole point of allocation:
+a normal square-matrix LCA on a single co-product, which isn't possible on
+the multifunctional process directly).
+
+Note on writing multifunctional data: don't set an explicit `"input"` on a
+functional exchange unless it already points at an existing product node —
+`add_exchange_input_if_missing` (`utils.py`) marks a same-key `"input"` as
+`mf_artificial_code` and `generic_allocation` (`allocation.py`) strips it back
+off before generating a fresh product/process code; a manually supplied
+`"input"` pointing at a node that doesn't exist yet raises `UnknownObject`
+when the datapackage is built. Also, `MultifunctionalDatabase.process()` runs
+allocation unconditionally on `write()`, so a `default_allocation` (on the
+database or the node) must be set *before* the first `write()` call, or it
+raises `ValueError`.
+
 ## Where to look
 
 **Q: How does a database created with `backend="multifunctional"` actually get multifunctional behavior?**
