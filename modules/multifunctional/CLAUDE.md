@@ -59,9 +59,9 @@ Three runnable, verified scripts live on the site-wide examples page:
 `docs/site/examples/index.html#ex16` (build a multifunctional process with two
 functional edges carrying a `price` property and write it against
 `Database(backend="multifunctional")` — writing auto-runs `.allocate()`),
-`#ex10` (re-run `.allocate()` with `"price"` / `"mass"` / `"equal"` and
+`#ex17` (re-run `.allocate()` with `"price"` / `"mass"` / `"equal"` and
 compare the resulting `mf_allocation_factor`s on the parent's functional
-exchanges), and `#ex11` (run `bw2calc.LCA` against one of the resulting
+exchanges), and `#ex18` (run `bw2calc.LCA` against one of the resulting
 `ReadOnlyProcessWithReferenceProduct` nodes — the whole point of allocation:
 a normal square-matrix LCA on a single co-product, which isn't possible on
 the multifunctional process directly).
