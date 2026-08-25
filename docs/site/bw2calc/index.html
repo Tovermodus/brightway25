@@ -131,7 +131,10 @@ df = lca.to_dataframe()
   <code>UNCERTAINTY_DTYPE</code>. Exchange-level uncertainty is set in <code>bw2data</code>
   before <code>.save()</code>, e.g. <code>exc["uncertainty type"] = 3; exc["loc"] = 1.8;
   exc["scale"] = 0.2</code> (field name has a literal space; the integer id matches
-  <code>stats_arrays.UncertaintyType</code>, normal == 3).</p>
+  <code>stats_arrays.UncertaintyType</code>, normal == 3). For a full worked example —
+  multiple uncertain exchanges (normal + lognormal), building a distribution of scores over
+  1000 iterations, and comparing two scenarios with <code>scipy.stats.ttest_ind</code> — see
+  the <a href="../tutorials/monte-carlo-uncertainty.html">Monte Carlo uncertainty tutorial</a>.</p>
 
   <h3 id="how-do-multiple-methods-functional-units-run-together-efficiently">How do multiple methods / functional units run together efficiently?</h3>
   <p><code>multi_lca.py</code> <code>MultiLCA</code> (shared factorized technosphere across
