@@ -89,10 +89,13 @@ def inject_supplementary_notes(out_dir: Path, package: str) -> None:
     session). This is the escape hatch: if `docs/site/<package>/api_notes.html`
     exists, its contents (an inner-HTML snippet, not a full document — a
     couple of paragraphs/callouts) are inserted right after the backlink
-    banner on the generated `api/<package>/index.html` page. Author it once;
-    every regeneration (including the GitHub Pages deploy) picks it up
-    automatically. A package with no such file is untouched — this is
-    opt-in per package, not required.
+    banner on the generated `api/<package>/<package>.html` page — pdoc's
+    actual top-level content page (`api/<package>/index.html` is just a
+    `<meta http-equiv="refresh">` stub pointing at it, with no `<body>` to
+    inject into — verified by running `generate()` and inspecting the
+    output). Author the note once; every regeneration (including the GitHub
+    Pages deploy) picks it up automatically. A package with no such file is
+    untouched — this is opt-in per package, not required.
 
     Must run after `inject_backlinks` (it reuses the banner's closing
     `</script>` tag as the insertion point) and is best-effort: any surprise
@@ -102,9 +105,7 @@ def inject_supplementary_notes(out_dir: Path, package: str) -> None:
     notes_file = SITE_DIR / package / "api_notes.html"
     if not notes_file.exists():
         return
-    top_page = out_dir / package / "index.html"
-    if not top_page.exists():
-        top_page = out_dir / f"{package}.html"  # single-module fallback shape
+    top_page = out_dir / f"{package}.html"
     if not top_page.exists():
         print(f"  (skip api_notes for {package}: no top-level page found)", file=sys.stderr)
         return
