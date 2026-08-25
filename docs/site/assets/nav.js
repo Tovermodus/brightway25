@@ -239,7 +239,8 @@
       ["Scope a study and assess it across several impact categories", "tutorials/scope-and-multi-category-impacts.html"]
     ],
     stats_arrays: [["Run a Monte Carlo uncertainty analysis", "tutorials/monte-carlo-uncertainty.html"]],
-    multifunctional: [["Allocate a multifunctional process", "tutorials/multifunctional-allocation.html"]]
+    multifunctional: [["Allocate a multifunctional process", "tutorials/multifunctional-allocation.html"]],
+    bw_migrations: [["Migrate/relink data with bw_migrations", "tutorials/migrating-data-with-bw-migrations.html"]]
   };
 
   // Every module page gets the same cross-link strip right under its <h1>:
