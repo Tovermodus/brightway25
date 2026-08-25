@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: migrating data with bw_migrations — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw_migrations/index.html">bw_migrations</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: relink flow names/units with bw_migrations</h1>
+<p class="tagline">How to load a curated migration table and apply it to plain data dicts — the naming/unit-reconciliation step that runs before data ever touches <code>bw2data</code>, and the building block underneath hybrid/IO-based LCA import pipelines.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw_migrations</code> API (<code>.venv/lib/python3.11/site-packages/bw_migrations/</code>), verified by running it. See <a href="../bw_migrations/index.html">the bw_migrations module map</a> for the full picture, and <a href="../bw2io/index.html">the bw2io module map</a> for how import pipelines actually invoke migrations like this one.
+</blockquote>
+
+<h2 id="1-what-a-migration-is-here">1. What a "migration" is here</h2>
+<p>
+In this package, a migration is nothing more than a lookup table: a list of
+<code>[key_tuple, replacement]</code> pairs, where <code>key_tuple</code> is built from one
+or more fields of a data dict (e.g. <code>(name, categories)</code>) and <code>replacement</code>
+is a dict of fields to overwrite (name, unit, categories, ...), optionally carrying a
+<code>__multiplier__</code> / <code>__disaggregation__</code> rescale factor. Applying a migration
+means: for every row in a dataset, look up its key tuple, and if there's a match, overwrite
+(and possibly rescale) that row in place.
+</p>
+<p>
+This is exactly the kind of linking step hybrid/input-output LCA needs: process-based
+inventory data (ecoinvent-style activities and biosphere flows) and IO/MRIO background
+data (EXIOBASE-style sectors and environmental extensions) are built by different teams
+with different naming conventions, units, and flow granularity. Before the two can be
+combined into one system, the flow names on one side have to be rewritten to match the
+other. <code>bw_migrations</code> ships exactly one bundled migration for this —
+EXIOBASE&nbsp;3 biosphere flows &rarr; ecoinvent&nbsp;3.6 biosphere flows — and
+<code>bw2io</code>'s EXIOBASE import strategies use it (and packages like it) as a building
+block before writing anything into a <code>bw2data</code> database.
+</p>
+
+<h2 id="2-load-the-bundled-migration">2. Load the bundled migration</h2>
+<p>
+<code>get_migration(location)</code> resolves a migration by bundled name, file path, or
+in-memory <code>Mapping</code>. The bundled EXIOBASE&#8594;ecoinvent migration is a plain dict
+with <code>fields</code>/<code>data</code> (plus provenance metadata):
+</p>
+<pre><code>from bw_migrations import get_migration
+
+migration = get_migration("exiobase-3-ecoinvent-3.6")
+print(sorted(migration.keys()))
+print("fields:", migration["fields"])
+print("number of mapped flows:", len(migration["data"]))
+print("license:", migration["license"]["name"])</code></pre>
+<pre class="output"><code>['contributors', 'data', 'fields', 'license', 'missing flows', 'version']
+fields: ['name', 'categories']
+number of mapped flows: 82
+license: ODC-PDDL-1.0</code></pre>
+<p>
+Each entry in <code>data</code> is a <code>[key, replacement]</code> pair. The key is matched
+against a row's <code>(name, categories)</code> values; the replacement is either a single
+dict (rename/rescale in place) or a list of dicts (split one source flow into several
+target flows). Two real entries, straight out of the bundled file:
+</p>
+<pre><code>for row in migration["data"][:2]:
+    print(row)</code></pre>
+<pre class="output"><code>[['1,3 Butadiene', 'air'], {'unit': 'kilogram', '__multiplier__': 1000, 'name': 'Butadiene'}]
+[['As', 'air'], {'unit': 'kilogram', '__multiplier__': 1000, 'name': 'Arsenic'}]</code></pre>
+<p>
+Reading this: an EXIOBASE flow named <code>"1,3 Butadiene"</code> in compartment
+<code>"air"</code> becomes ecoinvent's <code>"Butadiene"</code>, with its amount rescaled
+&times;1000 and its unit set to <code>"kilogram"</code> (EXIOBASE reports these flows in
+tonnes; ecoinvent uses kilograms).
+</p>
+
+<h2 id="3-apply-it-to-a-small-dataset">3. Apply it to a small dataset</h2>
+<p>
+<code>migrate_data(data, migration)</code> is a generator: it builds a lookup dict keyed by
+<code>tuple(row[field] for field in migration["fields"])</code>, then for each row either
+yields it unchanged (no match) or applies the replacement via <code>modify_object()</code>.
+Build three EXIOBASE-style rows — two whose <code>(name, categories)</code> really are keys
+in the bundled migration (confirmed above), one that isn't:
+</p>
+<pre><code>import copy
+from bw_migrations import migrate_data
+
+flows = [
+    {"name": "1,3 Butadiene", "categories": "air", "amount": 0.002, "unit": "kg", "type": "biosphere"},
+    {"name": "As", "categories": "air", "amount": 0.0005, "unit": "kg", "type": "biosphere"},
+    {"name": "some unmapped flow", "categories": "soil", "amount": 1.0, "unit": "kg", "type": "biosphere"},
+]
+originals = copy.deepcopy(flows)   # migrate_data modifies matched rows in place
+
+result = list(migrate_data(flows, migration))
+for before, after in zip(originals, result):
+    print("BEFORE:", before)
+    print("AFTER: ", after)
+    print()</code></pre>
+<pre class="output"><code>BEFORE: {'name': '1,3 Butadiene', 'categories': 'air', 'amount': 0.002, 'unit': 'kg', 'type': 'biosphere'}
+AFTER:  {'name': 'Butadiene', 'categories': 'air', 'amount': 2.0, 'unit': 'kilogram', 'type': 'biosphere'}
+
+BEFORE: {'name': 'As', 'categories': 'air', 'amount': 0.0005, 'unit': 'kg', 'type': 'biosphere'}
+AFTER:  {'name': 'Arsenic', 'categories': 'air', 'amount': 0.5, 'unit': 'kilogram', 'type': 'biosphere'}
+
+BEFORE: {'name': 'some unmapped flow', 'categories': 'soil', 'amount': 1.0, 'unit': 'kg', 'type': 'biosphere'}
+AFTER:  {'name': 'some unmapped flow', 'categories': 'soil', 'amount': 1.0, 'unit': 'kg', 'type': 'biosphere'}</code></pre>
+<p>
+The first two rows get renamed <em>and</em> rescaled (0.002&nbsp;kg &times; 1000 = 2.0,
+now reported in <code>"kilogram"</code> to match the new name's convention) — matching a key
+touches every field in the replacement dict at once, not just the one you searched by. The
+third row has no entry for <code>("some unmapped flow", "soil")</code> in the lookup, so
+<code>migrate_data</code> catches the resulting <code>KeyError</code> internally and yields
+the row completely unchanged. This is the important safety property: a migration is a
+best-effort relinking pass, not a filter — rows with nothing to say are passed through
+rather than dropped or raising.
+</p>
+
+<h2 id="4-rescaling-and-fan-out">4. Rescaling and fan-out (one source flow &rarr; several target flows)</h2>
+<p>
+The bundled migration also has entries whose replacement is a <em>list</em> of dicts, each
+carrying its own <code>__multiplier__</code> and <code>__disaggregation__</code> — this is how
+one aggregate EXIOBASE flow (e.g. <code>"CFCs"</code>, lumping several individual
+chlorofluorocarbons together) gets split into several disaggregated ecoinvent flows, each
+taking a fraction of the original amount:
+</p>
+<pre><code>flows = [{"name": "CFCs", "categories": "air", "amount": 0.006, "unit": "kg", "type": "biosphere"}]
+originals = copy.deepcopy(flows)
+
+result = list(migrate_data(flows, migration))
+print("BEFORE:", originals[0])
+print(f"AFTER: fanned out into {len(result)} rows")
+for row in result:
+    print(" ", row["name"], row["amount"], row["unit"])</code></pre>
+<pre class="output"><code>BEFORE: {'name': 'CFCs', 'categories': 'air', 'amount': 0.006, 'unit': 'kg', 'type': 'biosphere'}
+AFTER: fanned out into 6 rows
+  Ethane, 1,1,2-trichloro-1,2,2-trifluoro-, CFC-113 1.0 kilogram
+  Ethane, 1,2-dichloro-1,1,2,2-tetrafluoro-, CFC-114 1.0 kilogram
+  Ethane, chloropentafluoro-, CFC-115 1.0 kilogram
+  Methane, chlorotrifluoro-, CFC-13 1.0 kilogram
+  Methane, dichlorodifluoro-, CFC-12 1.0 kilogram
+  Methane, trichlorofluoro-, CFC-11 1.0 kilogram</code></pre>
+<p>
+The math behind that <code>1.0</code>: each of the 6 replacement dicts carries
+<code>__multiplier__=1000</code> and <code>__disaggregation__=1/6</code>
+(<code>0.16666...</code>). <code>strategies.modify_object()</code> multiplies the two
+together into one <code>scale</code> factor and hands it to
+<code>utils.rescale_object()</code>, which applies it to <code>amount</code> (as well as
+<code>formula</code> and any <code>stats_arrays</code>-style uncertainty parameters, if
+present) &mdash; <code>0.006 &times; 1000 &times; (1/6) = 1.0</code> for every one of the six
+rows. A single input row becomes six output rows because the matched replacement was a
+<em>list</em>: <code>migrate_data</code> deep-copies the row once per replacement dict in
+the list and applies each one separately.
+</p>
+
+<h2 id="5-a-custom-migration">5. A custom migration (not the bundled one)</h2>
+<p>
+Nothing about <code>migrate_data</code> is specific to the EXIOBASE&#8596;ecoinvent
+dataset — it's a generic find/replace-plus-rescale engine for any two datasets' naming
+conventions. Here's a minimal hand-built migration reconciling a hypothetical dataset that
+reports mass in tonnes with one that expects kilograms, matched by <code>(name, unit)</code>:
+</p>
+<pre><code>custom_migration = {
+    "fields": ["name", "unit"],
+    "data": [
+        [["steel", "t"], {"unit": "kg", "__multiplier__": 1000}],
+        [["concrete", "t"], {"unit": "kg", "__multiplier__": 1000}],
+    ],
+}
+
+rows = [
+    {"name": "steel", "unit": "t", "amount": 2.5},
+    {"name": "concrete", "unit": "t", "amount": 10},
+    {"name": "water", "unit": "m3", "amount": 5},
+]
+originals = copy.deepcopy(rows)
+
+result = list(migrate_data(rows, custom_migration))
+for before, after in zip(originals, result):
+    print("BEFORE:", before)
+    print("AFTER: ", after)
+    print()</code></pre>
+<pre class="output"><code>BEFORE: {'name': 'steel', 'unit': 't', 'amount': 2.5}
+AFTER:  {'name': 'steel', 'unit': 'kg', 'amount': 2500.0}
+
+BEFORE: {'name': 'concrete', 'unit': 't', 'amount': 10}
+AFTER:  {'name': 'concrete', 'unit': 'kg', 'amount': 10000}
+
+BEFORE: {'name': 'water', 'unit': 'm3', 'amount': 5}
+AFTER:  {'name': 'water', 'unit': 'm3', 'amount': 5}</code></pre>
+<p>
+Same engine, same pass-through-on-no-match behavior (the <code>water</code> row, in
+<code>m3</code> rather than <code>t</code>, doesn't match either key and is left alone) —
+only the migration dict changed. <code>get_migration()</code> would also happily load this
+same dict from a JSON file on disk if you saved it there, via a file path instead of a
+bundled name.
+</p>
+
+<h2 id="6-where-this-fits">6. Where this fits</h2>
+<p>
+Everything above ran on plain Python dicts in a list — no <code>bw2data</code> project, no
+database, no import pipeline. That's the point: <code>bw_migrations</code> operates purely
+on in-memory data structures, before anything is written into a Brightway project. An
+import pipeline (like <code>bw2io</code>'s EXIOBASE strategies) calls <code>get_migration()</code>
+and <code>migrate_data()</code> (or an equivalent renaming/rescaling strategy) as one step
+in a longer chain, so that by the time data reaches <code>bw2data.Database.write()</code>
+the flow names, units and categories already match the target database's conventions. See
+<a href="../bw2io/index.html">the bw2io module map</a> for how strategies and its own,
+differently-named <code>bw2io.migrations.Migration</code> mechanism fit into a real import —
+they're a related but distinct mechanism (on-disk-registered, per-project, plain
+<code>"multiplier"</code> rescale key) from the standalone functions used here.
+</p>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

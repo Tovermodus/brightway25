@@ -29,6 +29,9 @@
 <a class="api-link" href="../api/bw_migrations/index.html">Full generated API reference →</a>
 <p class="tagline" style="margin-top:-0.6rem">Auto-generated from installed docstrings via <a href="https://pdoc.dev">pdoc</a> (see <code>docs/generate_api_docs.py</code>) &mdash; every public class, function and module in <code>bw_migrations</code>, always in sync with what is installed. Not committed to git; built fresh on every deploy.</p>
 
+  <h2 id="worked-examples">Worked examples</h2>
+  <p>A full, verified worked example: <a href="../tutorials/migrating-data-with-bw-migrations.html">migrating data with bw_migrations</a> — loading the bundled <code>exiobase-3-ecoinvent-3.6</code> migration and inspecting its real <code>fields</code>/<code>data</code> shape, applying it to a small synthetic dataset (rename + unit rescale on a match, unchanged pass-through on a miss), the disaggregation/fan-out case (one EXIOBASE <code>"CFCs"</code> row splitting into six ecoinvent CFC congener rows), and a hand-built custom migration showing the engine isn't tied to the bundled dataset.</p>
+
   <h2 id="key-files">Key files</h2>
   <table>
     <thead><tr><th>File</th><th>Role</th></tr></thead>
