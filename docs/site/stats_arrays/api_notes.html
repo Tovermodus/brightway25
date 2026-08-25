@@ -1,0 +1,12 @@
+<strong>Note from the brightway25 code map:</strong> this page is generated straight from
+<code>stats_arrays</code>'s installed docstrings, so a few things worth knowing aren't stated here.
+The integer <code>uncertainty_type</code> codes are verified from the installed
+<code>uncertainty_types.py</code> <code>UncertaintyType(IntEnum)</code>: <code>normal == 3</code>,
+<code>lognormal == 2</code> (also each distribution class's own <code>id</code> attribute, e.g.
+<code>NormalUncertainty.id == 3</code>). For lognormal, <code>loc</code> is the underlying normal's
+mean in log-space (<code>mu</code>, i.e. <code>log(median)</code>) rather than the median itself —
+confirmed from <code>distributions/lognormal.py</code> <code>random_variables()</code>, which
+samples <code>numpy.random.lognormal(loc, scale)</code> directly. See the
+<a href="../tutorials/monte-carlo-uncertainty.html">Monte Carlo uncertainty tutorial</a> for a full
+worked example built on these codes, and <a href="../stats_arrays/index.html">the stats_arrays
+module map</a> for how this fits into the rest of the uncertainty/sampling stack.

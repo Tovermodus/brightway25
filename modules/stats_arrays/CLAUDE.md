@@ -124,7 +124,13 @@ ids (normal == 3), which flow unchanged into `bw_processing`'s
 `UNCERTAINTY_DTYPE` and are sampled by `MCRandomNumberGenerator` under the
 hood. Full runnable script + captured output:
 `docs/site/examples/index.html#ex7` (bw2calc section) — see also
-`modules/bw2calc/CLAUDE.md`.
+`modules/bw2calc/CLAUDE.md`. For a longer worked example — normal *and*
+lognormal exchanges together (verified: lognormal's `loc` is the log-space
+mean `mu`, i.e. `log(median)`, not the median itself — from
+`distributions/lognormal.py` `random_variables()`, which samples
+`numpy.random.lognormal(loc, scale)` directly), building up a 1000-sample
+score distribution, and comparing two scenarios statistically — see
+[docs/site/tutorials/monte-carlo-uncertainty.html](../../docs/site/tutorials/monte-carlo-uncertainty.html).
 
 **Q: How does this relate to `bw_processing`'s stored arrays?**
 `bw_processing.constants.UNCERTAINTY_DTYPE` uses the identical field names

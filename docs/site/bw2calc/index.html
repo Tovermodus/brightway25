@@ -131,7 +131,10 @@ df = lca.to_dataframe()
   <code>UNCERTAINTY_DTYPE</code>. Exchange-level uncertainty is set in <code>bw2data</code>
   before <code>.save()</code>, e.g. <code>exc["uncertainty type"] = 3; exc["loc"] = 1.8;
   exc["scale"] = 0.2</code> (field name has a literal space; the integer id matches
-  <code>stats_arrays.UncertaintyType</code>, normal == 3).</p>
+  <code>stats_arrays.UncertaintyType</code>, normal == 3). For a full worked example —
+  multiple uncertain exchanges (normal + lognormal), building a distribution of scores over
+  1000 iterations, and comparing two scenarios with <code>scipy.stats.ttest_ind</code> — see
+  the <a href="../tutorials/monte-carlo-uncertainty.html">Monte Carlo uncertainty tutorial</a>.</p>
 
   <h3 id="how-do-multiple-methods-functional-units-run-together-efficiently">How do multiple methods / functional units run together efficiently?</h3>
   <p><code>multi_lca.py</code> <code>MultiLCA</code> (shared factorized technosphere across
@@ -143,6 +146,15 @@ df = lca.to_dataframe()
   <code>mlca.lci(); mlca.lcia()</code>, <code>MultiLCA.scores</code> is a
   <code>dict</code> keyed <code>(impact_category_tuple, functional_unit_name)</code> →
   score. See <a href="../examples/index.html#ex6">Example 6</a>.</p>
+
+  <h3 id="midpoint-vs-endpoint-multi-category">How do I run several genuinely different impact categories (midpoint vs. endpoint) together and interpret them?</h3>
+  <p><a href="../tutorials/scope-and-multi-category-impacts.html">This tutorial</a> registers a
+  climate-change midpoint, a differently-flavored midpoint (different flow and unit entirely —
+  not just a reweighted CO2), and an endpoint/damage-oriented method (illustrative DALY-style
+  factors on multiple flows), then runs all three together via <code>MultiLCA</code>. The worked
+  example shows the endpoint score being dominated by a small-mass flow with a much larger
+  characterization factor — the concrete case for why an endpoint indicator can reorder "what
+  matters most" relative to any single midpoint.</p>
 
   <h3 id="where-do-the-lca-specific-exceptions-come-from">Where do the LCA-specific exceptions come from?</h3>
   <p><code>errors.py</code> — all subclass <code>BW2CalcError</code>, e.g.

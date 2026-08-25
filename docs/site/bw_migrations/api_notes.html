@@ -1,0 +1,13 @@
+<strong>Note from the brightway25 code map:</strong> this page is generated straight from
+<code>bw_migrations</code>'s installed docstrings, so a couple of things worth knowing aren't
+stated here. First, the commented-out <code>create_core_migrations()</code> block at the bottom of
+<code>__init__.py</code> references a <code>Migration</code> class and several
+<code>get_*_migration_data()</code> helper functions that do not exist anywhere in this installed
+package — treat it as dead/aspirational code, not a real API. Second,
+<code>migrate_data(data, migration)</code> is a pass-through, not a filter: a row whose lookup key
+has no match in the migration is caught internally on a <code>KeyError</code> and yielded
+completely unchanged, so applying a migration never drops or errors on unmapped rows. See the
+<a href="../tutorials/migrating-data-with-bw-migrations.html">migrating data with bw_migrations
+tutorial</a> for a full worked example (rename + rescale + fan-out, and the no-match case), and the
+<a href="../bw_migrations/index.html">bw_migrations module map</a> for how this fits into the
+rest of the import stack.

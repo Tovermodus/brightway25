@@ -20,6 +20,17 @@ only transforms in-memory data structures (and, optionally, joins against a
 
 Version: `0.2` (see `version.py`).
 
+## Worked examples
+
+A full, verified worked example lives at
+[docs/site/tutorials/migrating-data-with-bw-migrations.html](../../docs/site/tutorials/migrating-data-with-bw-migrations.html):
+loading the bundled `exiobase-3-ecoinvent-3.6` migration and inspecting its real
+`fields`/`data` shape, applying it to a small synthetic dataset (rename + unit rescale on a
+match, unchanged pass-through on a miss), the disaggregation/fan-out case (one EXIOBASE
+`"CFCs"` row splitting into six ecoinvent CFC congener rows via `__multiplier__` +
+`__disaggregation__`), and a hand-built custom migration to show the engine isn't tied to
+the bundled dataset.
+
 ## Key files
 
 | File | Role |

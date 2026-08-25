@@ -59,12 +59,25 @@ Three runnable, verified scripts live on the site-wide examples page:
 `docs/site/examples/index.html#ex16` (build a multifunctional process with two
 functional edges carrying a `price` property and write it against
 `Database(backend="multifunctional")` — writing auto-runs `.allocate()`),
-`#ex10` (re-run `.allocate()` with `"price"` / `"mass"` / `"equal"` and
+`#ex17` (re-run `.allocate()` with `"price"` / `"mass"` / `"equal"` and
 compare the resulting `mf_allocation_factor`s on the parent's functional
-exchanges), and `#ex11` (run `bw2calc.LCA` against one of the resulting
+exchanges), and `#ex18` (run `bw2calc.LCA` against one of the resulting
 `ReadOnlyProcessWithReferenceProduct` nodes — the whole point of allocation:
 a normal square-matrix LCA on a single co-product, which isn't possible on
 the multifunctional process directly).
+
+For a slower-paced, explanatory walkthrough of the same territory (one worked
+refinery example, built up section by section with commentary — not a
+copy of the examples above), see the tutorial:
+[docs/site/tutorials/multifunctional-allocation.html](../../docs/site/tutorials/multifunctional-allocation.html).
+It covers: why plain square-matrix LCA can't handle a multi-output process,
+building a two-product process with `price`/`mass` properties on each
+functional edge, inspecting the `mf_allocation_factor`s that `write()` fills
+in automatically, re-running `.allocate()` with different strategies to show
+the same physical process yielding different per-co-product LCA scores, and
+running `bw2calc.LCA` on one of the resulting allocated co-products —
+including a from-first-principles sanity check that the allocated scores sum
+back to the parent's total.
 
 Note on writing multifunctional data: don't set an explicit `"input"` on a
 functional exchange unless it already points at an existing product node —

@@ -1,0 +1,9 @@
+<strong>Note from the brightway25 code map:</strong> this page is generated straight from
+<code>bw2calc</code>'s installed docstrings, so a few things worth knowing aren't stated here.
+<code>use_distributions=True</code> makes an <code>LCA</code> object itself an iterator — call
+<code>next(lca)</code> repeatedly to resample every uncertain matrix entry and get a new
+<code>lca.score</code> each time (Monte Carlo); <code>use_arrays=True</code> is the sibling flag for
+scenario/array-based iteration via the same mechanism. See the
+<a href="../tutorials/monte-carlo-uncertainty.html">Monte Carlo uncertainty tutorial</a> for a full
+worked example, and the <a href="../bw2calc/index.html">bw2calc module map</a> for how this fits
+into the rest of the calculation stack.

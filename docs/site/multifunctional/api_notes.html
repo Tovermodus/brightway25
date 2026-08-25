@@ -1,0 +1,11 @@
+<strong>Note from the brightway25 code map:</strong> this page is generated straight from
+<code>multifunctional</code>'s installed docstrings, so a gotcha worth knowing isn't stated here.
+<code>MultifunctionalDatabase.process()</code> runs allocation unconditionally on every multifunctional
+node whenever the database is written — so <code>default_allocation</code> (passed to
+<code>db.register(default_allocation=...)</code>, or set per-node) must already be resolvable
+<em>before</em> the very first <code>write()</code>, or it raises
+<code>ValueError: Can't find `default_allocation` in input arguments, or process/database metadata.</code>
+There's no silent fallback strategy. See the
+<a href="../tutorials/multifunctional-allocation.html">multifunctional allocation tutorial</a> for a full
+worked example that hits this deliberately, and the <a href="../multifunctional/index.html">multifunctional
+module map</a> for how allocation fits into the rest of the package.

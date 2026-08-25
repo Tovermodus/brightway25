@@ -15,7 +15,7 @@
 <header class="top" data-pagefind-ignore>
   <div class="wrap">
     <a class="brand" href="index.html">bright<span>way25</span> code map</a>
-    <nav class="crumbs"><a href="examples/index.html">Examples →</a> · local, static, offline documentation of the installed Brightway 2.5 stack</nav>
+    <nav class="crumbs"><a href="examples/index.html">Examples →</a> · <a href="tutorials/index.html">Tutorials →</a> · local, static, offline documentation of the installed Brightway 2.5 stack</nav>
   </div>
 </header>
 <div class="wrap">
@@ -43,6 +43,12 @@ pip install -e ".[dev]"</code></pre>
     GitHub Pages.
   </blockquote>
 
+  <div class="layer-label">Start here: examples &amp; tutorials</div>
+  <div class="grid grid-featured">
+    <div class="card card-featured"><a class="name" href="examples/index.html">Examples</a><p>Every worked example across all modules, in one place: full runnable scripts with real captured output. Module pages link back here.</p></div>
+    <div class="card card-featured"><a class="name" href="tutorials/index.html">Tutorials</a><p>Slower-paced, step-by-step walkthroughs: build a database, rank an LCA result's biggest contributors, run a Monte Carlo uncertainty analysis, and allocate a multifunctional process.</p></div>
+  </div>
+
   <h2 id="three-kinds-of-docs-on-this-site">Three kinds of docs on this site</h2>
   <p class="tagline">
     Each package below has a <strong>handwritten map page</strong> (this site) explaining
@@ -58,19 +64,18 @@ pip install -e ".[dev]"</code></pre>
     <code>.github/workflows/pages.yml</code>). It's not just for these 16 packages: the
     generator auto-discovers any package that has a <code>docs/site/&lt;name&gt;/index.html</code>
     page and is importable, so adding API docs for another package is just adding its map
-    page (copy an existing one) — no script changes needed. On top of both, the
+    page (copy an existing one) — no script changes needed. Since that reference comes
+    straight from each package's own (third-party, not ours to durably edit) docstrings,
+    a package can also carry a small <code>docs/site/&lt;package&gt;/api_notes.html</code>
+    snippet — our own callouts/corrections, spliced onto its generated page automatically
+    by <code>generate_api_docs.py</code> (see it in action at the top of bw2calc's
+    <a href="api/bw2calc/index.html">API reference</a> once generated locally). On top of both, the
     <a href="examples/index.html"><strong>Examples</strong> page</a> and
     <a href="tutorials/index.html">tutorials</a> give runnable, verified
     walkthroughs with real captured output — module pages link into specific examples
     (and back) via anchored class/function names, so you can go from "what is <code>Database</code>"
     to "here it is being used" to "here's every method it has" in one click each way.
   </p>
-
-  <div class="layer-label">Examples &amp; tutorials</div>
-  <div class="grid">
-    <div class="card"><a class="name" href="examples/index.html">Examples</a><p>Every worked example across all modules, in one place: full runnable scripts with real captured output. Module pages link back here.</p></div>
-    <div class="card"><a class="name" href="tutorials/index.html">Tutorials</a><p>Slower-paced, step-by-step walkthroughs: create an empty database, and rank an LCA result's biggest contributors with bw2analyzer.</p></div>
-  </div>
 
   <h2 id="architecture-how-the-pieces-fit-together">Architecture — how the pieces fit together</h2>
   <div class="arch"><pre><code>stats_arrays   bw2parameters            (leaf utility libs: uncertainty, formulas)
