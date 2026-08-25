@@ -106,3 +106,15 @@ substitute_in_formulas   # mangling.py
   built-in symbol. `CapitalizationError`: likely case-mismatch in a
   reference. `BroadcastingError`: Monte Carlo formula result has the wrong
   array shape. `ParameterError`: generic ordering/definition failure.
+
+## Worked example (in context, via bw2data)
+
+This package is never driven directly in a normal Brightway workflow — it's
+always reached through `bw2data.parameters.ParameterManager` (project/
+database/activity parameter scopes, `add_exchanges_to_group`,
+`recalculate()`), which is what actually calls `ParameterSet`/`Interpreter`
+under the hood on real exchange formulas. For a full, verified, runnable
+walkthrough of that path — a project parameter, an activity parameter, a
+formula on an exchange, and re-running `bw2calc.LCA` after changing one
+parameter — see
+[docs/site/tutorials/parameterized-exchanges-and-formulas.html](../../docs/site/tutorials/parameterized-exchanges-and-formulas.html).

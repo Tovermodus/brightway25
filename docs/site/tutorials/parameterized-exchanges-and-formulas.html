@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: parameterized exchanges and formulas — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2parameters/index.html">bw2parameters</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: parameterized exchanges and formulas</h1>
+<p class="tagline">Give an exchange's amount a formula instead of a fixed number — driven by named parameters at the project and activity scope — so that changing one number in one place updates every exchange (and every downstream LCA score) that depends on it.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2data</code>/<code>bw2parameters</code> API,
+verified by running it. This builds directly on
+<a href="your-first-lca-calculation.html">Your first LCA calculation</a> — same steel/CO&#8322;
+model, with the fixed <code>1.8</code> emission factor replaced by a formula. See
+<a href="../bw2parameters/index.html">the bw2parameters module map</a> for how formula evaluation
+and dependency ordering work underneath, and
+<a href="../bw2calc/index.html">the bw2calc module map</a> for how Monte Carlo sampling on
+<em>exchange</em> uncertainty (a different mechanism — see
+<a href="monte-carlo-uncertainty.html">that tutorial</a>) differs from this.
+</blockquote>
+
+<h2 id="1-why-parameterize-an-exchange">1. Why parameterize an exchange</h2>
+<p>
+Every exchange amount so far has been a literal number typed once. That's fine for a fixed model,
+but breaks down the moment two exchanges should always move together (e.g. "this process's fuel
+use and its CO&#8322; both scale with the same efficiency number") or a value should be easy to
+sweep across scenarios. A <b>parameter</b> is a named, reusable number; a <b>formula</b> is a
+Python expression string stored on an exchange (or activity) in place of a fixed
+<code>amount</code>, referencing one or more parameter names. <code>bw2data.parameters</code>
+(backed by <a href="../bw2parameters/index.html">bw2parameters</a>' formula interpreter and
+dependency-ordering) resolves formulas into concrete amounts on demand.
+</p>
+
+<h2 id="2-build-the-model-with-a-formula-instead-of-a-number">2. Build the model, with a formula instead of a number</h2>
+<p>
+Same biosphere flow and process as before, but the CO&#8322; exchange's <code>amount</code> starts
+at <code>0</code> — a placeholder — and its real value comes from a <code>formula</code> string
+referencing two parameters that don't exist yet:
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("params-tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+
+co2_exchange = steel.new_exchange(
+    input=co2.key, amount=0, type="biosphere", formula="co2_per_kg * ore_purity"
+)
+co2_exchange.save()</code></pre>
+
+<h2 id="3-a-project-level-parameter">3. A project-level parameter</h2>
+<p>
+<code>co2_per_kg</code> is a project-wide constant, visible to every database/activity in the
+project — register it with <code>bd.parameters.new_project_parameters(...)</code> (an alias for
+the <code>ParameterManager</code> singleton, <code>bw2data/parameters.py</code>
+<code>ParameterManager.new_project_parameters</code>):
+</p>
+<pre><code>bd.parameters.new_project_parameters([
+    {"name": "co2_per_kg", "amount": 2.0},
+])</code></pre>
+
+<h2 id="4-an-activity-level-parameter">4. An activity-level parameter</h2>
+<p>
+<code>ore_purity</code> instead belongs to this one activity. Activity parameters live in a named
+<b>group</b> (auto-created if it doesn't exist) — groups are how <code>bw2data</code> scopes which
+formulas can see which parameters, and are also the unit that gets recalculated together:
+</p>
+<pre><code>group = "steel_group"
+bd.parameters.new_activity_parameters([
+    {"name": "ore_purity", "database": "example_db", "code": "steel", "amount": 0.9},
+], group)</code></pre>
+<p>
+This alone does <em>not</em> yet connect the group to the CO&#8322; exchange's formula — that link
+is explicit, next.
+</p>
+
+<h2 id="5-link-the-exchange-to-the-group-then-solve">5. Link the exchange to the group, then solve</h2>
+<p>
+<code>add_exchanges_to_group(group, activity)</code> scans the activity's exchanges for
+<code>formula</code> fields and registers each as a <code>ParameterizedExchange</code> tied to that
+group; <code>recalculate()</code> then walks every group, evaluates formulas in dependency order
+(project → database → activity, via <code>bw2parameters.ParameterSet</code> under the hood), and
+writes the resulting numbers back onto the real exchange rows:
+</p>
+<pre><code>bd.parameters.add_exchanges_to_group(group, steel)
+bd.parameters.recalculate()
+
+co2_exchange = next(exc for exc in steel.exchanges() if exc["type"] == "biosphere")
+print(co2_exchange["amount"])</code></pre>
+<pre class="output"><code>1.8</code></pre>
+<p>
+<code>2.0 &times; 0.9 = 1.8</code> — the formula was evaluated and the exchange's stored
+<code>amount</code> field was overwritten with the result. From here, <code>bw2calc.LCA</code>
+doesn't know or care that this number came from a formula; it just reads the exchange like any
+other:
+</p>
+<pre><code>import bw2calc as bc
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+lca = bc.LCA({steel.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print(lca.score)</code></pre>
+<pre class="output"><code>1.7999999523162842</code></pre>
+
+<h2 id="6-change-the-parameter-not-the-exchange">6. Change the parameter, not the exchange</h2>
+<p>
+This is the entire point: update the named parameter and recalculate, and every exchange whose
+formula depends on it updates too — you never touch the exchange directly. Calling
+<code>new_project_parameters</code> again with the same name overwrites it (the default
+<code>overwrite=True</code>):
+</p>
+<pre><code>bd.parameters.new_project_parameters([
+    {"name": "co2_per_kg", "amount": 3.0},   # was 2.0
+])
+bd.parameters.recalculate()
+
+co2_exchange = next(exc for exc in steel.exchanges() if exc["type"] == "biosphere")
+print(co2_exchange["amount"])
+
+lca2 = bc.LCA({steel.key: 1}, method_key)
+lca2.lci()
+lca2.lcia()
+print(lca2.score)</code></pre>
+<pre class="output"><code>2.7
+2.700000047683716</code></pre>
+<p>
+One number changed, in one place; the exchange amount and the LCA score both followed it through
+without editing either directly.
+</p>
+
+<h2 id="full-example-start-to-finish">Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("params-tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+co2_exchange = steel.new_exchange(
+    input=co2.key, amount=0, type="biosphere", formula="co2_per_kg * ore_purity"
+)
+co2_exchange.save()
+
+bd.parameters.new_project_parameters([{"name": "co2_per_kg", "amount": 2.0}])
+group = "steel_group"
+bd.parameters.new_activity_parameters(
+    [{"name": "ore_purity", "database": "example_db", "code": "steel", "amount": 0.9}], group
+)
+bd.parameters.add_exchanges_to_group(group, steel)
+bd.parameters.recalculate()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+lca = bc.LCA({steel.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print(lca.score)  # 1.7999999523162842
+
+bd.parameters.new_project_parameters([{"name": "co2_per_kg", "amount": 3.0}])
+bd.parameters.recalculate()
+
+lca2 = bc.LCA({steel.key: 1}, method_key)
+lca2.lci()
+lca2.lcia()
+print(lca2.score)  # 2.700000047683716</code></pre>
+
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
+<ul>
+<li><b>Formulas are just Python expression strings</b>, evaluated by
+<code>bw2parameters.Interpreter</code> (a restricted <code>asteval</code> interpreter — see
+<a href="../bw2parameters/index.html">the bw2parameters module map</a>), not real Python
+<code>eval()</code>; only referenced parameter names and a safe function/operator subset are
+available.</li>
+<li><b>Three scopes, resolved together: project → database → activity.</b> This tutorial only uses
+project and activity scope; <code>new_database_parameters(data, database)</code> sits in between
+for a value shared by every activity in one database but not the whole project.</li>
+<li><b>Groups are the unit of recalculation and linkage.</b> An activity parameter always belongs
+to a group; <code>add_exchanges_to_group</code> is what actually makes an exchange's
+<code>formula</code> field participate in recalculation — defining the parameter alone isn't
+enough if no exchange (or activity amount) references it via a linked group.</li>
+<li><b>Recalculation is not automatic.</b> Editing a parameter's <code>amount</code> does nothing
+to stored exchange amounts until <code>bd.parameters.recalculate()</code> (or the more targeted
+<code>ActivityParameter.recalculate_exchanges(group)</code>) runs — and until then,
+<code>bw2calc.LCA</code> still sees the old, stale amount, since it reads the exchange row, not the
+formula.</li>
+<li><b>This is a different Monte Carlo path than exchange uncertainty.</b>
+<code>bw2parameters.ParameterSet.evaluate_monte_carlo()</code> samples uncertainty on named
+<em>parameters</em>; <code>bw2calc.LCA(..., use_distributions=True)</code> (see
+<a href="monte-carlo-uncertainty.html">Run a Monte Carlo uncertainty analysis</a>) samples
+uncertainty directly on <em>exchanges</em> instead — formulas and exchange-level uncertainty
+distributions are two independent mechanisms that happen to share the same
+<code>stats_arrays</code> distribution classes underneath.</li>
+<li><b>An unresolved or circular formula fails loudly.</b> A formula referencing an undefined name
+raises <code>bw2parameters.errors.MissingName</code> (often surfaced as
+<code>bw2data.parameters</code>' own <code>MissingName</code>/<code>ParameterError</code>) at
+<code>recalculate()</code> time, not when the formula string was first saved — a saved-but-unlinked
+or misspelled formula stays silently un-evaluated until the group it belongs to is recalculated.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

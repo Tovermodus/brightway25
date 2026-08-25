@@ -109,6 +109,9 @@ namespaced, substitutions = prefix_parameter_dict(activity_params, "act1__")
 <h3 id="what-exceptions-can-this-package-raise">What exceptions can this package raise?</h3>
 <p><code>errors.py</code> — all inherit <code>ValidationError</code>: <code>MissingName</code> (undefined variable in a formula), <code>SelfReference</code> (parameter references itself), <code>DuplicateName</code> (name collides with a built-in), <code>CapitalizationError</code> (likely case-mismatch), <code>BroadcastingError</code> (bad Monte Carlo array shape), <code>ParameterError</code> (generic ordering/definition failure).</p>
 
+<h3 id="worked-example">Worked example (in context, via bw2data)</h3>
+<p>This package is never driven directly in a normal workflow — it's always reached through <code>bw2data.parameters.ParameterManager</code>. For a full, verified, runnable walkthrough (a project parameter, an activity parameter, a formula on an exchange, <code>add_exchanges_to_group</code>/<code>recalculate()</code>, and re-running <code>bw2calc.LCA</code> after changing one parameter), see the <a href="../tutorials/parameterized-exchanges-and-formulas.html">parameterized-exchanges-and-formulas tutorial</a>.</p>
+
 <div class="related">
   <h2 id="related-modules">Related modules</h2>
   <a href="../bw2data/index.html">bw2data</a> — the main consumer: <code>bw2data/parameters.py</code> defines <code>ProjectParameter</code>/<code>DatabaseParameter</code>/<code>ActivityParameter</code>/<code>ParameterManager</code>, which build the plain-dict parameter sets that <code>bw2parameters.ParameterSet</code> evaluates.<br>

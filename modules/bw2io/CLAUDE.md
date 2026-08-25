@@ -226,7 +226,11 @@ Utility functions: `activity_hash`, `es2_activity_hash`, `normalize_units`,
 - **"How do I export a database out of Brightway?"** → `export/csv.py`
   `write_lci_csv`, `export/excel.py` `write_lci_excel` /
   `lci_matrices_to_excel`, `export/matlab.py` `lci_matrices_to_matlab`,
-  `export/gexf.py` `DatabaseToGEXF` (network-graph export for Gephi). For a
+  `export/gexf.py` `DatabaseToGEXF` (network-graph export for Gephi). Worked,
+  verified step (writing the hand-built database from
+  `docs/site/tutorials/create-empty-database.html` back out with
+  `write_lci_csv`, real captured CSV output) is folded into the end of that
+  same tutorial rather than kept separate. For a
   full round-trippable archive of any `bw2data` `DataStore` object
   (database, method, ...), use `package.py`
   `BW2Package.export_obj(obj, filename=None, folder="export", ...)` /

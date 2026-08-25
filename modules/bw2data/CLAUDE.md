@@ -31,7 +31,7 @@ SQLite via `peewee` (see `sqlite.py`, `backends/schema.py`).
 | `weighting_normalization.py` | `Weighting`, `Normalization` classes, same pattern as `Method` |
 | `parameters.py` | Parameterized exchanges/activities — formulas evaluated via `bw2parameters` |
 | `query.py` | `Query`/`Filter`/`Result` — a small filter DSL for searching in-memory activity dicts |
-| `search/` | Whoosh-based full text search (`Searcher`, `IndexManager`) over activity names/products |
+| `search/` | Full text search (`Searcher`, `IndexManager`) over activity names/products — SQLite FTS5-backed in this installed version (`indices.py` `BW2Schema.search_bm25`), despite the module's Whoosh-era name/docstrings |
 | `compat.py` | Backwards-compat shims: `prepare_lca_inputs`, `Mapping`, `get_multilca_data_objs` — bridges old bw2 code style to bw2calc's newer datapackage-based API |
 | `utils.py` | `get_activity`, `get_node`, `set_data_dir`, misc helpers |
 | `signals.py` | `blinker` signal wiring — e.g. database-write triggers reprocessing |
@@ -220,9 +220,21 @@ side (via one `write()` call) and prints the resulting `type` of each node — v
 - "How are LCIA methods represented?" → `method.py`, `meta.py` `methods`
 - "How do parameterized/formula-driven exchanges work?" → `parameters.py`
   `ParameterManager` (project/database/activity-level parameter classes,
-  formula evaluation via `bw2parameters`, `ParameterizedExchange`)
+  formula evaluation via `bw2parameters`, `ParameterizedExchange`). Full
+  worked walkthrough (project + activity parameter, a formula on an
+  exchange, `add_exchanges_to_group`/`recalculate()`, re-running the LCA
+  after changing one parameter): `docs/site/tutorials/parameterized-exchanges-and-formulas.html`.
 - "How do I look up an activity by key/id?" → `utils.py` `get_node()` /
-  `get_activity()`; `backends/schema.py` `get_id(key)`
+  `get_activity()`; `backends/schema.py` `get_id(key)`. For fuzzy/full-text
+  lookup instead of an exact key — `SQLiteBackend.search()`
+  (`backends/base.py:1113`), backed by `search/` (SQLite FTS5 in this
+  installed version, despite the module's Whoosh-era name/docstring).
+  Verified gotcha: its `filter`/`mask` keyword arguments are a
+  documented-but-dead no-op (`search/indices.py` `IndexManager.search()`
+  just warns and ignores them) — filter the returned list in plain Python
+  instead. Full walkthrough, including that gotcha and a
+  `facet=`-grouping bug (`itertools.groupby` over unsorted results):
+  `docs/site/tutorials/search-and-browse-a-database.html`.
 - "Where are `Node`/`Edge` aliases defined?" → `backends/__init__.py`
   (`Node = Activity`, `Edge = Exchange`)
 - "What corresponds to 'functional unit' and 'system boundary' (goal &amp;

@@ -30,12 +30,20 @@
     <p>Start from a completely empty project and build up, piece by piece, the four things every Brightway LCA needs — a biosphere flow, a process that emits it, a characterization method, and a <code>bw2calc.LCA</code> — before running the numbers.</p>
   </div>
   <div class="card">
+    <a class="name" href="parameterized-exchanges-and-formulas.html">Parameterized exchanges and formulas</a>
+    <p>Replace a fixed exchange amount with a formula driven by named project- and activity-scoped parameters, then change one parameter and watch the exchange amount — and the LCA score — follow it through <code>bd.parameters.recalculate()</code>.</p>
+  </div>
+  <div class="card">
     <a class="name" href="create-empty-database.html">Create an empty database</a>
-    <p>Register a fresh <code>bw2data</code> database in a project, then fill it with your own activities and exchanges step by step.</p>
+    <p>Register a fresh <code>bw2data</code> database in a project, fill it with your own activities and exchanges step by step, then export it back out to a CSV file with <code>bw2io</code>.</p>
   </div>
   <div class="card">
     <a class="name" href="import-and-run-an-external-database.html">Import and run an LCA on an external database</a>
     <p>Import a small pre-built dataset with <code>bw2io.add_example_database()</code> — the same extract → apply strategies → write pipeline behind a real ecoinvent/SimaPro import — inspect what came in, and run <code>bw2calc.LCA</code> against it.</p>
+  </div>
+  <div class="card">
+    <a class="name" href="search-and-browse-a-database.html">Search and browse a database</a>
+    <p>Go beyond looking activities up by exact name: full-text <code>db.search()</code>, a documented-but-dead <code>filter=</code> keyword worth knowing about, and plain-Python filtering/iteration for everything else.</p>
   </div>
   <div class="card">
     <a class="name" href="contribution-analysis.html">Find an LCA result's biggest contributors</a>
