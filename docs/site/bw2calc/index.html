@@ -144,6 +144,15 @@ df = lca.to_dataframe()
   <code>dict</code> keyed <code>(impact_category_tuple, functional_unit_name)</code> →
   score. See <a href="../examples/index.html#ex6">Example 6</a>.</p>
 
+  <h3 id="midpoint-vs-endpoint-multi-category">How do I run several genuinely different impact categories (midpoint vs. endpoint) together and interpret them?</h3>
+  <p><a href="../tutorials/scope-and-multi-category-impacts.html">This tutorial</a> registers a
+  climate-change midpoint, a differently-flavored midpoint (different flow and unit entirely —
+  not just a reweighted CO2), and an endpoint/damage-oriented method (illustrative DALY-style
+  factors on multiple flows), then runs all three together via <code>MultiLCA</code>. The worked
+  example shows the endpoint score being dominated by a small-mass flow with a much larger
+  characterization factor — the concrete case for why an endpoint indicator can reorder "what
+  matters most" relative to any single midpoint.</p>
+
   <h3 id="where-do-the-lca-specific-exceptions-come-from">Where do the LCA-specific exceptions come from?</h3>
   <p><code>errors.py</code> — all subclass <code>BW2CalcError</code>, e.g.
   <code>OutsideTechnosphere</code>, <code>NonsquareTechnosphere</code>,

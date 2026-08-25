@@ -110,6 +110,16 @@ Monte Carlo LCA seeded with `seed_override` for reproducible output
   `multi_lca.py` `MultiLCA`, `method_config.py` `MethodConfig`,
   `fast_scores.py` `FastScoresOnlyMultiLCA` for the score-only fast path;
   worked example: Worked examples below, example 4
+- "How do I run several genuinely different impact categories (midpoint vs.
+  endpoint/damage) together and interpret them?" →
+  `docs/site/tutorials/scope-and-multi-category-impacts.html` walks through
+  registering a climate-change midpoint, a differently-flavored midpoint
+  (different flow/unit), and an endpoint/damage-oriented method side by
+  side, running all three via `MultiLCA`, and contrasting what midpoint vs.
+  endpoint scores actually mean (verified: the endpoint score in that
+  tutorial is dominated by a small-mass, high-CF flow that barely moves the
+  climate midpoint — the concrete illustration of why endpoints reorder
+  what "matters most").
 - "Where do errors like 'activity not in technosphere' come from?" →
   `errors.py` (e.g. `OutsideTechnosphere`, `NonsquareTechnosphere`,
   `MalformedFunctionalUnit`)

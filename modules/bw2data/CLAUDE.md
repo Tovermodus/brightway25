@@ -219,3 +219,12 @@ side (via one `write()` call) and prints the resulting `type` of each node — v
   `get_activity()`; `backends/schema.py` `get_id(key)`
 - "Where are `Node`/`Edge` aliases defined?" → `backends/__init__.py`
   (`Node = Activity`, `Edge = Exchange`)
+- "What corresponds to 'functional unit' and 'system boundary' (goal &amp;
+  scope definition)?" → there's no dedicated object for either — the
+  functional unit is just the `demand` dict passed to `bw2calc.LCA`/
+  `MultiLCA` (an amount of one product/activity), and the system boundary is
+  implicitly whatever the technosphere graph reachable from that demand via
+  `type="technosphere"` exchanges actually includes. See
+  `docs/site/tutorials/scope-and-multi-category-impacts.html` for a worked
+  cradle-to-gate example and the reasoning behind where the boundary is
+  drawn.
