@@ -91,6 +91,17 @@ ul.filelist li { margin-bottom: 0.3rem; }
 .card .api-link { font-size: 0.72rem; padding: 0.1rem 0.5rem; margin: 0.5rem 0 0 0; }
 .arch { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.2rem; overflow-x: auto; }
 
+/* Featured cards (Examples & Tutorials on the front page) — same shape as
+   .card but visually promoted with an accent border and a bit more room, so
+   they read as a distinct top-level entry point rather than one more item
+   in the module grid below. */
+.grid-featured { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.card-featured {
+  border: 1px solid var(--accent); padding: 1.1rem 1.3rem;
+}
+.card-featured a.name { font-size: 1.15rem; }
+.card-featured p { font-size: 0.9rem; }
+
 /* Syntax highlighting tokens, applied by assets/highlight.js to pre.hl code blocks. */
 .tok-k  { color: var(--accent); font-weight: 600; }   /* keywords: def, import, for, ... */
 .tok-bi { color: #b18cff; }                            /* builtins: print, len, str, ... */

@@ -26,6 +26,15 @@ of this script (and the next Pages deploy) will pick it up automatically.
 You can also pass explicit package names as CLI args to generate docs for a
 package that doesn't have a handwritten map page yet.
 
+Augmenting the generated pages with our own notes: the API reference comes
+straight from each package's installed (third-party) docstrings, which this
+repo doesn't own and can't durably edit. To still add our own callouts —
+corrections, gotchas, cross-references to a tutorial — without touching that
+source, drop an inner-HTML snippet at docs/site/<package>/api_notes.html;
+inject_supplementary_notes() splices it into the top of the generated
+api/<package>/index.html page on every run. Optional per package; see e.g.
+docs/site/bw2calc/api_notes.html.
+
 Output is NOT committed to git (see docs/site/api/ in .gitignore) — it is
 regenerated on every GitHub Pages deploy (.github/workflows/pages.yml) and
 can be regenerated locally at any time; it will always match whatever
@@ -69,6 +78,56 @@ _BACKLINK_TEMPLATE = (
     "</div>"
     '<script src="{site_rel}assets/search.js" data-root="{site_rel}"></script>'
 )
+
+
+def inject_supplementary_notes(out_dir: Path, package: str) -> None:
+    """Splice our own handwritten notes into the top-level generated API page.
+
+    The generated API reference comes straight from each installed
+    third-party package's own docstrings — we don't own that source and
+    can't durably edit it (`.venv` is gitignored and reinstalled fresh every
+    session). This is the escape hatch: if `docs/site/<package>/api_notes.html`
+    exists, its contents (an inner-HTML snippet, not a full document — a
+    couple of paragraphs/callouts) are inserted right after the backlink
+    banner on the generated `api/<package>/index.html` page. Author it once;
+    every regeneration (including the GitHub Pages deploy) picks it up
+    automatically. A package with no such file is untouched — this is
+    opt-in per package, not required.
+
+    Must run after `inject_backlinks` (it reuses the banner's closing
+    `</script>` tag as the insertion point) and is best-effort: any surprise
+    in pdoc's output shape just skips this package's notes rather than
+    failing the build.
+    """
+    notes_file = SITE_DIR / package / "api_notes.html"
+    if not notes_file.exists():
+        return
+    top_page = out_dir / package / "index.html"
+    if not top_page.exists():
+        top_page = out_dir / f"{package}.html"  # single-module fallback shape
+    if not top_page.exists():
+        print(f"  (skip api_notes for {package}: no top-level page found)", file=sys.stderr)
+        return
+    try:
+        text = top_page.read_text(encoding="utf-8")
+        if 'id="brightway25-api-notes"' in text:
+            return  # already injected (e.g. re-run without a clean)
+        marker = "</script>"
+        idx = text.find(marker)
+        if idx == -1:
+            return
+        idx += len(marker)
+        notes_html = notes_file.read_text(encoding="utf-8")
+        wrapped = (
+            '<div id="brightway25-api-notes" data-pagefind-ignore '
+            'style="background:#1d2129;color:#c8cdd6;border-bottom:1px solid #2a2f3a;'
+            'padding:0.9rem 1.2rem;font:0.9rem -apple-system,Helvetica,Arial,sans-serif">'
+            + notes_html
+            + "</div>"
+        )
+        top_page.write_text(text[:idx] + wrapped + text[idx:], encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 - supplementary, never fatal
+        print(f"  (skip api_notes for {package}: {exc})", file=sys.stderr)
 
 
 def inject_backlinks(out_dir: Path, package: str) -> None:
@@ -143,6 +202,7 @@ def generate(package: str) -> bool:
         print(f"  FAILED: {package}\n{result.stdout}\n{result.stderr}", file=sys.stderr)
         return False
     inject_backlinks(out_dir, package)
+    inject_supplementary_notes(out_dir, package)
     return True
 
 

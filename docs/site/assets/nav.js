@@ -230,7 +230,10 @@
   // tutorials are added (each module page picks up its own automatically).
   var TUTORIALS = {
     bw2data: [["Create an empty database", "tutorials/create-empty-database.html"]],
-    bw2analyzer: [["Find an LCA result's biggest contributors", "tutorials/contribution-analysis.html"]]
+    bw2analyzer: [["Find an LCA result's biggest contributors", "tutorials/contribution-analysis.html"]],
+    bw2calc: [["Run a Monte Carlo uncertainty analysis", "tutorials/monte-carlo-uncertainty.html"]],
+    stats_arrays: [["Run a Monte Carlo uncertainty analysis", "tutorials/monte-carlo-uncertainty.html"]],
+    multifunctional: [["Allocate a multifunctional process", "tutorials/multifunctional-allocation.html"]]
   };
 
   // Every module page gets the same cross-link strip right under its <h1>:
