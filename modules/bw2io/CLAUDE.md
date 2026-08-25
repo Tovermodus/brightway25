@@ -65,11 +65,16 @@ Utility functions: `activity_hash`, `es2_activity_hash`, `normalize_units`,
 - **Worked examples** — [docs/site/examples/index.html#bw2io](../../docs/site/examples/index.html#bw2io)
   has 3 full, verified, runnable scripts using bw2io's own bundled test
   fixtures (no ecoinvent/SimaPro credentials or network needed): importing an
-  Excel/CSV LCI sheet with `ExcelImporter` (`#ex4`), round-tripping a
-  database through a `BW2Package` archive (`#ex5`), and applying a
+  Excel/CSV LCI sheet with `ExcelImporter` (`#ex8`), round-tripping a
+  database through a `BW2Package` archive (`#ex9`), and applying a
   `Migration` — including the `"multiplier"` unit-rescale trick — during
-  import (`#ex6`). This is the same **extract → apply strategies → write**
-  shape as the docs.brightway.dev "Importing Data" cheat sheet.
+  import (`#ex10`). This is the same **extract → apply strategies → write**
+  shape as the docs.brightway.dev "Importing Data" cheat sheet. For a
+  slower-paced walkthrough of the same pipeline end-to-end — including running
+  a `bw2calc.LCA` on the result — see
+  [docs/site/tutorials/import-and-run-an-external-database.html](../../docs/site/tutorials/import-and-run-an-external-database.html),
+  which uses `bw2io.add_example_database()` (a third bundled fixture, a small
+  parameterized "Mobility example" dataset) instead.
 
 - **"How do I import a plain Excel/CSV LCI sheet, without ecoinvent or
   SimaPro?"** → `importers/excel.py` `ExcelImporter(filepath,

@@ -88,6 +88,12 @@ activity.new_exchange(input=activity.key, amount=1, type="production").save()
   `db.write({(db_name, code): {...}, ...})` directly — this is the path `bw2io` importers use; it
   replaces the database's entire contents in one call.
 - Full step-by-step walkthrough with a worked example: `docs/site/tutorials/create-empty-database.html`.
+- For the biosphere-flow + `Method` + `bw2calc.LCA` round trip (bw2data's example 3), the
+  slow-paced tutorial version is `docs/site/tutorials/your-first-lca-calculation.html` — the true
+  from-empty-project entry point for someone who hasn't run an LCA before. For starting from an
+  externally-sourced database instead of typed-by-hand data, see
+  `docs/site/tutorials/import-and-run-an-external-database.html` (covered from the `bw2io` side,
+  see `modules/bw2io/CLAUDE.md`).
 - `docs/site/bw2data/index.html` leads with a short **Examples** teaser (before the reference
   tables) pointing at the site-wide `docs/site/examples/index.html#bw2data` section — three
   verified, runnable scripts: create a database + activity + look it up, chimaera vs.

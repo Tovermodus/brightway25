@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: your first LCA calculation — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2calc/index.html">bw2calc</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: your first LCA calculation</h1>
+<p class="tagline">Start from a completely empty project and build up, piece by piece, the four things every Brightway LCA needs — a biosphere flow, a process that emits it, a characterization method, and a <code>bw2calc.LCA</code> object — explaining what each call does and why it's needed before running the numbers.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2data</code>/<code>bw2calc</code> API, verified by running it. This is the slow-paced version of <a href="../examples/index.html#ex3">example 3 on the Examples page</a> — read this first if example 3's 20 lines go by too fast, or if you haven't built an LCA from scratch before. Once this clicks, <a href="create-empty-database.html">Create an empty database</a> and <a href="contribution-analysis.html">Find an LCA result's biggest contributors</a> pick up where this leaves off.
+</blockquote>
+
+<h2 id="1-why-four-pieces">1. Why an LCA needs four pieces</h2>
+<p>
+An LCA score answers "how much impact does producing <em>this much</em> of <em>this thing</em>
+have, measured <em>this way</em>?" That sentence names everything you need:
+</p>
+<ul>
+<li>a <b>process</b> that produces something and consumes/emits other things (an <b>activity</b>,
+with <b>exchanges</b>),</li>
+<li>the things it emits into the environment (<b>biosphere flows</b>),</li>
+<li>a <b>method</b> that says how much each biosphere flow matters (a <b>characterization
+factor</b> per flow), and</li>
+<li>a <b>functional unit</b> — "this much of this thing" — handed to
+<a href="../bw2calc/index.html#LCA">bw2calc.LCA</a>, which does the matrix algebra and reports a
+single <b>score</b>.</li>
+</ul>
+<p>
+All of Brightway's data (activities, exchanges, methods) lives inside a <b>project</b>
+(<code>bw2data/project.py</code> <code>ProjectManager</code>), so that's step zero.
+</p>
+
+<h2 id="2-pick-a-project">2. Pick a project</h2>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("first-lca-tutorial")  # created automatically if new
+print(bd.projects.current)</code></pre>
+<pre class="output"><code>first-lca-tutorial</code></pre>
+<p>
+Everything you do below — every database, activity, and method — is scoped to whichever project
+is current. Switching projects with <code>set_current</code> again switches your entire visible
+dataset.
+</p>
+
+<h2 id="3-register-a-biosphere-flow">3. Register a biosphere flow</h2>
+<p>
+A biosphere flow is just another <b>node</b>, stored like any activity but with
+<code>type="emission"</code> (or another biosphere type — see <code>bw2data.labels</code>) and no
+exchanges of its own. It lives in its own database by convention (real projects call this
+database <code>"biosphere3"</code> and get it pre-filled by <code>bw2io.bw2setup()</code>; here
+we build one flow by hand so nothing outside this tutorial needs to exist yet):
+</p>
+<pre><code>biosphere = bd.Database("biosphere")
+biosphere.register()
+
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+print(co2)</code></pre>
+<pre class="output"><code>'carbon dioxide' (kilogram, GLO, None)</code></pre>
+<p>
+This node is nothing more than a labeled bucket — "carbon dioxide, measured in kilograms" — that
+processes will point exchanges at, and that a method will later attach a weight to.
+</p>
+
+<h2 id="4-build-a-process-that-emits-it">4. Build a process that emits it</h2>
+<p>
+A process is an <a href="../bw2data/index.html">activity</a> in its own database, given meaning by
+its exchanges — most importantly a <b>production exchange</b> pointing at itself ("1 unit of this
+activity produces 1 kilogram of steel") and a <b>biosphere exchange</b> for each flow it emits:
+</p>
+<pre><code>db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()  # 1.8 kg CO2 per kg steel
+
+print(steel, "with", len(list(steel.exchanges())), "exchanges")</code></pre>
+<pre class="output"><code>'steel production' (kilogram, GLO, None) with 2 exchanges</code></pre>
+<p>
+Nothing about <code>new_exchange</code> knows or cares whether its <code>input</code> is a process
+or a biosphere flow — the exchange's own <code>type</code> field is what tells <code>bw2calc</code>
+which matrix (technosphere vs biosphere) it belongs in.
+</p>
+
+<h2 id="5-register-a-characterization-method">5. Register a characterization method</h2>
+<p>
+A <a href="../bw2data/index.html#Method">Method</a> is a lookup table from biosphere flow → a
+single number (its characterization factor, "how much does 1 kg of this flow count for"). Here we
+make a one-flow toy "global warming potential" method where CO&#8322; itself is the reference unit,
+so its factor is exactly 1.0:
+</p>
+<pre><code>method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])   # list of (flow key, characterization factor) pairs
+
+print(bd.methods[method_key])</code></pre>
+<pre class="output"><code>{'unit': 'kg CO2-eq', 'abbreviation': 'tutorial_methodg.e6e7620d8bfb141d5deb5b4ec3a27ed4', 'num_cfs': 1, 'geocollections': ['world']}</code></pre>
+<p>
+A real method (e.g. IPCC 2021 GWP100, shipped as part of <code>bw2io.create_default_lcia_methods()</code>)
+is exactly this same shape — a method key plus a list of <code>(flow key, factor)</code> pairs —
+just with hundreds of flows instead of one.
+</p>
+
+<h2 id="6-run-the-lca">6. Run the LCA</h2>
+<p>
+<a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> takes a <b>functional unit</b> — a dict
+<code>{activity_key_or_id: amount}</code> — and a method key. Building the score is two explicit
+steps: <code>.lci()</code> solves the technosphere system for how much of each biosphere flow the
+functional unit requires, and <code>.lcia()</code> multiplies that by the method's characterization
+factors:
+</p>
+<pre><code>import bw2calc as bc
+
+lca = bc.LCA({steel.key: 1}, method_key)  # functional unit: 1 kg of steel production
+lca.lci()                                 # solve the inventory (how much CO2 is emitted)
+lca.lcia()                                # apply the method's characterization factors
+print(lca.score)</code></pre>
+<pre class="output"><code>1.7999999523162842</code></pre>
+<p>
+1 kg of steel needed 1.8 kg of CO&#8322; (from the exchange above), and this method counts each kg of
+CO&#8322; as 1.0 kg CO2-eq, so the score is 1.8 — <code>bw2calc</code> stores it as a float32, hence
+the trailing digits.
+</p>
+
+<h2 id="7-change-the-functional-unit">7. Change the functional unit, not the model</h2>
+<p>
+The model you built (the activity, its exchanges, the method) doesn't change when you ask a
+different question — only the functional unit dict passed to <code>LCA</code> does. Producing 5 kg
+of steel instead of 1 kg scales the whole result linearly, because everything here is a linear
+technosphere:
+</p>
+<pre><code>lca2 = bc.LCA({steel.key: 5}, method_key)
+lca2.lci()
+lca2.lcia()
+print(lca2.score)</code></pre>
+<pre class="output"><code>8.999999761581421</code></pre>
+
+<h2 id="full-example-start-to-finish">Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+
+bd.projects.set_current("first-lca-tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("example_db")
+db.register()
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+steel.new_exchange(input=co2.key, amount=1.8, type="biosphere").save()
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+lca = bc.LCA({steel.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print(lca.score)  # 1.7999999523162842</code></pre>
+
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
+<ul>
+<li><b>Order doesn't matter much, existence does.</b> You can register the method before or
+after the process — <code>bw2calc.LCA</code> only needs everything to exist and be
+<code>.save()</code>d/<code>.write()</code>ed by the time you call <code>.lci()</code>.</li>
+<li><b>A production exchange is not optional.</b> Without <code>steel.new_exchange(input=steel.key,
+amount=1, type="production")</code>, <code>bw2calc</code> has no way to relate "1 unit of this
+activity" to anything — see the technosphere-matrix diagonal explanation on the
+<a href="../bw2calc/index.html">bw2calc module map</a>.</li>
+<li><b>Functional units use whatever key <code>LCA</code> was given.</b> Plain <code>LCA</code>
+accepts <code>(database, code)</code> tuples, <code>Node</code>/<code>Activity</code> objects, or
+integer ids as dict keys; <code>bw2calc.MultiLCA</code> (see
+<a href="../examples/index.html#ex6">example 6</a>) is stricter and requires integer ids.</li>
+<li><b>This is a toy method.</b> A real GWP method (e.g. IPCC 2021) is registered the same way but
+with hundreds of characterization factors, normally imported wholesale via
+<code>bw2io.create_default_lcia_methods()</code> rather than typed by hand.</li>
+<li><b>Next steps.</b> To keep building this exact activity into a small multi-process
+system and rank its biggest contributors, continue with
+<a href="contribution-analysis.html">Find an LCA result's biggest contributors</a>. To import a
+real external dataset instead of typing exchanges by hand, see
+<a href="import-and-run-an-external-database.html">Import and run an LCA on an external
+database</a>.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

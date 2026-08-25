@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: import and run an LCA on an external database — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2io/index.html">bw2io</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: import and run an LCA on an external database</h1>
+<p class="tagline">Every other tutorial on this page builds its activities and exchanges by hand with <code>db.new_node(...)</code>. Real work usually starts from someone else's data instead — here we import a small pre-built dataset with <code>bw2io</code>, inspect what came in, and run <code>bw2calc.LCA</code> against it, the same as you would after importing ecoinvent or a SimaPro export.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2io</code>/<code>bw2calc</code> API
+(<code>.venv/lib/python3.11/site-packages/bw2io/</code>), verified by running it. It needs no
+network access or ecoinvent/SimaPro credentials — see <a href="../bw2io/index.html">the bw2io
+module map</a> for how the same <b>extract → apply strategies → write</b> pipeline scales up to a
+real ecoinvent release via <code>bw2io.import_ecoinvent_release(...)</code>.
+</blockquote>
+
+<h2 id="1-what-were-importing-and-why">1. What we're importing, and why</h2>
+<p>
+<code>bw2io</code> ships a small "Mobility example" dataset as an Excel workbook for its own test
+suite — two ways of driving 1 km (a combustion car and an electric car), each built from component
+processes (steel, lithium, electricity), with one biosphere flow (CO&#8322;) and an
+<code>("IPCC", "simple")</code> characterization method already wired up. <code>bw2io.add_example_database()</code>
+(<code>bw2io/data/__init__.py</code>) runs the full import pipeline for us — <b>this is the same
+shape every bw2io import takes</b>: an <code>ExcelImporter</code> extracts the workbook,
+a list of strategy functions clean and link it, then <code>.write_database()</code> commits it
+into <code>bw2data</code>. Reading its source (below) is a good template for writing your own
+import once you have real data instead of this bundled fixture.
+</p>
+
+<h2 id="2-pick-a-project-and-import">2. Pick a project and import</h2>
+<pre><code>import bw2data as bd
+import bw2io as bi
+
+bd.projects.set_current("external-import-tutorial")
+
+bi.add_example_database()</code></pre>
+<pre class="output"><code>Extracted 4 worksheets in 0.01 seconds
+Applying strategy: csv_restore_tuples
+Applying strategy: csv_restore_booleans
+Applying strategy: csv_numerize
+Applying strategy: csv_drop_unknown
+Applying strategy: csv_restore_temporal_distributions
+Applying strategy: csv_add_missing_exchanges_section
+Applying strategy: strip_biosphere_exc_locations
+Applying strategy: set_code_by_activity_hash
+Applying strategy: assign_only_product_as_production
+Applying strategy: drop_falsey_uncertainty_fields_but_keep_zeros
+Applying strategy: convert_uncertainty_types_to_integers
+Applying strategy: convert_activity_parameters_to_list
+Applied 12 strategies in 0.00 seconds
+Applying strategy: link_iterable_by_fields
+Created database: Mobility example</code></pre>
+<p>
+Under the hood this is <code>bi.ExcelImporter(dirpath / "examples" / "sample_parameterized_database.xlsx")</code>
+followed by <code>.apply_strategies()</code>, <code>.match_database(fields=["name"])</code>, and
+<code>.write_database(activate_parameters=True)</code> — the exact same
+<b>extract → apply strategies → write</b> steps as
+<a href="../examples/index.html#ex8">the plain <code>ExcelImporter</code> example</a>, just wrapped
+in one convenience call because this particular workbook needs a specific strategy list (it also
+carries parameterized formulas) rather than <code>ExcelImporter</code>'s generic 14-strategy
+default. It also registers the <code>("IPCC", "simple")</code> method with one characterization
+factor (CO&#8322; = 1) — a real import instead sources its method from
+<code>bw2io.create_default_lcia_methods()</code> or an ecoinvent LCIA archive.
+</p>
+
+<h2 id="3-see-what-came-in">3. See what came in</h2>
+<p>
+The result is an ordinary <code>bw2data.Database</code>, indistinguishable from one you built by
+hand — importing doesn't create a different kind of object, it just fills a normal database up
+front instead of one activity at a time:
+</p>
+<pre><code>print(sorted(bd.databases))
+print(sorted(bd.methods))
+
+db = bd.Database("Mobility example")
+print(len(db), "activities")
+for act in sorted(db, key=lambda a: a["name"]):
+    print(" ", act["name"], "|", act.get("unit"))</code></pre>
+<pre class="output"><code>['Mobility example']
+[('IPCC', 'simple')]
+9 activities
+  CO2 | kilogram
+  Combustion car | unit
+  Driving an combustion car | kilometer
+  Driving an electric car | kilometer
+  Electric car | unit
+  Electric car battery | unit
+  Electricity | kilowatt hour
+  Lithium | kilogram
+  Steel | kilogram</code></pre>
+<p>
+Six process activities (two "driving" functional processes plus their component processes: cars,
+batteries, electricity, lithium, steel), one biosphere flow (CO&#8322;, itself stored as a node in
+the same database here — the importer's <code>strip_biosphere_exc_locations</code> strategy is
+about the exchanges, not about which database the flow node lives in), and one method.
+</p>
+
+<h2 id="4-run-an-lca-on-an-imported-activity">4. Run an LCA on an imported activity</h2>
+<p>
+Look an activity up by name with <code>Database.get(**filters)</code> — you didn't create this
+object, so you don't have a Python reference to it lying around the way you would with
+<code>new_node</code>. From here on, running the LCA is identical to
+<a href="your-first-lca-calculation.html">Your first LCA calculation</a>:
+</p>
+<pre><code>import bw2calc as bc
+
+driving_combustion = db.get(name="Driving an combustion car")
+driving_electric = db.get(name="Driving an electric car")
+
+method = ("IPCC", "simple")
+
+lca = bc.LCA({driving_combustion.key: 1}, method)
+lca.lci()
+lca.lcia()
+print("combustion, 1 km:", lca.score)
+
+lca2 = bc.LCA({driving_electric.key: 1}, method)
+lca2.lci()
+lca2.lcia()
+print("electric,    1 km:", lca2.score)</code></pre>
+<pre class="output"><code>combustion, 1 km: 0.15490749959371897
+electric,    1 km: 0.18248161259647167</code></pre>
+<p>
+Same <code>bc.LCA</code>, same <code>.lci()</code>/<code>.lcia()</code>/<code>.score</code> — the
+only difference from building your own toy system is that all the activities, exchanges, and the
+method already existed before you wrote any Python.
+</p>
+
+<h2 id="full-example-start-to-finish">Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2io as bi
+import bw2calc as bc
+
+bd.projects.set_current("external-import-tutorial")
+bi.add_example_database()
+
+db = bd.Database("Mobility example")
+driving_combustion = db.get(name="Driving an combustion car")
+driving_electric = db.get(name="Driving an electric car")
+
+method = ("IPCC", "simple")
+
+lca = bc.LCA({driving_combustion.key: 1}, method)
+lca.lci()
+lca.lcia()
+print(lca.score)  # 0.15490749959371897</code></pre>
+
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
+<ul>
+<li><b>This scales to ecoinvent unchanged in shape.</b> <code>bw2io.import_ecoinvent_release(version,
+system_model, username, password)</code> (<code>bw2io/ecoinvent.py</code>) runs the same
+extract → strategies → write pipeline against a downloaded ecoinvent release instead of this
+bundled Excel file — see <a href="../bw2io/index.html">the bw2io module map</a>. Don't call
+<code>bw2io.bw2setup()</code> first when using that path; it builds its own correctly-versioned
+biosphere.</li>
+<li><b>Always check <code>.statistics()</code> before trusting an import.</b>
+<code>add_example_database()</code> is a convenience wrapper that already calls
+<code>match_database</code>/<code>write_database</code> for you; writing your own importer, call
+<code>imp.statistics()</code> after <code>apply_strategies()</code> and inspect any unlinked
+exchanges before <code>write_database()</code> — see
+<a href="../examples/index.html#ex8">example 8</a> for what an unlinked exchange looks like and how
+to spot one.</li>
+<li><b>Re-running is safe.</b> <code>add_example_database(overwrite=True)</code> (the default)
+deletes and rebuilds <code>"Mobility example"</code> each time, so you can experiment freely
+without accumulating duplicate databases.</li>
+<li><b>Importing is independent of the calc stack.</b> As the root <code>CLAUDE.md</code>
+dependency diagram notes, <code>bw2io</code> only ever writes into <code>bw2data</code> — nothing
+about how you got a database in (typed by hand vs. imported) affects how <code>bw2calc</code> or
+<code>bw2analyzer</code> treat it afterwards.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>
