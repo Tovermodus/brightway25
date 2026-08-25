@@ -66,6 +66,19 @@ exchanges), and `#ex11` (run `bw2calc.LCA` against one of the resulting
 a normal square-matrix LCA on a single co-product, which isn't possible on
 the multifunctional process directly).
 
+For a slower-paced, explanatory walkthrough of the same territory (one worked
+refinery example, built up section by section with commentary — not a
+copy of the examples above), see the tutorial:
+[docs/site/tutorials/multifunctional-allocation.html](../../docs/site/tutorials/multifunctional-allocation.html).
+It covers: why plain square-matrix LCA can't handle a multi-output process,
+building a two-product process with `price`/`mass` properties on each
+functional edge, inspecting the `mf_allocation_factor`s that `write()` fills
+in automatically, re-running `.allocate()` with different strategies to show
+the same physical process yielding different per-co-product LCA scores, and
+running `bw2calc.LCA` on one of the resulting allocated co-products —
+including a from-first-principles sanity check that the allocated scores sum
+back to the parent's total.
+
 Note on writing multifunctional data: don't set an explicit `"input"` on a
 functional exchange unless it already points at an existing product node —
 `add_exchange_input_if_missing` (`utils.py`) marks a same-key `"input"` as

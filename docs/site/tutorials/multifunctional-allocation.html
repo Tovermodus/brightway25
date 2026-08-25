@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: multifunctional allocation — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../multifunctional/index.html">multifunctional</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: allocate a multifunctional process</h1>
+<p class="tagline">How to build a process with more than one functional co-product, let <code>multifunctional</code> split it into single-output processes, and see why the allocation strategy you pick changes the LCA score each co-product gets.</p>
+
+<blockquote>
+Everything here uses the real installed <code>multifunctional</code> API (<code>.venv/lib/python3.11/site-packages/multifunctional/</code>), verified by running it. See <a href="../multifunctional/index.html">the multifunctional module map</a> for the full picture of what else it can do, <a href="../bw2data/index.html">the bw2data module map</a> for how databases/activities/exchanges work underneath it, and <a href="../bw2calc/index.html">the bw2calc module map</a> for how the final <code>LCA</code> call in this tutorial works.
+</blockquote>
+
+<h2 id="1-what-a-multifunctional-process-is">1. What a multifunctional process is, and why plain LCA chokes on it</h2>
+<p>
+A normal <code>bw2data</code> process has exactly one <code>type="production"</code> exchange — one thing it
+makes, in some amount. Stack up enough of those processes and you get a square technosphere matrix: as
+many processes as there are products, which <code>bw2calc.LCA</code> can invert to solve for the demand
+you asked for.
+</p>
+<p>
+A <b>multifunctional process</b> breaks that assumption: it has <em>more than one</em> functional
+(reference) exchange — think a refinery that turns one input of crude oil into both diesel and petroleum
+coke in the same operation. You can't ask "what's the impact of 1&nbsp;kg of diesel?" from a process like
+that without first deciding how much of the refinery's shared burden (the crude oil, the energy, the
+CO&#8322;) belongs to the diesel versus the coke. Until that's decided, the matrix isn't square and
+<code>bw2calc</code> has nothing to solve.
+</p>
+<p>
+The <code>multifunctional</code> package (see <a href="../multifunctional/index.html">its module map</a>,
+"Purpose" section) resolves this per process via one of three approaches — a database was hand-built to
+already be square (<code>skip_allocation</code>), one output is credited against another process's output
+(substitution), or, the case this tutorial covers, the process is <b>allocated</b>: split into several
+read-only, single-output processes, one per functional product, using a pluggable strategy such as
+economic price, mass, or an equal split.
+</p>
+
+<h2 id="2-build-a-multifunctional-process">2. Build a two-product refinery process</h2>
+<p>
+A database created with <code>backend="multifunctional"</code> is a
+<a href="../multifunctional/index.html#key-files"><code>MultifunctionalDatabase</code></a> — a drop-in
+subclass of the normal SQLite backend that knows how to handle multiple functional exchanges. The
+scenario below: a "crude oil distillation" process with two functional (reference) production exchanges
+— <code>diesel</code> (100&nbsp;kg) and <code>petroleum coke</code> (25&nbsp;kg) — plus one non-functional
+biosphere exchange (40&nbsp;kg CO&#8322;) that has to be split between them. Each functional exchange
+carries a <code>properties</code> dict with both a <code>price</code> (&euro;/kg) and a <code>mass</code>
+value, so the same process can be re-allocated by either property later in the tutorial.
+</p>
+<pre><code>import bw2data as bd
+import multifunctional  # noqa: F401  -- registers the "multifunctional" backend into bw2data
+
+bd.projects.set_current("mf-tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("refinery_db", backend="multifunctional")
+db.register(default_allocation="price")
+
+db.write({
+    ("refinery_db", "crude_distillation"): {
+        "name": "crude oil distillation",
+        "location": "GLO",
+        "exchanges": [
+            {
+                "functional": True, "type": "production",
+                "name": "diesel", "unit": "kilogram", "amount": 100,
+                "properties": {"price": 1.1, "mass": 100},
+            },
+            {
+                "functional": True, "type": "production",
+                "name": "petroleum coke", "unit": "kilogram", "amount": 25,
+                "properties": {"price": 0.2, "mass": 25},
+            },
+            {
+                "input": co2.key, "type": "biosphere", "amount": 40,
+            },
+        ],
+    },
+})</code></pre>
+<p>
+Two things worth calling out before moving on:
+</p>
+<ul>
+<li><code>db.register(default_allocation="price")</code> sets the strategy <em>before</em> the first
+<code>write()</code>. <code>MultifunctionalDatabase.process()</code> runs allocation unconditionally
+whenever the database is processed, so if no strategy can be resolved — not on the node, not on the
+database — <code>write()</code> raises <code>ValueError: Can't find `default_allocation` in input
+arguments, or process/database metadata.</code> (verified by dropping <code>default_allocation</code>
+from <code>register()</code> above and re-running). Set it up front; there's no useful default to fall
+back on.</li>
+<li>The biosphere exchange has no <code>"functional": True</code> and no <code>"input"</code> pointing at
+a not-yet-existing product — it links straight to the already-registered <code>co2</code> flow node. The
+two <code>diesel</code>/<code>petroleum coke</code> exchanges, by contrast, deliberately have <em>no</em>
+<code>"input"</code> key at all: <code>multifunctional</code> generates fresh product nodes for functional
+exchanges as part of allocation. Supplying an explicit <code>"input"</code> yourself only works if it
+already points at an existing product node — otherwise <code>UnknownObject</code> blows up later when the
+datapackage is built, since <code>generic_allocation()</code> strips a same-key placeholder back off
+before generating the real one. Easiest fix: just leave functional exchanges without an
+<code>"input"</code> and let allocation create it.</li>
+</ul>
+
+<h2 id="3-writing-auto-allocates">3. Writing the database already ran allocation</h2>
+<p>
+There's no separate "now allocate" step to remember — <code>MultifunctionalDatabase.write()</code>
+labels multifunctional nodes and <code>.process()</code> (called at the end of <code>write()</code>) runs
+<code>node.allocate()</code> on every node with more than one functional exchange, using whatever strategy
+<code>register(default_allocation=...)</code> set. Inspecting what came out:
+</p>
+<pre><code>proc = bd.get_node(database="refinery_db", code="crude_distillation")
+print("multifunctional:", proc.multifunctional)
+print("type:", proc["type"])
+
+for exc in sorted((e for e in proc.exchanges() if e.get("functional")), key=lambda e: e["name"]):
+    print(f"  {exc['name']:16s} amount={exc.amount:6} price={exc['properties']['price']:5} "
+          f"allocation_factor={exc['mf_allocation_factor']:.4f}")
+
+for act in sorted((a for a in db if a.get("type") == "readonly_process"), key=lambda a: a["reference product"]):
+    print(f"  readonly process, reference product={act['reference product']:16s} "
+          f"production amount={act['production amount']}")</code></pre>
+<pre class="output"><code>multifunctional: True
+type: multifunctional
+  diesel           amount=   100 price=  1.1 allocation_factor=0.9565
+  petroleum coke   amount=    25 price=  0.2 allocation_factor=0.0435
+
+  readonly process, reference product=diesel           production amount=100
+  readonly process, reference product=petroleum coke   production amount=25</code></pre>
+<p>
+Two kinds of node now exist side by side in <code>refinery_db</code>: the original
+<code>crude_distillation</code> node, still <code>type="multifunctional"</code> and still holding both
+functional exchanges (now annotated with an <code>mf_allocation_factor</code> each — economic price share,
+normalized to sum to 1 across the process's functional edges), and two new, generated
+<code>readonly_process</code> nodes, one per product, each carrying its own share of the production
+amount. The multifunctional parent is still there and still editable; the read-only children are what
+<a href="../bw2calc/index.html#LCA">bw2calc.LCA</a> can actually run on, which is the point of section 5.
+</p>
+
+<h2 id="4-compare-allocation-strategies">4. Same process, different allocation strategy, different split</h2>
+<p>
+<code>diesel</code> is by far the heavier product by mass (100&nbsp;kg vs. 25&nbsp;kg) but also the
+pricier one per kilogram (&euro;1.10 vs. &euro;0.20) — mass and price roughly agree here, but not exactly,
+which is enough to show the strategies diverging. <code>node.allocate(strategy)</code> re-runs allocation
+on demand with a different strategy label, pulled from
+<code>multifunctional.allocation_strategies</code> (<code>"price"</code> and <code>"mass"</code> are
+property allocation normalized by production amount; <code>"equal"</code> just gives every functional
+exchange a factor of 1.0, i.e. splits by production amount only):
+</p>
+<pre><code>for strategy in ("price", "mass", "equal"):
+    proc.allocate(strategy)
+    factors = {e["name"]: e["mf_allocation_factor"] for e in proc.exchanges() if e.get("functional")}
+    print(f"strategy={strategy:6s} diesel={factors['diesel']:.4f}  petroleum coke={factors['petroleum coke']:.4f}")</code></pre>
+<pre class="output"><code>strategy=price  diesel=0.9565  petroleum coke=0.0435
+strategy=mass   diesel=0.9412  petroleum coke=0.0588
+strategy=equal  diesel=0.5000  petroleum coke=0.5000</code></pre>
+<p>
+Under <code>"price"</code> diesel absorbs 95.65% of the shared burden (it's worth more per kilogram, on
+top of being the bulk of the mass); under <code>"mass"</code> that drops slightly to 94.12% since mass
+allocation ignores the price gap entirely; under <code>"equal"</code> it drops all the way to 50% because
+<code>"equal"</code> ignores both mass and price and gives each <em>product</em> — not each kilogram — the
+same weight. Every call to <code>.allocate()</code> also regenerates the <code>readonly_process</code>
+nodes behind the scenes (<code>update_datasets_from_allocation_results</code> in
+<code>multifunctional/utils.py</code>, stamped with a fresh <code>mf_allocation_run_uuid</code>; stale
+ones from the previous run get purged), so the read-only nodes fetched in the next section always reflect
+whichever strategy ran most recently. This tutorial continues with <code>"price"</code>:
+</p>
+<pre><code>proc.allocate("price")</code></pre>
+
+<h2 id="5-run-lca-on-an-allocated-co-product">5. Run a normal, square-matrix LCA on one co-product</h2>
+<p>
+This is the payoff: <code>diesel_proc</code> below is an ordinary
+<a href="../multifunctional/index.html#key-files"><code>ReadOnlyProcessWithReferenceProduct</code></a> —
+a single-output process like any other, with a production exchange back to itself and its price-allocated
+share (95.65%) of the parent's CO&#8322; exchange. <code>bw2calc.LCA</code> doesn't need to know
+anything about multifunctional processes at all here; it just sees a square system.
+</p>
+<pre><code>import bw2calc as bc
+
+diesel_proc = bd.get_node(database="refinery_db", **{"reference product": "diesel"})
+coke_proc = bd.get_node(database="refinery_db", **{"reference product": "petroleum coke"})
+
+print("diesel exchanges:")
+for exc in diesel_proc.exchanges():
+    print(f"  {exc.input['name']:20s} type={exc['type']:12s} amount={exc.amount}")
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+lca = bc.LCA({diesel_proc.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print("LCA score, 1 kg diesel (price allocation):", round(lca.score, 4))
+
+lca2 = bc.LCA({coke_proc.key: 1}, method_key)
+lca2.lci()
+lca2.lcia()
+print("LCA score, 1 kg petroleum coke (price allocation):", round(lca2.score, 4))</code></pre>
+<pre class="output"><code>diesel exchanges:
+  crude oil distillation type=production   amount=100
+  carbon dioxide       type=biosphere    amount=38.26086956521739
+
+LCA score, 1 kg diesel (price allocation): 0.3826
+LCA score, 1 kg petroleum coke (price allocation): 0.0696</code></pre>
+<p>
+Sanity check: the diesel process carries 38.26 of the parent's 40&nbsp;kg CO&#8322; (95.65%, matching the
+allocation factor from section 3), scaled down per kilogram of production (100&nbsp;kg) to a score of
+0.3826 per kg. Multiplying each score back up by its production amount and summing —
+<code>0.3826&nbsp;&times;&nbsp;100&nbsp;+&nbsp;0.0696&nbsp;&times;&nbsp;25&nbsp;=&nbsp;40.0</code> — reproduces
+the original process's total 40&nbsp;kg CO&#8322; exactly, confirming the split accounts for the whole
+shared burden rather than double-counting or dropping any of it.
+</p>
+
+<h2 id="full-example-start-to-finish">Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2calc as bc
+import multifunctional  # noqa: F401
+
+bd.projects.set_current("mf-tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+
+db = bd.Database("refinery_db", backend="multifunctional")
+db.register(default_allocation="price")
+
+db.write({
+    ("refinery_db", "crude_distillation"): {
+        "name": "crude oil distillation",
+        "location": "GLO",
+        "exchanges": [
+            {
+                "functional": True, "type": "production",
+                "name": "diesel", "unit": "kilogram", "amount": 100,
+                "properties": {"price": 1.1, "mass": 100},
+            },
+            {
+                "functional": True, "type": "production",
+                "name": "petroleum coke", "unit": "kilogram", "amount": 25,
+                "properties": {"price": 0.2, "mass": 25},
+            },
+            {
+                "input": co2.key, "type": "biosphere", "amount": 40,
+            },
+        ],
+    },
+})
+
+proc = bd.get_node(database="refinery_db", code="crude_distillation")
+
+for strategy in ("price", "mass", "equal"):
+    proc.allocate(strategy)
+    factors = {e["name"]: e["mf_allocation_factor"] for e in proc.exchanges() if e.get("functional")}
+    print(f"strategy={strategy:6s} diesel={factors['diesel']:.4f}  petroleum coke={factors['petroleum coke']:.4f}")
+
+proc.allocate("price")
+
+diesel_proc = bd.get_node(database="refinery_db", **{"reference product": "diesel"})
+coke_proc = bd.get_node(database="refinery_db", **{"reference product": "petroleum coke"})
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0)])
+
+lca = bc.LCA({diesel_proc.key: 1}, method_key)
+lca.lci()
+lca.lcia()
+print("diesel score:", round(lca.score, 4))
+
+lca2 = bc.LCA({coke_proc.key: 1}, method_key)
+lca2.lci()
+lca2.lcia()
+print("petroleum coke score:", round(lca2.score, 4))</code></pre>
+<pre class="output"><code>strategy=price  diesel=0.9565  petroleum coke=0.0435
+strategy=mass   diesel=0.9412  petroleum coke=0.0588
+strategy=equal  diesel=0.5000  petroleum coke=0.5000
+diesel score: 0.3826
+petroleum coke score: 0.0696</code></pre>
+
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
+<ul>
+<li><b><code>default_allocation</code> must be set before the first <code>write()</code>.</b>
+<code>MultifunctionalDatabase.process()</code> (called at the end of every <code>write()</code>) runs
+allocation unconditionally on any node with more than one functional exchange. If no strategy is set —
+not passed to <code>register()</code>, not set as a node's own <code>default_allocation</code> — that
+first <code>write()</code> raises <code>ValueError: Can't find `default_allocation` in input arguments,
+or process/database metadata.</code> There's no silent fallback strategy, so decide up front.</li>
+<li><b>Don't hand-supply <code>"input"</code> on a functional exchange</b> unless it already points at an
+existing product node. Leave it out and let allocation generate the product node for you — a
+placeholder/incorrect <code>"input"</code> either gets stripped and regenerated (if it happens to match
+the exchange's own key, treated as a same-key artifact) or, if it points at something that doesn't exist
+yet, raises <code>UnknownObject</code> once the datapackage is built. See
+<a href="../multifunctional/index.html#key-files">the module map</a>'s notes on
+<code>add_exchange_input_if_missing</code> / <code>generic_allocation</code>.</li>
+<li><b>Read-only processes really are read-only.</b> <code>ReadOnlyProcessWithReferenceProduct</code>'s
+<code>__setitem__</code>, <code>copy()</code>, and <code>new_edge()</code> all raise
+<code>NotImplementedError</code>, and its exchanges are <code>ReadOnlyExchange</code>/<code>ReadOnlyExchanges</code>
+proxies that block <code>save()</code>/<code>delete()</code>/<code>__setitem__</code> too. To change
+anything, edit the multifunctional parent (reachable via the read-only node's <code>.parent</code>
+property) and re-run <code>.allocate()</code> — don't try to edit the generated child directly.</li>
+<li><b>Re-allocating regenerates the read-only nodes, keyed by run UUID.</b> Every
+<code>.allocate()</code> call stamps a fresh <code>mf_allocation_run_uuid</code> on the parent; on the
+next <code>save()</code>, <code>purge_expired_linked_readonly_processes</code> deletes any
+<code>readonly_process</code> node whose <code>mf_parent_key</code> matches the parent but whose UUID is
+stale. In practice this means fetching a co-product by <code>{"reference product": "diesel"}</code> (as
+this tutorial does) always gets you the node from the <em>most recent</em> allocation run, not a
+particular historical one — if you need to compare strategies side by side rather than sequentially, read
+off the factors right after each <code>.allocate()</code> call instead, as section 4 does.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

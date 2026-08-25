@@ -112,7 +112,10 @@ electricity = bd.get_node(database="mf-db", name="electricity")
 site-wide <a href="../examples/index.html#multifunctional">Examples page</a>: <a href="../examples/index.html#ex16">
 build a multi-output process and allocate it by price</a>, <a href="../examples/index.html#ex17">compare the
 built-in <code>"price"</code>/<code>"mass"</code>/<code>"equal"</code> strategies</a>, and
-<a href="../examples/index.html#ex18">run an LCA against one allocated co-product</a>.</p>
+<a href="../examples/index.html#ex18">run an LCA against one allocated co-product</a>. For a slower-paced,
+explanatory walkthrough of the same territory — one worked refinery example built up step by step, with a
+from-first-principles check that the allocated scores sum back to the parent's total — see the
+<a href="../tutorials/multifunctional-allocation.html">step-by-step tutorial</a>.</p>
 
 <p style="color:var(--fg-dim); font-size:0.9rem;">Gotcha found while writing those examples: don't put an explicit
 <code>"input"</code> on a functional exchange unless it already points at an existing product node — a same-key
