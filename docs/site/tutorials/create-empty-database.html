@@ -22,10 +22,10 @@
 <div class="wrap">
 
 <h1>Tutorial: create your own empty database</h1>
-<p class="tagline">How to create a fresh, empty <code>bw2data</code> database in a project, ready for you to fill with activities and exchanges yourself.</p>
+<p class="tagline">How to create a fresh, empty <code>bw2data</code> database in a project, ready for you to fill with activities and exchanges yourself — and how to export it back out to a file once it's built.</p>
 
 <blockquote>
-Everything here uses the real installed <code>bw2data</code> API (<code>.venv/lib/python3.11/site-packages/bw2data/</code>), verified by running it. See <a href="../bw2data/index.html">the bw2data module map</a> for the full picture of how this layer fits into Brightway.
+Everything here uses the real installed <code>bw2data</code>/<code>bw2io</code> API (<code>.venv/lib/python3.11/site-packages/bw2data/</code>), verified by running it. See <a href="../bw2data/index.html">the bw2data module map</a> for the full picture of how this layer fits into Brightway.
 </blockquote>
 
 <h2 id="1-pick-or-create-a-project">1. Pick or create a project</h2>
@@ -107,8 +107,50 @@ as a stable reference — exchanges link activities by their key, not by object 
 for act in db:
     print(act, act["unit"], list(act.exchanges()))</code></pre>
 
+<h2 id="7-export-it">7. Export it</h2>
+<p>
+Once a database exists in <code>bw2data</code>, <code>bw2io</code>'s export writers (see
+<a href="../bw2io/index.html">the bw2io module map</a>, <code>export/</code>) turn it back into a
+plain file — the same shape a real import came from. <code>bw2io.export.write_lci_csv(database_name,
+dirpath=None)</code> writes one <code>lci-&lt;database&gt;.csv</code>, one
+<code>Database</code>/<code>Activity</code>/<code>Exchanges</code> section per activity, matching
+the layout <code>ExcelImporter</code> reads back in (see
+<a href="import-and-run-an-external-database.html">Import and run an LCA on an external
+database</a>):
+</p>
+<pre><code>import bw2io as bi
+
+path = bi.export.write_lci_csv("example_db")  # defaults to bd.projects.output_dir
+print(path)</code></pre>
+<pre class="output"><code>Database,example_db
+
+Activity,iron ore
+code,raw_ore
+location,GLO
+type,product
+unit,kilogram
+Exchanges
+
+Activity,steel production
+code,steel_production
+location,GLO
+unit,kilogram
+Exchanges
+name,amount,location,unit,type
+steel production,1,GLO,kilogram,production
+iron ore,2,GLO,kilogram,technosphere</code></pre>
+<p>
+<code>export/</code> has equivalents for other targets: <code>write_lci_excel</code>/
+<code>lci_matrices_to_excel</code> (Excel), <code>lci_matrices_to_matlab</code> (Matlab), and
+<code>DatabaseToGEXF</code> (a Gephi-readable graph export) — same idea, different output shape.
+For a lossless round trip instead (every field, not just what a spreadsheet format can hold), use
+<code>bw2io.BW2Package.export_obj(db)</code>/<code>BW2Package.import_file(...)</code> — see
+<a href="../examples/index.html#ex9">example 9 on the Examples page</a>.
+</p>
+
 <h2 id="full-example-start-to-finish">Full example, start to finish</h2>
 <pre><code>import bw2data as bd
+import bw2io as bi
 
 bd.projects.set_current("my_project")
 
@@ -123,7 +165,9 @@ iron_ore = db.new_node(code="raw_ore", name="iron ore", unit="kilogram", locatio
 iron_ore.save()
 steel.new_exchange(input=iron_ore.key, amount=2, type="technosphere").save()
 
-print(len(db))  # 2</code></pre>
+print(len(db))  # 2
+
+bi.export.write_lci_csv("example_db")  # writes lci-example_db.csv to bd.projects.output_dir</code></pre>
 
 <h2 id="notes-gotchas">Notes &amp; gotchas</h2>
 <ul>

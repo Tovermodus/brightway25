@@ -61,6 +61,12 @@ depending on what's installed.
 
 ## Worked examples
 
+For a slow-paced, from-empty-project walkthrough of the single-method/single-FU
+case itself (building a biosphere flow, a process, a method, then `LCA`, one
+concept at a time), see
+[docs/site/tutorials/your-first-lca-calculation.html](../../docs/site/tutorials/your-first-lca-calculation.html) —
+this is the tutorial version of bw2data's example 3 below.
+
 `docs/site/examples/index.html#bw2calc` has two full runnable scripts beyond
 the single-method/single-FU case in bw2data's example 3: running
 `MultiLCA` over multiple impact categories and functional units at once

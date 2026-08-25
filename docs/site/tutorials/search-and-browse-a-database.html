@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: search and browse a database — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2data/index.html">bw2data</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: search and browse a database</h1>
+<p class="tagline">Every other tutorial looks an activity up by exact name with <code>db.get(name=...)</code>. That only works once you already know the exact name. This walks through <code>bw2data</code>'s actual full-text search, plus the plain-Python ways to filter and browse when you don't.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2data</code> API (<code>.venv/lib/python3.11/site-packages/bw2data/</code>), verified by running it — including one place where the installed behavior has quietly diverged from what its own docstring still says. Continues from
+<a href="import-and-run-an-external-database.html">Import and run an LCA on an external database</a>, reusing the "Mobility example" dataset it imports.
+</blockquote>
+
+<h2 id="1-get-a-database-to-browse">1. Get a database to browse</h2>
+<p>
+A hand-typed toy database with two activities has nothing worth searching. Import the bundled
+"Mobility example" dataset the same way as the
+<a href="import-and-run-an-external-database.html">external-database tutorial</a> — 9 activities
+across cars, batteries, electricity, and driving:
+</p>
+<pre><code>import bw2data as bd
+import bw2io as bi
+
+bd.projects.set_current("search-tutorial")
+bi.add_example_database()
+
+db = bd.Database("Mobility example")
+print(len(db), "activities")</code></pre>
+<pre class="output"><code>9 activities</code></pre>
+
+<h2 id="2-full-text-search">2. Full-text search with <code>db.search()</code></h2>
+<p>
+<code>SQLiteBackend.search(string, **kwargs)</code> (<code>bw2data/backends/base.py:1113</code>)
+searches a per-database SQLite FTS5 index over the <code>name</code>, <code>comment</code>,
+<code>product</code>, <code>categories</code>, <code>synonyms</code>, and <code>location</code>
+fields (<code>bw2data/search/search.py</code> <code>Searcher</code>), weighted by relevance
+(<code>name</code> counts 5&times; more than <code>comment</code> by default). It's built
+automatically: <code>write()</code> calls <code>make_searchable()</code> whenever
+<code>searchable=True</code> (the default), which indexes every activity via
+<code>IndexManager.add_datasets()</code>.
+</p>
+<pre><code>results = db.search("car")
+for act in sorted(results, key=lambda a: a["name"]):
+    print(act["name"])</code></pre>
+<pre class="output"><code>Combustion car
+Driving an combustion car
+Driving an electric car
+Electric car
+Electric car battery</code></pre>
+<p>
+Results come back as ordinary <code>Activity</code> proxies (pass <code>proxy=False</code> to get
+raw index rows instead), nominally ranked most-relevant-first — in practice, ties in relevance
+(all 5 results above match only on <code>name</code>, so their raw scores tie) come back in a
+different order on different runs of the same query, so anything downstream that needs a stable
+order should still sort explicitly, as done here. Wildcards work with a trailing <code>*</code>:
+</p>
+<pre><code>print(sorted(act["name"] for act in db.search("elect*")))</code></pre>
+<pre class="output"><code>['Driving an electric car', 'Electric car', 'Electric car battery', 'Electricity']</code></pre>
+
+<h2 id="3-filter-mask-are-dead-in-this-version">3. <code>filter=</code>/<code>mask=</code> look supported — they aren't, in this version</h2>
+<p>
+<code>SQLiteBackend.search()</code>'s own docstring still documents <code>filter</code> and
+<code>mask</code> keyword arguments ("Dictionary of criteria that search results must
+meet/exclude"). Reading the actually-installed implementation
+(<code>bw2data/search/indices.py</code> <code>IndexManager.search()</code>, around line 110) tells
+a different story: both arguments now just emit a <code>DeprecationWarning</code> and do nothing.
+This is exactly the kind of drift the root <code>CLAUDE.md</code> warns about — a docstring/upstream
+description that no longer matches installed behavior:
+</p>
+<pre><code>results = db.search("car", filter={"location": "Europe"})
+print(sorted(act["name"] for act in results))  # filter is silently ignored!</code></pre>
+<pre class="output"><code>['Combustion car', 'Driving an combustion car', 'Driving an electric car', 'Electric car', 'Electric car battery']</code></pre>
+<p>
+All 5 "car" results came back, including the <code>GLO</code>-located ones — <code>filter</code>
+did not narrow anything. The fix is to filter in plain Python after the search returns, which
+always works and doesn't depend on index internals:
+</p>
+<pre><code>results = [act for act in db.search("car") if act.get("location") == "Europe"]
+print(sorted(act["name"] for act in results))</code></pre>
+<pre class="output"><code>['Driving an combustion car', 'Driving an electric car']</code></pre>
+
+<h2 id="4-browsing-without-search-plain-iteration">4. Browsing without search: plain iteration</h2>
+<p>
+For anything that isn't fuzzy text matching — "every activity with this unit", "every activity in
+this location" — just iterate the database and filter with a list comprehension. A
+<code>bw2data.Database</code> is directly iterable (<code>SQLiteBackend.__iter__</code>) and each
+activity behaves like a dict for its metadata fields:
+</p>
+<pre><code>kilogram_activities = [act for act in db if act.get("unit") == "kilogram"]
+print(sorted(act["name"] for act in kilogram_activities))</code></pre>
+<pre class="output"><code>['CO2', 'Lithium', 'Steel']</code></pre>
+<p>
+This is a plain Python loop over however many activities the database has — fine for hundreds or
+low thousands of activities, but it's a full table scan; <code>db.search()</code>'s SQL index is
+the better tool once a database is ecoinvent-sized (tens of thousands of activities).
+</p>
+
+<h2 id="5-exact-lookup-once-you-know-what-you-want">5. Exact lookup once you know what you want</h2>
+<p>
+Once search or filtering has narrowed things down to one activity, switch to
+<code>Database.get(**filters)</code> (exact-match keyword filters, raises if zero or more than one
+match) or module-level <code>bw2data.get_node(**filters)</code> (searches across all databases in
+the project, not just one):
+</p>
+<pre><code>steel = db.get(name="Steel")
+print(steel, steel["location"])
+
+same = bd.get_node(database="Mobility example", name="Steel")
+print(steel.id == same.id)</code></pre>
+<pre class="output"><code>'Steel' (kilogram, GLO, None) GLO
+True</code></pre>
+
+<h2 id="full-example-start-to-finish">Full example, start to finish</h2>
+<pre><code>import bw2data as bd
+import bw2io as bi
+
+bd.projects.set_current("search-tutorial")
+bi.add_example_database()
+
+db = bd.Database("Mobility example")
+
+# full-text search (sort explicitly -- ties in relevance aren't stably ordered)
+print(sorted(act["name"] for act in db.search("car")))
+
+# filter= is a documented-but-dead no-op in this installed version -- filter
+# the returned list in plain Python instead
+european = [act for act in db.search("car") if act.get("location") == "Europe"]
+print(sorted(act["name"] for act in european))
+
+# plain iteration + comprehension for non-text filters
+print(sorted(act["name"] for act in db if act.get("unit") == "kilogram"))
+
+# exact lookup once you know the name
+steel = db.get(name="Steel")
+print(steel)</code></pre>
+
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
+<ul>
+<li><b><code>filter</code>/<code>mask</code> do nothing in this installed version</b> (verified
+above) — don't rely on their docstring description; filter the returned list yourself.</li>
+<li><b>Search only covers a fixed field set</b> (<code>name</code>, <code>comment</code>,
+<code>product</code>, <code>categories</code>, <code>synonyms</code>, <code>location</code>) —
+searching on e.g. <code>unit</code> or a custom field will never match; use plain iteration for
+those instead.</li>
+<li><b>A database must be <code>searchable</code> to use <code>.search()</code>.</b> It's the
+default (<code>write(..., searchable=True)</code>), but <code>db.register()</code>'s
+<code>write_empty=True</code> path writes with <code>searchable=False</code> — call
+<code>db.make_searchable()</code> once you've added real content if you registered an empty
+database first (see <a href="create-empty-database.html">Create an empty database</a>).</li>
+<li><b><code>facet=</code> is unreliable in this installed version.</b>
+<code>db.search("*", facet="location")</code> is meant to return a dict of
+<code>{location: [activities]}</code>, but <code>Searcher.search()</code>
+(<code>bw2data/search/search.py</code>) builds it with
+<code>itertools.groupby(results, lambda x: x.get(facet))</code> — <code>groupby</code> only merges
+<em>consecutive</em> equal keys, and search results aren't sorted by the facet field, so activities
+sharing a location silently get split into separate groups that overwrite each other in the
+dict comprehension (verified: re-running the same query returns a different, sometimes-incomplete
+set of names per location each time). Don't rely on it; group the plain result list yourself with
+<code>sorted(results, key=lambda a: a[facet])</code> + <code>itertools.groupby</code> (now
+correctly consecutive), or a plain <code>dict</code>/<code>defaultdict</code> loop.</li>
+<li><b><code>bw2data.query.Query</code>/<code>Filter</code></b> is a separate, older in-memory
+filter DSL over plain Python dicts/lists (not the SQL-backed search index) — useful if you already
+have a list of dataset dicts (e.g. mid-import, before <code>write_database()</code>) rather than a
+written, queryable database.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>
