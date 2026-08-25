@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: goal &amp; scope, multiple impact categories — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2data/index.html">bw2data</a> · <a href="../bw2calc/index.html">bw2calc</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: scope a study and assess it across several impact categories</h1>
+<p class="tagline">Goal-and-scope definition in bw2data terms — functional unit as a <code>demand</code> dict, system boundary as the technosphere graph reachable from it — then running a genuinely mixed set of impact categories (two midpoints, one endpoint/damage indicator) together with <code>bw2calc.MultiLCA</code>.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2data</code> and <code>bw2calc</code> APIs
+(<code>.venv/lib/python3.11/site-packages/{bw2data,bw2calc}/</code>), verified by running it. See
+<a href="../bw2data/index.html">the bw2data module map</a> for the data model and
+<a href="../bw2calc/index.html">the bw2calc module map</a> for how <code>MultiLCA</code> solves
+several demands/methods together. This continues from the single-process
+<a href="../examples/index.html#ex3">bw2data example</a> and the
+<a href="contribution-analysis.html">contribution-analysis tutorial</a>, and pairs with
+<a href="../examples/index.html#ex6">Example 6</a>'s minimal <code>MultiLCA</code> mechanics —
+here the point is *what the categories mean*, not just how to call the API.
+</blockquote>
+
+<h2 id="1-goal-and-scope-in-bw2data-terms">1. Goal &amp; scope, in bw2data terms</h2>
+<p>
+"Goal and scope definition" is standard LCA methodology (ISO 14040) for deciding, before any
+calculation, exactly what question is being asked and where the boundary around the system is
+drawn. Nothing in <code>bw2data</code> forces you to write this down explicitly — but two things
+in the data model correspond to it directly, and being deliberate about them is the actual
+methodological step:
+</p>
+<ul>
+<li><b>The functional unit</b> is the <code>demand</code> dict passed to <code>LCA</code>/
+<code>MultiLCA</code> — an amount of a specific product/activity, e.g. <code>{mug.id: 1}</code>
+means "the impact of producing <em>one</em> ceramic mug", not "one kg of clay" or "the whole
+factory's annual output". Changing the functional unit changes the question being asked, even if
+every activity in the database stays the same.</li>
+<li><b>The system boundary</b> is implicit, not a separate setting: it is whatever the
+technosphere graph reachable from the functional unit's activity actually includes, via
+<code>technosphere</code>-type exchanges. An activity that exists in the database but that nothing
+in the demand's supply chain draws on is simply outside the study — there is no explicit
+"boundary" object to inspect, only the graph you built.</li>
+</ul>
+<p>
+Concretely, here's a small system for one product — a ceramic mug — where the boundary choice is
+made on purpose: <b>cradle-to-gate</b>. The study covers raw-material extraction (clay), a
+zinc-based glaze, and kiln firing, and stops at <code>"ceramic mug, at factory gate"</code>. The
+use phase (someone washing and using the mug for years) and end-of-life (breakage, disposal) are
+<em>deliberately out of scope</em> — a cradle-to-grave study would need activities for those too,
+consuming the mug as their input, and the functional unit would likely change to something
+time-based (e.g. "one mug used for 1000 washes") rather than just "one mug produced". Neither
+choice is more correct in the abstract; which one answers the actual question (e.g. "which
+supplier has the lower manufacturing footprint" vs. "what's the mug's lifetime footprint")
+determines which is right for a given study.
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("tutorial-scope-project")
+
+# --- biosphere flows ---
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+zinc = biosphere.new_node(code="zinc-emission", name="zinc ion", unit="kilogram", type="emission")
+zinc.save()
+
+# --- foreground system: cradle-to-gate ceramic mug ---
+db = bd.Database("mug_system")
+db.register()
+
+clay = db.new_node(code="clay", name="clay extraction", unit="kilogram", location="GLO")
+clay.save()
+clay.new_exchange(input=clay.key, amount=1, type="production").save()
+clay.new_exchange(input=co2.key, amount=0.05, type="biosphere").save()
+
+glaze = db.new_node(code="glaze", name="zinc glaze production", unit="kilogram", location="GLO")
+glaze.save()
+glaze.new_exchange(input=glaze.key, amount=1, type="production").save()
+glaze.new_exchange(input=co2.key, amount=0.3, type="biosphere").save()
+glaze.new_exchange(input=zinc.key, amount=0.02, type="biosphere").save()
+
+firing = db.new_node(code="firing", name="kiln firing (electricity)", unit="kilowatt hour", location="GLO")
+firing.save()
+firing.new_exchange(input=firing.key, amount=1, type="production").save()
+firing.new_exchange(input=co2.key, amount=0.4, type="biosphere").save()
+
+# Cradle-to-gate: production stops here. No use-phase or end-of-life
+# activities exist in this database at all -- the boundary is simply
+# what the graph below "mug" reaches.
+mug = db.new_node(code="mug", name="ceramic mug, at factory gate", unit="unit", location="GLO")
+mug.save()
+mug.new_exchange(input=mug.key, amount=1, type="production").save()
+mug.new_exchange(input=clay.key, amount=0.3, type="technosphere").save()
+mug.new_exchange(input=glaze.key, amount=0.05, type="technosphere").save()
+mug.new_exchange(input=firing.key, amount=1.2, type="technosphere").save()
+
+print("nodes:", len(db))
+for act in db:
+    print(" ", act["name"], "-", act["unit"])</code></pre>
+<pre class="output"><code>nodes: 4
+  kiln firing (electricity) - kilowatt hour
+  zinc glaze production - kilogram
+  clay extraction - kilogram
+  ceramic mug, at factory gate - unit</code></pre>
+<p>
+The functional unit for the rest of this tutorial is <code>{mug.id: 1}</code> — "one mug, at the
+factory gate". Later swapping in <code>{mug.id: 10_000}</code> ("ten thousand mugs, one year's
+production") or building a separate use-phase/disposal chain and demanding a "mug-lifetime"
+product instead are both examples of re-scoping the same underlying inventory data.
+</p>
+
+<h2 id="2-three-genuinely-different-impact-categories">2. Three genuinely different impact categories</h2>
+<p>
+A single climate-change number, by itself, cannot say whether the mug's biggest problem is carbon
+emissions or something else entirely — that needs more than one impact category, and categories
+that actually measure different things. Three <a href="../bw2data/index.html#Method">
+<code>bw2data.Method</code></a> objects are registered here, all illustrative/synthetic (not real
+characterization factors — see the closing note):
+</p>
+<ul>
+<li><b>Climate change (midpoint).</b> <code>kg CO2-eq</code>, characterization factor <code>1.0</code>
+on the CO&#8322; flow. A midpoint indicator: it stays close to the emission itself (mass of CO&#8322;,
+weighted by a physical property — global warming potential), not to any particular downstream
+harm.</li>
+<li><b>Ecotoxicity (midpoint, different flow and unit entirely).</b> <code>kg Zn-eq</code>,
+characterization factor <code>1.0</code> on the zinc-ion flow from the glaze. This is not a
+CO&#8322;-equivalent metric at all — it tracks a completely different substance and a different kind
+of concern (metal toxicity to ecosystems, not radiative forcing). A study that only reports climate
+change would miss this dimension entirely, even though the underlying inventory data already has
+it.</li>
+<li><b>Human health damage (endpoint/damage-oriented).</b> Unit <code>DALY (illustrative)</code>
+("disability-adjusted life years", the standard unit real endpoint methods like ReCiPe's Human
+Health category use) with characterization factors on <em>both</em> flows:
+<code>1.5e-6</code> DALY/kg CO&#8322; and <code>4.0e-3</code> DALY/kg zinc. Unlike the two midpoints
+above, this doesn't answer "how much of substance X was emitted" — it answers "how much
+does this actually harm people", collapsing different substances and different mechanisms (climate
+effects on health, metal toxicity) into one comparable damage number. That collapsing is exactly
+what makes endpoint indicators both useful (one number to compare trade-offs) and more
+uncertain/contestable (more modeling assumptions baked in) than midpoints.</li>
+</ul>
+<pre><code>gwp_key = ("tutorial_method", "climate_change")
+gwp = bd.Method(gwp_key)
+gwp.register(unit="kg CO2-eq")
+gwp.write([(co2.key, 1.0)])
+
+tox_key = ("tutorial_method", "ecotoxicity")
+tox = bd.Method(tox_key)
+tox.register(unit="kg Zn-eq")
+tox.write([(zinc.key, 1.0)])
+
+# Endpoint/damage-oriented: answers "how much human health harm", not
+# "how much is emitted" -- illustrative DALY-style factors on both flows.
+health_key = ("tutorial_method", "human_health_damage")
+health = bd.Method(health_key)
+health.register(unit="DALY (illustrative)")
+health.write([(co2.key, 1.5e-6), (zinc.key, 4.0e-3)])</code></pre>
+
+<h2 id="3-run-all-three-together-with-multilca">3. Run all three together with <code>MultiLCA</code></h2>
+<p>
+<a href="../bw2calc/index.html#MultiLCA">bw2calc.MultiLCA</a> solves every (functional unit,
+impact category) combination over one shared factorized technosphere. It takes
+<code>demands: dict[str, dict[int, float]]</code> — functional unit names mapped to
+<code>{node_id: amount}</code>, integer ids only, unlike plain <code>LCA</code> — and a
+<code>MethodConfig</code>-shaped dict with an <code>impact_categories</code> list.
+<code>bw2data.compat.get_multilca_data_objs()</code> builds the matching datapackages:
+</p>
+<pre><code>import bw2calc as bc
+
+func_units = {"1 mug": {mug.id: 1}}
+method_config = {"impact_categories": [gwp_key, tox_key, health_key]}
+data_objs = bd.get_multilca_data_objs(func_units, method_config)
+
+mlca = bc.MultiLCA(demands=func_units, method_config=method_config, data_objs=data_objs)
+mlca.lci()
+mlca.lcia()
+
+for (ic, fu), score in sorted(mlca.scores.items()):
+    print(f"{fu:8s} {ic[1]:22s} = {score}")</code></pre>
+<pre class="output"><code>1 mug    climate_change         = 0.5100000278651717
+1 mug    ecotoxicity            = 0.000999999992549419
+1 mug    human_health_damage    = 4.765000229043943e-06</code></pre>
+<p>
+<code>mlca.scores</code> is keyed <code>(impact_category_tuple, functional_unit_name)</code> →
+score. Reading the three rows against the inventory (0.51 kg CO&#8322; and 0.001 kg zinc released
+per mug, worked from the exchange amounts above) shows the midpoint/endpoint contrast concretely:
+</p>
+<ul>
+<li>The two <b>midpoints</b> report in their own native units and can't be compared to each other
+directly — <code>0.51 kg CO2-eq</code> and <code>0.001 kg Zn-eq</code> answer two unrelated
+questions side by side. That's expected and fine: midpoints are meant to stay legible and close to
+the physical inventory, not to be summed.</li>
+<li>The <b>endpoint</b> number, <code>4.765e-6 DALY</code>, mixes both flows into one score — and
+because the human-health CF on zinc (<code>4.0e-3</code>) is nearly four orders of magnitude
+larger than the one on CO&#8322; (<code>1.5e-6</code>), the tiny 0.001 kg of zinc contributes
+<code>0.001 &times; 4.0e-3 = 4.0e-6</code> DALY — about <b>84%</b> of the total damage score —
+while the much larger 0.51 kg of CO&#8322; contributes only <code>0.51 &times; 1.5e-6 &asymp;
+7.65e-7</code> DALY, about 16%. By mass, and by the climate-change midpoint, CO&#8322; dominates
+the story; by the endpoint indicator, the small zinc release is what actually matters. That
+reordering is the whole point of running an endpoint category alongside midpoints rather than
+instead of them — each highlights a different driver, and a study that stopped at the climate
+midpoint would have missed where most of the modeled harm is coming from.</li>
+</ul>
+
+<h2 id="a-note-on-real-impact-assessment-data">A note on real impact assessment data</h2>
+<p>
+Every characterization factor in this tutorial (and elsewhere on this site) is illustrative —
+invented to make the mechanics and the midpoint/endpoint distinction easy to follow, not sourced
+from any real LCIA method. Real studies use published, peer-reviewed methods with hundreds to
+thousands of characterization factors across many flows — e.g. ReCiPe, EF (Environmental
+Footprint), or IMPACT World+ — which ship as importable data, typically pulled in via
+<a href="../bw2io/index.html">bw2io</a> (e.g. bundled with an ecoinvent release import, or as a
+standalone LCIA method import) rather than hand-written with <code>Method.write()</code> as done
+here. This repo's examples don't have any of those installed, since they require either a
+licensed ecoinvent/SimaPro dataset or a separate method-specific data package — see the
+<a href="../bw2io/index.html">bw2io module map</a> for the actual import machinery that would load
+them.
+</p>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

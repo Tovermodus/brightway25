@@ -163,6 +163,15 @@ map</a>.
 <h3 id="how-do-i-look-up-a-single-activity-or-resolve-its-numeric-id">How do I look up a single activity, or resolve its numeric id?</h3>
 <p><code>utils.py</code> <code>get_node(**kwargs)</code> / <code>get_activity(key=None, **kwargs)</code>; <code>backends/schema.py</code> <code>get_id(key)</code> for the integer id used internally and by <code>bw_processing</code> datapackages.</p>
 
+<h3 id="functional-unit-system-boundary">What corresponds to "functional unit" and "system boundary" (goal &amp; scope definition)?</h3>
+<p>Neither is a dedicated bw2data object. The <b>functional unit</b> is simply the <code>demand</code>
+dict passed to <a href="../bw2calc/index.html#LCA">bw2calc.LCA</a>/<a href="../bw2calc/index.html#MultiLCA">MultiLCA</a>
+— an amount of one specific product/activity. The <b>system boundary</b> is implicit: whatever the
+technosphere graph reachable from that demand via <code>type="technosphere"</code> exchanges
+actually includes — there's no separate boundary setting to inspect. See
+<a href="../tutorials/scope-and-multi-category-impacts.html">the goal-and-scope tutorial</a> for a
+worked cradle-to-gate example and the reasoning behind where the boundary is drawn.</p>
+
 <h3 id="project-lifecycle">Projects &amp; databases on disk: how the lifecycle actually works</h3>
 <p>
 Verified in <code>project.py</code> (<code>ProjectManager</code>, the <code>projects</code>

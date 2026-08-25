@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tutorial: Monte Carlo uncertainty analysis — brightway25 code map</title>
+<link rel="stylesheet" href="../assets/style.css?v=3">
+<script defer src="../assets/highlight.js"></script>
+</head>
+<body>
+<button id="navToggle" class="nav-toggle" aria-label="Toggle module navigation" aria-expanded="false">☰ Modules</button>
+<div class="layout">
+<nav id="sidebar" class="sidebar" aria-label="Module navigation" data-pagefind-ignore></nav>
+<div class="content">
+<header class="top" data-pagefind-ignore>
+  <div class="wrap">
+    <a class="brand" href="../index.html">bright<span>way25</span> code map</a>
+    <nav class="crumbs"><a href="../index.html">← all modules</a> · <a href="../bw2calc/index.html">bw2calc</a> · <a href="../stats_arrays/index.html">stats_arrays</a> · <a href="../examples/index.html">Examples</a></nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+<h1>Tutorial: run a Monte Carlo uncertainty analysis</h1>
+<p class="tagline">How to attach uncertainty distributions to exchanges, turn a <code>bw2calc.LCA</code> object into an iterator with <code>use_distributions=True</code>, build up a distribution of scores, and compare two scenarios statistically instead of by a single point estimate.</p>
+
+<blockquote>
+Everything here uses the real installed <code>bw2calc</code>/<code>stats_arrays</code>/<code>bw2data</code> APIs (<code>.venv/lib/python3.11/site-packages/</code>), verified by running it. See <a href="../bw2calc/index.html">the bw2calc module map</a> for how <code>LCA</code> itself works and <a href="../stats_arrays/index.html">the stats_arrays module map</a> for the uncertainty distributions and their integer codes. This tutorial continues from <a href="contribution-analysis.html">the contribution analysis tutorial</a>'s car-assembly system.
+</blockquote>
+
+<h2 id="1-build-a-small-system">1. Build a small system</h2>
+<p>
+Same shape as the <a href="contribution-analysis.html#1-build-a-tiny-multi-process-system">contribution analysis tutorial</a>: a
+<code>car assembly</code> process draws on <code>steel production</code> and <code>electricity
+production</code>, each with its own CO&#8322;/CH&#8324; emissions. A single point-estimate <code>amount</code>
+for each biosphere exchange is what every earlier tutorial used — here those amounts become
+distributions instead of fixed numbers.
+</p>
+<pre><code>import bw2data as bd
+
+bd.projects.set_current("mc-tutorial")
+
+biosphere = bd.Database("biosphere")
+biosphere.register()
+co2 = biosphere.new_node(code="co2", name="carbon dioxide", unit="kilogram", type="emission")
+co2.save()
+ch4 = biosphere.new_node(code="ch4", name="methane", unit="kilogram", type="emission")
+ch4.save()
+
+db = bd.Database("example_db")
+db.register()
+
+steel = db.new_node(code="steel", name="steel production", unit="kilogram", location="GLO")
+steel.save()
+steel.new_exchange(input=steel.key, amount=1, type="production").save()
+
+electricity = db.new_node(code="electricity", name="electricity production", unit="kilowatt hour", location="GLO")
+electricity.save()
+electricity.new_exchange(input=electricity.key, amount=1, type="production").save()
+
+car = db.new_node(code="car", name="car assembly", unit="unit", location="GLO")
+car.save()
+car.new_exchange(input=car.key, amount=1, type="production").save()
+car.new_exchange(input=steel.key, amount=900, type="technosphere").save()
+car.new_exchange(input=electricity.key, amount=2000, type="technosphere").save()</code></pre>
+
+<h2 id="2-attach-uncertainty-distributions">2. Attach uncertainty distributions to exchanges</h2>
+<p>
+Uncertainty lives on the <em>exchange</em>, as extra fields — <code>"uncertainty type"</code> (note
+the literal space, it is not <code>uncertainty_type</code>), plus whichever of <code>loc</code>/
+<code>scale</code>/<code>shape</code>/<code>minimum</code>/<code>maximum</code> that distribution
+needs. The integer codes are <a href="../stats_arrays/index.html">stats_arrays</a>'
+<code>UncertaintyType</code> ids — verified from <code>uncertainty_types.py</code>:
+<code>normal = 3</code>, <code>lognormal = 2</code>. For lognormal, <code>loc</code> is the
+underlying normal's mean in log-space (<code>mu</code>, i.e. <code>log(median)</code>), not the
+median itself — confirmed from <code>distributions/lognormal.py</code>
+<code>random_variables()</code>, which samples <code>numpy.random.lognormal(loc, scale)</code>
+directly.
+</p>
+<pre><code>import numpy as np
+
+# steel: CO2 factor ~ Normal(mean=1.8, std=0.2) kg CO2 per kg steel
+co2_exc = steel.new_exchange(input=co2.key, amount=1.8, type="biosphere")
+co2_exc["uncertainty type"] = 3   # stats_arrays.UncertaintyType.normal
+co2_exc["loc"] = 1.8
+co2_exc["scale"] = 0.2
+co2_exc.save()
+
+# electricity: CO2 factor ~ Normal(mean=0.4, std=0.05) kg CO2 per kWh
+co2_elec = electricity.new_exchange(input=co2.key, amount=0.4, type="biosphere")
+co2_elec["uncertainty type"] = 3
+co2_elec["loc"] = 0.4
+co2_elec["scale"] = 0.05
+co2_elec.save()
+
+# electricity: CH4 factor ~ Lognormal(median=0.02, sigma=0.3) kg CH4 per kWh
+ch4_elec = electricity.new_exchange(input=ch4.key, amount=0.02, type="biosphere")
+ch4_elec["uncertainty type"] = 2   # stats_arrays.UncertaintyType.lognormal
+ch4_elec["loc"] = np.log(0.02)     # mu = log(median), NOT the median itself
+ch4_elec["scale"] = 0.3            # sigma
+ch4_elec.save()</code></pre>
+<p>
+The plain <code>amount</code> stays as the deterministic fallback — code that never runs a Monte
+Carlo iteration (e.g. plain <code>lca.lci(); lca.lcia()</code>) just uses it unchanged. Setting
+<code>"uncertainty type"</code> only changes behavior when something asks for a sample.
+</p>
+
+<h2 id="3-run-the-monte-carlo-lca">3. Run the Monte Carlo LCA</h2>
+<p>
+Register a characterization method as before, then build an <code>LCA</code> with
+<code>use_distributions=True</code>. That makes the <code>LCA</code> object itself an iterator
+(it subclasses <code>Iterator</code>, see <code>lca_base.py</code> <code>LCABase</code>): every
+<code>next(lca)</code> call re-samples <em>every</em> uncertain matrix entry from its distribution
+and leaves a fresh value in <code>lca.score</code>. <code>seed_override</code> seeds that sampling
+so the whole run is reproducible.
+</p>
+<pre><code>import bw2calc as bc
+
+method_key = ("tutorial_method", "gwp")
+method = bd.Method(method_key)
+method.register(unit="kg CO2-eq")
+method.write([(co2.key, 1.0), (ch4.key, 28.0)])   # CH4 = 28x CO2-eq (GWP100)
+
+lca = bc.LCA({car.key: 1}, method_key, use_distributions=True, seed_override=42)
+lca.lci()
+lca.lcia()
+
+scores = [lca.score]
+for _ in range(999):
+    next(lca)              # re-samples the technosphere/biosphere/CF matrices
+    scores.append(lca.score)
+
+scores = np.array(scores)
+print(f"iterations = {len(scores)}")
+print(f"mean       = {scores.mean():.2f}")
+print(f"std        = {scores.std():.2f}")
+print(f"min        = {scores.min():.2f}")
+print(f"max        = {scores.max():.2f}")
+print("first 5 samples:", np.round(scores[:5], 2))</code></pre>
+<pre class="output"><code>iterations = 1000
+mean       = 3611.62
+std        = 404.07
+min        = 2549.86
+max        = 5854.48
+first 5 samples: [3759.85 4123.13 4309.94 3607.99 3107.44]</code></pre>
+<p>
+The mean (3611.6) sits close to, but not exactly on, the deterministic
+<code>car assembly</code> score from <a href="contribution-analysis.html">the contribution
+analysis tutorial</a> (3540.0, computed from the same point-estimate amounts) — Monte Carlo mean
+and the plug-in-the-means score only coincide exactly for a linear model with no correlated
+uncertain inputs, and here they're close but not identical because the model is a product of two
+independent uncertain factors (steel's CO&#8322; factor &times; its 900&nbsp;kg amount, etc.), and a
+product of independent random variables has a mean that's not simply the product of means once
+variance is nonzero.
+</p>
+
+<h2 id="4-compare-two-scenarios">4. Compare two scenarios</h2>
+<p>
+The real payoff of Monte Carlo is comparing options honestly instead of comparing two single
+numbers. Build a second steel process representing an efficiency retrofit — same uncertainty
+shape, lower mean CO&#8322; factor (1.5 instead of 1.8 kg/kg) — and run the same Monte Carlo
+procedure on a car built from each:
+</p>
+<pre><code>from scipy import stats as scipy_stats
+
+steel_old = db.new_node(code="steel_old", name="steel production (current process)",
+                         unit="kilogram", location="GLO")
+steel_old.save()
+steel_old.new_exchange(input=steel_old.key, amount=1, type="production").save()
+exc_old = steel_old.new_exchange(input=co2.key, amount=1.8, type="biosphere")
+exc_old["uncertainty type"] = 3
+exc_old["loc"] = 1.8
+exc_old["scale"] = 0.2
+exc_old.save()
+
+steel_new = db.new_node(code="steel_new", name="steel production (efficiency retrofit)",
+                         unit="kilogram", location="GLO")
+steel_new.save()
+steel_new.new_exchange(input=steel_new.key, amount=1, type="production").save()
+exc_new = steel_new.new_exchange(input=co2.key, amount=1.5, type="biosphere")
+exc_new["uncertainty type"] = 3
+exc_new["loc"] = 1.5
+exc_new["scale"] = 0.2
+exc_new.save()
+
+def make_car(code, steel_activity):
+    car = db.new_node(code=code, name=f"car assembly ({steel_activity['name']})",
+                       unit="unit", location="GLO")
+    car.save()
+    car.new_exchange(input=car.key, amount=1, type="production").save()
+    car.new_exchange(input=steel_activity.key, amount=900, type="technosphere").save()
+    car.new_exchange(input=electricity.key, amount=2000, type="technosphere").save()
+    return car
+
+car_old = make_car("car_old", steel_old)
+car_new = make_car("car_new", steel_new)
+
+def run_mc(demand, n=1000, seed=42):
+    lca = bc.LCA(demand, method_key, use_distributions=True, seed_override=seed)
+    lca.lci()
+    lca.lcia()
+    scores = [lca.score]
+    for _ in range(n - 1):
+        next(lca)
+        scores.append(lca.score)
+    return np.array(scores)
+
+scores_old = run_mc({car_old.key: 1}, seed=42)
+scores_new = run_mc({car_new.key: 1}, seed=43)
+
+print("current process : mean=%.1f  std=%.1f" % (scores_old.mean(), scores_old.std()))
+print("retrofit process: mean=%.1f  std=%.1f" % (scores_new.mean(), scores_new.std()))
+print("mean reduction  : %.1f kg CO2-eq (%.1f%%)" % (
+    scores_old.mean() - scores_new.mean(),
+    100 * (scores_old.mean() - scores_new.mean()) / scores_old.mean(),
+))
+
+t_stat, p_value = scipy_stats.ttest_ind(scores_old, scores_new, equal_var=False)
+print("Welch's t-test  : t=%.2f  p=%.2e" % (t_stat, p_value))
+
+p5_old, p95_old = np.percentile(scores_old, [5, 95])
+p5_new, p95_new = np.percentile(scores_new, [5, 95])
+print("current  90%% interval: [%.1f, %.1f]" % (p5_old, p95_old))
+print("retrofit 90%% interval: [%.1f, %.1f]" % (p5_new, p95_new))
+overlap = max(0.0, min(p95_old, p95_new) - max(p5_old, p5_new))
+print("90%% interval overlap: %.1f kg CO2-eq" % overlap)
+frac_new_below_old_mean = (scores_new < scores_old.mean()).mean()
+print("fraction of retrofit samples below current mean: %.1f%%" % (100 * frac_new_below_old_mean))</code></pre>
+<pre class="output"><code>current process : mean=3599.3  std=396.1
+retrofit process: mean=3329.0  std=419.6
+mean reduction  : 270.4 kg CO2-eq (7.5%)
+Welch's t-test  : t=14.81  p=3.81e-47
+current  90% interval: [3004.1, 4308.4]
+retrofit 90% interval: [2738.2, 4106.3]
+90% interval overlap: 1102.3 kg CO2-eq
+fraction of retrofit samples below current mean: 76.7%</code></pre>
+<p>
+The two 90% intervals overlap substantially (1102.3 out of roughly 1300&ndash;1370 kg CO&#8322;-eq
+of combined spread) — a naive "do the ranges overlap?" glance would call this inconclusive. The
+paired statistical test is more informative: Welch's t-test (<code>scipy.stats.ttest_ind</code>,
+already available since <code>bw2calc</code> depends on <code>scipy</code> — no extra install
+needed) gives <code>p &lt; 1e-40</code>, and <code>76.7%</code> of retrofit-process samples land
+below the current process's <em>mean</em>. Wide overlapping intervals and a clearly significant
+difference in means are not a contradiction: overlap answers "could a single retrofit-process
+draw exceed a single current-process draw?" (often yes, given the uncertainty in <em>both</em>),
+while the t-test/mean-comparison answers "is the retrofit reliably better on average, given 1000
+paired samples?" (yes, decisively, here). Which question matters depends on what decision is
+being made — a one-off shipment vs. a permanent process switch call for different comparisons.
+</p>
+
+<h2 id="5-use-arrays-for-scenarios">5. <code>use_arrays=True</code>: the non-random sibling</h2>
+<p>
+<code>use_distributions=True</code> samples randomly on every <code>next(lca)</code>.
+<code>use_arrays=True</code> is the sibling flag for <em>scenario</em>/array-based iteration: each
+uncertain (or overridden) value is instead read off a pre-built array, position <code>i</code> on
+iteration <code>i</code> — useful for stepping through named scenarios (e.g. a set of ecoinvent
+system-model or price-scenario datapackages) deterministically rather than resampling. Both flags
+use the same <code>next(lca)</code> mechanism and can be combined; see
+<a href="../bw2calc/index.html">the bw2calc module map</a> and the
+<code>bw_processing</code>/<code>matrix_utils</code> module maps for how the underlying array data
+is laid out. This tutorial only covers the random (<code>use_distributions</code>) case in depth.
+</p>
+
+<h2 id="notes-gotchas">Notes &amp; gotchas</h2>
+<ul>
+<li><b>The field name has a literal space: <code>"uncertainty type"</code>, not
+<code>uncertainty_type</code>.</b> <code>bw2data</code> stores it that way on the exchange
+dict (<code>bw2data/proxies.py</code> <code>ExchangeDataset.uncertainty</code>); using the
+underscored name silently sets an unrelated dict key and the exchange stays deterministic with no
+error.</li>
+<li><b>The integer codes are shared, ground-truth-verified constants.</b> They come from
+<code>stats_arrays.UncertaintyType</code> (<code>uncertainty_types.py</code>): <code>normal =
+3</code>, <code>lognormal = 2</code>. The same integers are each distribution class's <code>id</code>
+attribute (e.g. <code>NormalUncertainty.id == 3</code>) and are what <code>bw_processing</code>
+stores on disk unchanged — see <a href="../stats_arrays/index.html">the stats_arrays module map</a>
+for the full table of codes.</li>
+<li><b>Lognormal's <code>loc</code> is <code>mu</code> (log-space mean), not the median.</b>
+Verified from <code>distributions/lognormal.py</code> <code>random_variables()</code>, which calls
+<code>numpy.random.lognormal(params["loc"], params["scale"])</code> directly — so to center a
+lognormal on a target median <code>m</code>, set <code>loc = np.log(m)</code>, as done for the
+electricity CH&#8324; exchange above. Getting this wrong (e.g. passing the median as <code>loc</code>
+directly) silently shifts the whole distribution rather than raising an error.</li>
+<li><b><code>seed_override</code> makes a run exactly reproducible, not just "similar".</b>
+Constructing two separate <code>LCA</code> objects with the same <code>seed_override</code> and
+running the same number of <code>next()</code> calls on each gives bit-identical score sequences
+(verified: <code>np.allclose(scores, scores2)</code> is <code>True</code> for two independent runs
+with <code>seed_override=42</code>). Different objects with different <code>seed_override</code>
+values (as used for the two scenarios above, <code>42</code> vs. <code>43</code>) are
+independent draws — necessary here so the two scenarios' random noise isn't artificially
+correlated in a way that would make the comparison look tighter than it is.</li>
+<li><b>Monte Carlo mean &ne; the score from plugging in the mean amounts.</b> The
+1000-iteration Monte Carlo mean above (3611.6) is close to but not identical to the deterministic
+score computed from the same point-estimate <code>amount</code>s (3540.0, from <a
+href="contribution-analysis.html">the contribution analysis tutorial</a>) — expected for a model
+that multiplies together more than one independent uncertain quantity, and a reason not to treat a
+single deterministic run as "the answer" once exchanges carry real uncertainty.</li>
+<li><b>Deterministic code paths are unaffected until something samples.</b> Setting
+<code>"uncertainty type"</code>/<code>loc</code>/<code>scale</code> on an exchange doesn't change
+what a plain <code>lca.lci(); lca.lcia()</code> (no <code>use_distributions</code>) computes — that
+still uses the flat <code>amount</code>. Only <code>use_distributions=True</code> (or
+<code>use_arrays=True</code>) plus a <code>next(lca)</code> call resamples anything.</li>
+</ul>
+
+<footer class="site">brightway25 code map — generated from the locally installed source, not upstream docs.</footer>
+</div>
+</div>
+</div>
+<script src="../assets/nav.js?v=2" data-root="../"></script>
+</body>
+</html>

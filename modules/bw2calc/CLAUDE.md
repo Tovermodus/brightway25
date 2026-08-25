@@ -88,7 +88,10 @@ Monte Carlo LCA seeded with `seed_override` for reproducible output
   exc["scale"] = 0.2` — field name has a literal space, and the integer id
   matches `stats_arrays.UncertaintyType` (normal == 3); see
   `bw2data/proxies.py` `ExchangeDataset.uncertainty`/`uncertainty_type`
-  (~line 246).
+  (~line 246). For a full worked example — multiple uncertain exchanges
+  (normal + lognormal), building a distribution of scores, and comparing two
+  scenarios with `scipy.stats.ttest_ind` — see
+  [docs/site/tutorials/monte-carlo-uncertainty.html](../../docs/site/tutorials/monte-carlo-uncertainty.html).
 - `use_arrays=True` is the sibling flag for **scenario** (array-based, not
   random) iteration — same `next(lca)` mechanism, different data source.
 
@@ -99,17 +102,29 @@ Monte Carlo LCA seeded with `seed_override` for reproducible output
   call for the default solver is in `lca.py`
 - "How does Monte Carlo uncertainty work?" → the simplest path is plain
   `LCA(demand, method, use_distributions=True, seed_override=...)` +
-  repeated `next(lca)` (see Worked examples below, example 5); for a large
-  system where only a foreground subset is stochastic, `partitioned_lca.py`
-  `PartitionedMonteCarloLCA` pre-solves the static background once and
-  samples only the stochastic partition per iteration. Both ultimately
-  sample via `stats_arrays` (the distributions) + `bw_processing`/
-  `matrix_utils` (how uncertain params are stored on disk and turned into
-  a `next()`-able matrix).
+  repeated `next(lca)` (see Worked examples below, example 5, and the
+  step-by-step
+  [Monte Carlo uncertainty tutorial](../../docs/site/tutorials/monte-carlo-uncertainty.html));
+  for a large system where only a foreground subset is stochastic,
+  `partitioned_lca.py` `PartitionedMonteCarloLCA` pre-solves the static
+  background once and samples only the stochastic partition per iteration.
+  Both ultimately sample via `stats_arrays` (the distributions) +
+  `bw_processing`/`matrix_utils` (how uncertain params are stored on disk
+  and turned into a `next()`-able matrix).
 - "How do multiple methods/functional units run together efficiently?" →
   `multi_lca.py` `MultiLCA`, `method_config.py` `MethodConfig`,
   `fast_scores.py` `FastScoresOnlyMultiLCA` for the score-only fast path;
   worked example: Worked examples below, example 4
+- "How do I run several genuinely different impact categories (midpoint vs.
+  endpoint/damage) together and interpret them?" →
+  `docs/site/tutorials/scope-and-multi-category-impacts.html` walks through
+  registering a climate-change midpoint, a differently-flavored midpoint
+  (different flow/unit), and an endpoint/damage-oriented method side by
+  side, running all three via `MultiLCA`, and contrasting what midpoint vs.
+  endpoint scores actually mean (verified: the endpoint score in that
+  tutorial is dominated by a small-mass, high-CF flow that barely moves the
+  climate midpoint — the concrete illustration of why endpoints reorder
+  what "matters most").
 - "Where do errors like 'activity not in technosphere' come from?" →
   `errors.py` (e.g. `OutsideTechnosphere`, `NonsquareTechnosphere`,
   `MalformedFunctionalUnit`)
